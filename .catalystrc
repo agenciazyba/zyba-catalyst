@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "17650000000012093",
+      "name": "Zyba-Costumer-app",
+      "domain": {
+        "id": "10119776059",
+        "name": "zyba-costumer-app-915232350.development"
+      },
+      "timezone": "America/New_York",
+      "env": [
+        {
+          "idx": 1,
+          "id": "915232350",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}
