@@ -1,3 +1,6 @@
 functions/**/.env
 functions/**/.env.*
 node_modules
+.build/
+catalyst-debug.log
+.DS_Store

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Zyba API Test</title>
+</head>
+
+<body>
+  <h2>OTP Login</h2>
+
+  <input id="email" placeholder="Email" />
+  <button onclick="requestOtp()">Enviar OTP</button>
+
+  <br><br>
+
+  <input id="otp" placeholder="OTP" />
+  <button onclick="verifyOtp()">Validar OTP</button>
+
+  <hr>
+
+  <h2>Traveler</h2>
+  <button onclick="getTraveler()">Buscar Traveler</button>
+
+  <hr>
+
+  <h2>Trips</h2>
+  <button onclick="getTrips()">Buscar Trips</button>
+
+  <ul id="tripsList"></ul>
+
+  <hr>
+
+  <h2>Trip Details</h2>
+  <input id="tripId" placeholder="ID da Trip" />
+  <button onclick="getTripDetails()">Buscar Detalhes</button>
+  <button onclick="getTripRequirements()">Buscar Requirements</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    let sessionToken = "";
+
+    const API = "http://localhost:3000/server/Zoho_api";
+
+    async function parseResponse(res) {
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = { ok: false, error: "Invalid JSON response" };
+      }
+
+      return {
+        status: res.status,
+        data
+      };
+    }
+
+    async function requestOtp() {
+      const email = document.getElementById("email").value;
+
+      const res = await fetch(API + "/auth/otp/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+
+      const result = await parseResponse(res);
+      document.getElementById("output").textContent =
+        JSON.stringify(result, null, 2);
+    }
+
+    async function verifyOtp() {
+      const email = document.getElementById("email").value;
+      const otp = document.getElementById("otp").value;
+
+      const res = await fetch(API + "/auth/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp })
+      });
+
+      const result = await parseResponse(res);
+
+      if (result.data && result.data.sessionToken) {
+        sessionToken = result.data.sessionToken;
+      }
+
+      document.getElementById("output").textContent =
+        JSON.stringify(result, null, 2);
+    }
+
+    async function getTraveler() {
+      const res = await fetch(API + "/crm/travelers", {
+        headers: {
+          Authorization: "Bearer " + sessionToken
+        }
+      });
+
+      const result = await parseResponse(res);
+
+      document.getElementById("output").textContent =
+        JSON.stringify(result, null, 2);
+    }
+
+    async function getTrips() {
+      const res = await fetch(API + "/crm/trips", {
+        headers: {
+          Authorization: "Bearer " + sessionToken
+        }
+      });
+
+      const result = await parseResponse(res);
+
+      const list = document.getElementById("tripsList");
+      list.innerHTML = "";
+
+      if (result.data && result.data.data && Array.isArray(result.data.data)) {
+        result.data.data.forEach((trip) => {
+          const li = document.createElement("li");
+
+          li.textContent =
+            (trip.dealName || "Sem Deal") +
+            " - " +
+            (trip.subject || "Sem Subject") +
+            " - ID: " +
+            trip.id;
+
+          li.style.cursor = "pointer";
+
+          li.onclick = () => {
+            document.getElementById("tripId").value = trip.id;
+          };
+
+          list.appendChild(li);
+        });
+      }
+
+      document.getElementById("output").textContent =
+        JSON.stringify(result, null, 2);
+    }
+
+    async function getTripDetails() {
+      const id = document.getElementById("tripId").value;
+
+      const res = await fetch(API + "/crm/trips/" + id, {
+        headers: {
+          Authorization: "Bearer " + sessionToken
+        }
+      });
+
+      const result = await parseResponse(res);
+
+      document.getElementById("output").textContent =
+        JSON.stringify(result, null, 2);
+    }
+
+    async function getTripRequirements() {
+      const id = document.getElementById("tripId").value;
+
+      const res = await fetch(API + "/crm/trips/" + id + "/requirements", {
+        headers: {
+          Authorization: "Bearer " + sessionToken
+        }
+      });
+
+      const result = await parseResponse(res);
+
+      document.getElementById("output").textContent =
+        JSON.stringify(result, null, 2);
+    }
+  </script>
+</body>
+</html>

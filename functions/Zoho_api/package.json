@@ -1,7 +1,13 @@
 {
-  "name": "catalyst",
+  "name": "zoho_api",
   "version": "1.0.0",
-  "description": "Basic Node Template With Routing For Catalyst App Logic",
+  "description": "OTP login by email with Catalyst Mail and Cache",
   "main": "index.js",
-  "scripts": {}
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "zcatalyst-sdk-node": "^2.1.1"
+  }
 }
