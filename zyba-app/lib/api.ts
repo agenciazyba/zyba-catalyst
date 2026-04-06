@@ -2,6 +2,13 @@ export function getApiBase() {
   return "/api";
 }
 
+function withSessionToken(url: string, sessionToken: string) {
+  const token = String(sessionToken || "").trim();
+  if (!token) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}sessionToken=${encodeURIComponent(token)}`;
+}
+
 export type ApiResponse<T = unknown> = {
   ok: boolean;
   data?: T;
@@ -60,10 +67,11 @@ export async function verifyOtp(email: string, otp: string) {
 }
 
 export async function getTraveler(sessionToken: string) {
-  const response = await fetch(`${getApiBase()}/crm/travelers`, {
+  const response = await fetch(withSessionToken(`${getApiBase()}/crm/travelers`, sessionToken), {
     cache: "no-store",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
+      "X-Session-Token": sessionToken,
     },
   });
 
@@ -71,10 +79,11 @@ export async function getTraveler(sessionToken: string) {
 }
 
 export async function getTrips(sessionToken: string): Promise<ApiResponse<Trip[]>> {
-  const response = await fetch(`${getApiBase()}/crm/trips`, {
+  const response = await fetch(withSessionToken(`${getApiBase()}/crm/trips`, sessionToken), {
     cache: "no-store",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
+      "X-Session-Token": sessionToken,
     },
   });
 
@@ -82,23 +91,31 @@ export async function getTrips(sessionToken: string): Promise<ApiResponse<Trip[]
 }
 
 export async function getTripDetails(sessionToken: string, tripId: string) {
-  const response = await fetch(`${getApiBase()}/crm/trips/${tripId}`, {
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${sessionToken}`,
-    },
-  });
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/trips/${tripId}`, sessionToken),
+    {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+    }
+  );
 
   return parseResponse(response);
 }
 
 export async function getTripRequirements(sessionToken: string, tripId: string) {
-  const response = await fetch(`${getApiBase()}/crm/trips/${tripId}/requirements`, {
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${sessionToken}`,
-    },
-  });
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/trips/${tripId}/requirements`, sessionToken),
+    {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+    }
+  );
 
   return parseResponse(response);
 }
@@ -109,13 +126,17 @@ export async function acknowledgeRequirements(
   version = "v1"
 ) {
   const response = await fetch(
-    `${getApiBase()}/crm/trips/${tripId}/requirements/acknowledge`,
+    withSessionToken(
+      `${getApiBase()}/crm/trips/${tripId}/requirements/acknowledge`,
+      sessionToken
+    ),
     {
       method: "POST",
       cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
       },
       body: JSON.stringify({ version }),
     }
