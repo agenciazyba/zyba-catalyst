@@ -1,4 +1,8 @@
 export function getApiBase() {
+  const configuredBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (configuredBase && configuredBase.trim()) {
+    return configuredBase.replace(/\/$/, "");
+  }
   return "/api";
 }
 
