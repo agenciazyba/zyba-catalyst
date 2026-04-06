@@ -1,8 +1,6 @@
 export function getApiBase() {
-  const configuredBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (configuredBase && configuredBase.trim()) {
-    return configuredBase.replace(/\/$/, "");
-  }
+  // Single strategy for stability: frontend always hits same-origin /api.
+  // Vercel rewrites /api/* -> API_PROXY_TARGET backend.
   return "/api";
 }
 
