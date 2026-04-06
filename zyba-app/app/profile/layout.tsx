@@ -1,6 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 
-export default function TripLayout({
+export default function ProfileLayout({
   children,
 }: {
   children: React.ReactNode;

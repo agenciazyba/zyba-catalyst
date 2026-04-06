@@ -1,18 +1,62 @@
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
-  background: #f7f7f7;
-  color: #111;
+@font-face {
+  font-family: "BL Melody";
+  src: url("/fonts/BLMelody-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BL Melody";
+  src: url("/fonts/BLMelody-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BL Melody Mono";
+  src: url("/fonts/BLMelodyMono-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --color-cream: #f4e9d3;
+  --color-blue: #72b5dd;
+  --color-yellow: #f4f26a;
+  --color-orange: #ff6f41;
+  --color-black: #232323;
+  --color-green-flag: #106034;
+  --color-green-military: #626d50;
+
+  --bg: #232323;
+  --surface: #2a2a2a;
+  --text: #f4e9d3;
+  --muted: #d7ccb8;
+  --line: #3b3b3b;
+  --brand: #f4f26a;
+  --brand-text: #232323;
+  --max-width: 420px;
+  --screen-padding: 20px;
+  --nav-height: 78px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-total-height: calc(var(--nav-height) + var(--safe-bottom));
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
-  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "BL Melody", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 a {
@@ -22,144 +66,875 @@ a {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
-button {
-  cursor: pointer;
-}
-
-.page {
-  max-width: 720px;
+.app-shell {
+  width: 100%;
+  max-width: var(--max-width);
+  height: 100dvh;
   margin: 0 auto;
-  padding: 20px 16px 40px;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
 }
 
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.eyebrow {
-  font-size: 12px;
-  text-transform: uppercase;
-  opacity: 0.7;
-  margin-bottom: 6px;
+.screen {
+  padding: var(--screen-padding);
+  height: calc(100dvh - var(--nav-total-height));
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .page-title {
+  margin: 0 0 8px;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 400;
+}
+
+.page-subtitle {
   margin: 0;
-  font-size: 28px;
+  color: var(--muted);
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
 }
 
-.section-block {
-  margin-top: 20px;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 12px;
+.stack {
+  display: grid;
+  gap: 14px;
 }
 
 .card {
-  background: white;
-  border: 1px solid #e5e5e5;
-  border-radius: 14px;
-  padding: 16px;
-}
-
-.info-grid {
-  display: grid;
-  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 14px;
 }
 
 .label {
+  margin: 0 0 6px;
+  font-family: "BL Melody", sans-serif;
   font-size: 12px;
-  opacity: 0.7;
-  margin-bottom: 4px;
+  font-weight: 400;
+  color: var(--text);
 }
 
 .value {
+  margin: 0;
   font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
-.trip-list {
+.text-h2 {
+  font-family: "BL Melody Mono", monospace;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.text-h4 {
+  font-family: "BL Melody", sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.text-h5 {
+  font-family: "BL Melody", sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+h2 {
+  font-family: "BL Melody Mono", monospace;
+  font-weight: 400;
+  font-size: 22px;
+}
+
+h4 {
+  font-family: "BL Melody", sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+h5 {
+  font-family: "BL Melody", sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #151515;
+  color: var(--text);
+  padding: 12px;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #666;
+}
+
+.btn {
+  width: 100%;
+  border: 0;
+  background: var(--color-green-military);
+  color: var(--color-cream);
+  border-radius: 10px;
+  padding: 20px 0;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 160ms ease;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(1px) scale(0.995);
+  filter: brightness(0.92);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-cream);
+  outline-offset: 2px;
+}
+
+.btn-fixed-wrap {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(var(--max-width), 100%);
+  padding: 0 var(--screen-padding);
+  bottom: calc(var(--nav-total-height) + 30px);
+  z-index: 30;
+}
+
+.logo-top {
   display: grid;
-  gap: 12px;
+  place-items: center;
+  margin-bottom: 14px;
 }
 
-.trip-card {
-  display: block;
-  background: white;
-  border: 1px solid #e5e5e5;
-  border-radius: 16px;
-  padding: 16px;
+.logo-cream {
+  content: url("/brand/Trans_Creme.png");
 }
 
-.trip-card-top {
+.logo-black {
+  content: url("/brand/Trans_preto.png");
+}
+
+.symbol-cream {
+  content: url("/brand/Trans_Simb_Creme.png");
+}
+
+.center-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.splash-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--color-black);
+}
+
+.splash-logo {
+  width: 214px;
+  height: 102px;
+  object-fit: contain;
+  animation: splashFadeIn 3s ease forwards;
+}
+
+@keyframes splashFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.login-screen {
+  min-height: 100dvh;
+  width: min(100%, 420px);
+  margin: 0 auto;
+  background: var(--color-black);
+  padding: 75px 30px 40px;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  align-items: center;
 }
 
-.trip-title {
-  font-size: 18px;
+.login-logo-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.login-body {
+  width: 100%;
+  margin-top: 126px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-headline-block {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+}
+
+.login-title {
+  margin: 0;
+  font-family: "BL Melody Mono", monospace;
+  font-weight: 400;
+  font-size: 22px;
+  text-transform: uppercase;
+}
+
+.login-subtitle {
+  margin: 0;
+  color: var(--color-cream);
+  font-family: "BL Melody", sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  max-width: 290px;
+}
+
+.login-form {
+  width: 100%;
+  margin-top: 94px;
+}
+
+.login-label {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--color-cream);
+}
+
+.input-login {
+  width: 100%;
+  border: 1px solid var(--color-cream);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-cream);
+  padding: 12px 14px;
+  text-align: center;
+  outline: none;
+}
+
+.input-login:focus {
+  box-shadow: 0 0 0 2px rgba(244, 233, 211, 0.25);
+}
+
+.otp-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.otp-box {
+  width: 100%;
+  height: 52px;
+  border: 1px solid var(--color-cream);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-cream);
+  text-align: center;
+  outline: none;
+}
+
+.otp-box:focus {
+  box-shadow: 0 0 0 2px rgba(244, 233, 211, 0.25);
+}
+
+.login-help-wrap {
+  margin-top: 93px;
+  color: var(--color-cream);
+}
+
+.login-message {
+  margin: 12px 0 0;
+  color: var(--color-orange);
+  text-align: center;
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+}
+
+.bottom-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: min(var(--max-width), 100%);
+  height: var(--nav-total-height);
+  background: var(--color-green-military);
+  border-top: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding-bottom: var(--safe-bottom);
+  z-index: 40;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--color-cream);
+  opacity: 0.86;
+  font-size: 13px;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.nav-item:active {
+  transform: scale(0.96);
+  opacity: 1;
+}
+
+.nav-item.active {
+  opacity: 1;
+  font-weight: 400;
+}
+
+.nav-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.trips-page {
+  height: calc(100dvh - var(--nav-total-height));
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.trips-header {
+  height: 206px;
+  background: var(--color-black);
+  padding: 66px 30px 10px;
+}
+
+.trips-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trips-user-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.trips-greeting {
+  margin: 0;
+  color: var(--color-cream);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.trips-notify-btn {
+  border: 0;
+  background: transparent;
+  color: var(--color-cream);
+  padding: 0;
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.trips-notify-btn:active {
+  transform: scale(0.94);
+}
+
+.trips-notify-icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.72;
+}
+
+.trips-header-note {
+  margin: 35px 0 0;
+  color: var(--color-cream);
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+}
+
+.trips-body {
+  background: #ffffff;
+  padding: 30px 0 30px 30px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.trips-section-title {
+  margin: 0;
+  color: var(--color-black);
+  font-family: "BL Melody", sans-serif;
+  font-size: 30px;
   font-weight: 700;
 }
 
-.trip-status {
-  font-size: 12px;
-  border: 1px solid #ddd;
-  border-radius: 999px;
-  padding: 6px 10px;
-  white-space: nowrap;
+.trips-carousel-view {
+  margin-top: 25px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.trip-subtitle {
-  margin-top: 10px;
-  font-size: 14px;
-  opacity: 0.8;
+.trips-carousel-view::-webkit-scrollbar {
+  display: none;
 }
 
-.trip-footer {
-  margin-top: 16px;
+.trips-carousel-track {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
+  gap: 14px;
+  width: max-content;
+  padding-right: 16px;
 }
 
-pre {
-  white-space: pre-wrap;
+.trip-card-link {
+  display: block;
+}
+
+.trip-card-modern {
+  width: 294px;
+  height: min(478px, calc(100dvh - 206px - var(--nav-total-height) - 140px));
+  padding: 30px;
+  border-radius: 16px;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--color-cream);
+}
+
+.trip-date-badge {
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--color-black);
+  padding: 4px 8px;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.trip-card-bottom {
+  display: grid;
+  gap: 4px;
+}
+
+.trip-card-title {
+  margin: 0;
+  font-family: "BL Melody Mono", monospace;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.trip-card-subtitle {
+  margin: 0;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  line-height: 1.25;
+  opacity: 0.98;
+}
+
+.links-list {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.links-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.trip-details-page {
+  height: calc(100dvh - var(--nav-total-height));
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.trip-details-header {
+  height: 133px;
+  background: var(--color-black);
+  padding: 44px 30px 10px;
+}
+
+.trip-details-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trip-details-user-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.trip-details-greeting {
+  margin: 0;
+  color: var(--color-cream);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.trip-details-body {
+  padding: 30px 30px 5px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.trip-details-section-title {
+  margin: 0;
+  color: var(--color-black);
+  font-family: "BL Melody", sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.trip-details-title-first {
+  margin-top: 20px;
+}
+
+.trip-details-info {
+  margin-top: 25px;
+  display: grid;
+  gap: 10px;
+}
+
+.trip-details-info-line {
+  margin: 0;
+  color: var(--color-black);
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.trip-details-info-line strong {
+  font-weight: 700;
+}
+
+.trip-details-status {
+  color: var(--color-orange);
+}
+
+.trip-details-gap-lg {
+  height: 45px;
+}
+
+.trip-details-cards-row {
+  margin-top: 20px;
+  display: flex;
+  gap: 25px;
+}
+
+.trip-details-card-btn {
+  width: 100px;
+  height: 105px;
+  border-radius: 10px;
+  border: 1px solid rgba(35, 35, 35, 0.06);
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  padding: 12px 10px;
+  color: var(--color-green-military);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.trip-details-card-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
+
+.trip-details-card-btn.is-shop {
+  background: var(--color-orange);
+  color: var(--color-cream);
+}
+
+.trip-details-card-icon {
+  display: block;
+}
+
+.trip-details-card-label {
+  color: currentColor;
+  text-align: left;
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  line-height: 1.15;
+}
+
+.trip-details-links-list {
+  border-top: 1px solid rgba(35, 35, 35, 0.22);
+  margin-bottom: 20px;
+}
+
+.trip-details-link-row {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid rgba(35, 35, 35, 0.22);
+  color: var(--color-black);
+  text-decoration: none;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.trip-details-link-row:active {
+  transform: scale(0.995);
+  opacity: 0.78;
+}
+
+.trip-details-link-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.trip-details-link-icon {
+  display: block;
+}
+
+.trip-details-link-text {
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.trip-details-link-arrow {
+  opacity: 0.65;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.hotel-info-content {
+  padding-bottom: 120px;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-.trip-menu {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  margin: 12px 0 20px;
+.hotel-info-field {
+  display: grid;
+  gap: 4px;
 }
 
-.trip-menu-link {
-  display: inline-block;
-  padding: 10px 14px;
-  background: white;
-  border: 1px solid #e5e5e5;
-  border-radius: 999px;
-  white-space: nowrap;
+.hotel-info-label {
+  margin: 0;
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-black);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.hotel-info-value {
+  margin: 0;
+  font-family: "BL Melody", sans-serif;
   font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--color-black);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.trip-menu-link.active {
-  background: #111;
-  color: white;
-  border-color: #111;
+.hotel-info-back-fixed {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 100%);
+  padding: 0 30px;
+  bottom: calc(var(--nav-total-height) + 20px);
+  z-index: 45;
+}
+
+.itinerary-days-list {
+  gap: 12px;
+}
+
+.itinerary-day-card {
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+
+.itinerary-day-date {
+  margin: 0;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--color-orange);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.itinerary-link-btn {
+  margin-top: 8px;
+  width: 50%;
+  min-height: 40px;
+  padding: 10px;
+  border: 1px solid var(--color-blue);
+  border-radius: 10px;
+  background: var(--color-green-military);
+  color: var(--color-cream);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.itinerary-link-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
+}
+
+.itinerary-link-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.documents-verified-badge {
+  margin-top: 12px;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--color-green-military);
+  background: #ffffff;
+  color: var(--color-green-military);
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.documents-verified-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.documents-mandatory {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid #d9372c;
+  background: #ffffff;
+  color: #d9372c;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.documents-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.documents-instruction-link {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 10px;
+  border: 1px solid var(--color-blue);
+  border-radius: 10px;
+  background: var(--color-blue);
+  color: #ffffff;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  text-decoration: none;
+  width: fit-content;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.documents-instruction-link:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
+}
+
+.trip-route-body {
+  height: calc(100dvh - var(--nav-total-height));
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.trip-route-body > section {
+  padding: 20px;
 }

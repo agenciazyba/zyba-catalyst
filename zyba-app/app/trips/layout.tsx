@@ -1,13 +1,13 @@
 import BottomNav from "@/components/BottomNav";
 
-export default function TripLayout({
+export default function TripsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <div className="app-shell">
-      <div className="trip-route-body">{children}</div>
+      {children}
       <BottomNav />
     </div>
   );

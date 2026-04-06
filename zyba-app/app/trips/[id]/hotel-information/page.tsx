@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { getTripDetails } from "@/lib/api";
+import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
-import { getCache, setCache } from "@/lib/cache";
-import { getTripDetailsCacheKey } from "@/lib/trip-cache";
+import Link from "next/link";
 
 type TripDetailsResponse = {
   trip: {
@@ -16,6 +16,10 @@ type TripDetailsResponse = {
     checkIn: string | null;
     checkOut: string | null;
   };
+};
+
+type Traveler = {
+  travelerName?: string | null;
 };
 
 function renderText(value: string | null | undefined) {
@@ -33,84 +37,99 @@ export default function HotelInformationPage() {
   }, [params]);
 
   const [data, setData] = useState<TripDetailsResponse | null>(null);
+  const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     async function loadData() {
-      if (!tripId || tripId === "undefined" || tripId === "null") {
-        return;
-      }
-
-      const cacheKey = getTripDetailsCacheKey(tripId);
-      const cached = getCache<TripDetailsResponse>(cacheKey);
-
-      if (cached) {
-        setData(cached);
-        return;
-      }
+      if (!tripId || tripId === "undefined" || tripId === "null") return;
 
       const token = getSessionToken();
-
       if (!token) {
         router.push("/login");
         return;
       }
 
-      const result = await getTripDetails(token, tripId);
+      const [tripResult, travelerResult] = await Promise.all([
+        getTripDetails(token, tripId),
+        getTraveler(token),
+      ]);
 
-      if (!result.ok) {
-        setMessage(result.error || result.message || "Failed to load hotel info.");
+      if (!tripResult.ok) {
+        setMessage(tripResult.error || tripResult.message || "Failed to load hotel info.");
         return;
       }
 
-      const parsed = (result.data as TripDetailsResponse) || null;
-      setData(parsed);
-
-      if (parsed) {
-        setCache(cacheKey, parsed);
+      setData((tripResult.data as TripDetailsResponse) || null);
+      if (travelerResult.ok) {
+        setTraveler((travelerResult.data as Traveler) || null);
       }
     }
 
-    loadData();
+    void loadData();
   }, [tripId, router]);
 
   return (
-    <section className="card">
-      <div className="section-title">Hotel Information</div>
+    <main className="trip-details-page">
+      <header className="trip-details-header">
+        <div className="trip-details-header-top">
+          <div className="trip-details-user-block">
+            <Image
+              src="/brand/Trans_Simb_Creme.png"
+              alt="Zyba symbol"
+              width={31}
+              height={31}
+              style={{ width: 31, height: "auto" }}
+            />
+            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
+          </div>
+          <button type="button" className="trips-notify-btn" aria-label="Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="trips-notify-icon">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.5H4.5a1 1 0 0 1-.78-1.63l1.02-1.28c.5-.62.76-1.4.76-2.2V10a6.5 6.5 0 1 1 13 0v2.39c0 .8.27 1.58.76 2.2l1.02 1.28a1 1 0 0 1-.78 1.63h-2.14" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 20a2.5 2.5 0 0 0 5 0" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
-      {message && <p>{message}</p>}
+      <section className="trip-details-body">
+        <h5 className="trip-details-section-title trip-details-title-first">Hotel Informations</h5>
 
-      <div className="info-grid">
-        <div>
-          <div className="label">Hotel Name</div>
-          <div className="value">{renderText(data?.trip?.hotelName)}</div>
+        <div className="trip-details-info hotel-info-content">
+          <div className="hotel-info-field">
+            <p className="hotel-info-label">Hotel Name</p>
+            <p className="hotel-info-value">{renderText(data?.trip?.hotelName)}</p>
+          </div>
+          <div className="hotel-info-field">
+            <p className="hotel-info-label">Information</p>
+            <p className="hotel-info-value">{renderText(data?.trip?.hotelInformation)}</p>
+          </div>
+          <div className="hotel-info-field">
+            <p className="hotel-info-label">Confirmation</p>
+            <p className="hotel-info-value">{renderText(data?.trip?.hotelConfirmationCode)}</p>
+          </div>
+          <div className="hotel-info-field">
+            <p className="hotel-info-label">Address</p>
+            <p className="hotel-info-value">{renderText(data?.trip?.hotelAddress)}</p>
+          </div>
+          <div className="hotel-info-field">
+            <p className="hotel-info-label">Check in</p>
+            <p className="hotel-info-value">{renderText(data?.trip?.checkIn)}</p>
+          </div>
+          <div className="hotel-info-field">
+            <p className="hotel-info-label">Check out</p>
+            <p className="hotel-info-value">{renderText(data?.trip?.checkOut)}</p>
+          </div>
         </div>
 
-        <div>
-          <div className="label">Hotel Information</div>
-          <div className="value">{renderText(data?.trip?.hotelInformation)}</div>
-        </div>
+        {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
 
-        <div>
-          <div className="label">Confirmation Code</div>
-          <div className="value">{renderText(data?.trip?.hotelConfirmationCode)}</div>
+        <div className="hotel-info-back-fixed">
+          <Link href={`/trips/${tripId}`} className="btn">
+            Back to trip details
+          </Link>
         </div>
-
-        <div>
-          <div className="label">Hotel Address</div>
-          <div className="value">{renderText(data?.trip?.hotelAddress)}</div>
-        </div>
-
-        <div>
-          <div className="label">Check In</div>
-          <div className="value">{renderText(data?.trip?.checkIn)}</div>
-        </div>
-
-        <div>
-          <div className="label">Check Out</div>
-          <div className="value">{renderText(data?.trip?.checkOut)}</div>
-        </div>
-      </div>
-    </section>
+      </section>
+    </main>
   );
 }

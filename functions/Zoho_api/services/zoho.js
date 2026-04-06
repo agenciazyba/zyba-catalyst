@@ -18,7 +18,11 @@ let tokenPromise = null;
 | Data cache
 |--------------------------------------------------------------------------
 */
-const DATA_CACHE_TTL_MS = 5 * 60 * 1000;
+const configuredDataCacheTtl = Number(process.env.DATA_CACHE_TTL_MS);
+const DATA_CACHE_TTL_MS =
+  Number.isFinite(configuredDataCacheTtl) && configuredDataCacheTtl > 0
+    ? configuredDataCacheTtl
+    : 5 * 60 * 1000;
 const dataCache = new Map();
 
 function getDataCache(key) {
@@ -56,6 +60,14 @@ function clearDataCacheByPrefix(prefix) {
       dataCache.delete(key);
     }
   }
+}
+
+function chunkArray(items, chunkSize) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
 }
 
 /*
@@ -127,16 +139,47 @@ function mapLookup(value) {
 function includesMultiSelect(value, target) {
   if (!value || !target) return false;
 
+  const compareTarget = String(target).trim().toLowerCase();
+
   if (Array.isArray(value)) {
-    return value.includes(target);
+    return value.some((v) => String(v).trim().toLowerCase() === compareTarget);
   }
 
   const normalized = String(value)
     .split(";")
-    .map((item) => item.trim())
+    .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
-  return normalized.includes(target);
+  return normalized.includes(compareTarget);
+}
+
+function extractAttachmentId(fileValue) {
+  if (!fileValue) return null;
+
+  const item = Array.isArray(fileValue) ? fileValue[0] : fileValue;
+  if (!item || typeof item !== "object") return null;
+
+  return (
+    item.id ||
+    item.attachment_Id ||
+    item.attachment_id ||
+    item.File_Id__s ||
+    item.file_id ||
+    null
+  );
+}
+
+function extractFirstHttpUrl(value) {
+  if (!value || typeof value !== "object") return null;
+  const values = Object.values(value);
+  for (const entry of values) {
+    if (typeof entry !== "string") continue;
+    const text = entry.trim();
+    if (!text) continue;
+    const match = text.match(/https?:\/\/[^\s]+/i);
+    if (match) return match[0];
+  }
+  return null;
 }
 
 /*
@@ -237,6 +280,10 @@ async function runCoqlQuery(selectQuery) {
 }
 
 async function zohoGetRecord(moduleApiName, recordId) {
+  const recordCacheKey = `record:${moduleApiName}:${recordId}`;
+  const cachedRecord = getDataCache(recordCacheKey);
+  if (cachedRecord) return cachedRecord;
+
   const token = await getZohoAccessToken();
   const url = new URL(
     `/crm/v8/${moduleApiName}/${recordId}`,
@@ -261,7 +308,12 @@ async function zohoGetRecord(moduleApiName, recordId) {
     );
   }
 
-  return response.data?.data?.[0] || null;
+  const record = response.data?.data?.[0] || null;
+  if (record) {
+    setDataCache(recordCacheKey, record);
+  }
+
+  return record;
 }
 
 async function zohoListRecords(moduleApiName, fields = [], page = 1, perPage = 200) {
@@ -297,6 +349,134 @@ async function zohoListRecords(moduleApiName, fields = [], page = 1, perPage = 2
   return response.data?.data || [];
 }
 
+async function getDealsByIds(dealIds) {
+  const cleanIds = Array.from(
+    new Set(
+      (dealIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (cleanIds.length === 0) return new Map();
+
+  const dealsMap = new Map();
+  const chunks = chunkArray(cleanIds, 50);
+
+  for (const idsChunk of chunks) {
+    const inClause = idsChunk.map((id) => `'${escapeCoql(id)}'`).join(", ");
+    const query = `
+      select id, Arrival_Date, Deal_Cover
+      from Deals
+      where (id in (${inClause}))
+      limit 0, 200
+    `;
+
+    const response = await runCoqlQuery(query);
+    for (const deal of response.data || []) {
+      if (deal?.id) {
+        dealsMap.set(String(deal.id), deal);
+        setDataCache(`record:Deals:${deal.id}`, deal);
+      }
+    }
+  }
+
+  return dealsMap;
+}
+
+async function streamZohoFile(module, recordId, attachmentId, res) {
+  const tokenRecord = await getZohoAccessToken();
+  const domain = process.env.ZOHO_API_DOMAIN || "https://www.zohoapis.com";
+
+  const { URL } = require("url");
+  const fileUrl = new URL(`${domain}/crm/v6/${escapeCoql(module)}/${escapeCoql(recordId)}/Attachments/${escapeCoql(attachmentId)}`);
+
+  const options = {
+    method: "GET",
+    hostname: fileUrl.hostname,
+    port: 443,
+    path: fileUrl.pathname + fileUrl.search,
+    headers: {
+      Authorization: `Zoho-oauthtoken ${tokenRecord.access_token}`,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (zohoRes) => {
+      if (zohoRes.statusCode !== 200) {
+        let body = "";
+        zohoRes.on("data", (d) => (body += d));
+        zohoRes.on("end", () => {
+          res.writeHead(zohoRes.statusCode, { "Content-Type": "application/json" });
+          res.end(body);
+          resolve(false);
+        });
+        return;
+      }
+
+      const headers = {};
+      ["content-disposition", "content-type", "content-length"].forEach(h => {
+        if (zohoRes.headers[h]) headers[h] = zohoRes.headers[h];
+      });
+
+      res.writeHead(200, headers);
+      zohoRes.pipe(res);
+      
+      zohoRes.on("end", () => resolve(true));
+      zohoRes.on("error", reject);
+    });
+
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+async function streamZohoRecordPhoto(module, recordId, res) {
+  const tokenRecord = await getZohoAccessToken();
+  const domain = process.env.ZOHO_API_DOMAIN || "https://www.zohoapis.com";
+  const { URL } = require("url");
+  const photoUrl = new URL(`${domain}/crm/v8/${escapeCoql(module)}/${escapeCoql(recordId)}/photo`);
+
+  const options = {
+    method: "GET",
+    hostname: photoUrl.hostname,
+    port: 443,
+    path: photoUrl.pathname + photoUrl.search,
+    headers: {
+      Authorization: `Zoho-oauthtoken ${tokenRecord.access_token}`,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (zohoRes) => {
+      if (zohoRes.statusCode !== 200) {
+        let body = "";
+        zohoRes.on("data", (d) => (body += d));
+        zohoRes.on("end", () => {
+          res.writeHead(zohoRes.statusCode, { "Content-Type": "application/json" });
+          res.end(body);
+          resolve(false);
+        });
+        return;
+      }
+
+      const headers = {};
+      ["content-disposition", "content-type", "content-length"].forEach((h) => {
+        if (zohoRes.headers[h]) headers[h] = zohoRes.headers[h];
+      });
+
+      res.writeHead(200, headers);
+      zohoRes.pipe(res);
+
+      zohoRes.on("end", () => resolve(true));
+      zohoRes.on("error", reject);
+    });
+
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 async function zohoUpdateRecord(moduleApiName, recordId, recordData) {
   const token = await getZohoAccessToken();
   const body = JSON.stringify({
@@ -324,11 +504,20 @@ async function zohoUpdateRecord(moduleApiName, recordId, recordData) {
   );
 
   if (response.statusCode >= 400) {
+    console.error("ZOHO UPDATE ERROR:", JSON.stringify(response.data, null, 2));
     throw new Error(
       typeof response.data === "string"
         ? response.data
         : response.data.message || `Failed to update record in ${moduleApiName}`
     );
+  }
+
+  if (response.data && Array.isArray(response.data.data)) {
+    const result = response.data.data[0];
+    if (result && result.status === "error") {
+      console.error("ZOHO UPDATE ERROR (200):", JSON.stringify(result, null, 2));
+      throw new Error(result.message || `Failed to update record in ${moduleApiName}`);
+    }
   }
 
   return response.data;
@@ -391,13 +580,57 @@ async function getTripsByLoggedUser(email) {
 
   const response = await runCoqlQuery(query);
 
-  const result = (response.data || []).map((item) => ({
-    id: item.id || null,
-    dealName: item.Deal_Name?.name || null,
-    subject: item.Subject || null,
-    status: item.Status || null,
-    totalAmount: item.Grand_Total ?? null,
-  }));
+  const items = response.data || [];
+  const dealIds = items
+    .map((item) => item?.Deal_Name?.id)
+    .filter(Boolean);
+
+  let dealsById = new Map();
+  try {
+    dealsById = await getDealsByIds(dealIds);
+  } catch (error) {
+    // fallback mantém a rota funcional mesmo se COQL batch falhar
+    const uniqueDealIds = Array.from(new Set(dealIds.map((id) => String(id))));
+    await Promise.all(
+      uniqueDealIds.map(async (dealId) => {
+        try {
+          const record = await zohoGetRecord("Deals", dealId);
+          if (record) {
+            dealsById.set(dealId, record);
+          }
+        } catch (e) {}
+      })
+    );
+  }
+
+  const result = items.map((item) => {
+      let arrivalDate = null;
+      let coverId = null;
+
+      if (item.Deal_Name && item.Deal_Name.id) {
+        const dealRecord = dealsById.get(String(item.Deal_Name.id));
+        if (dealRecord) {
+          arrivalDate = dealRecord.Arrival_Date || null;
+
+          if (dealRecord.Deal_Cover) {
+            const attId = extractAttachmentId(dealRecord.Deal_Cover);
+            if (attId) {
+              coverId = `Deals_${item.Deal_Name.id}_${attId}`;
+            }
+          }
+        }
+      }
+
+      return {
+        id: item.id || null,
+        dealName: item.Deal_Name?.name || null,
+        subject: item.Subject || null,
+        status: item.Status || null,
+        totalAmount: item.Grand_Total ?? null,
+        arrivalDate,
+        coverId,
+      };
+    });
 
   setDataCache(cacheKey, result);
   return result;
@@ -462,6 +695,14 @@ async function getTripDetailsById(tripId, email) {
                 dayTitle: row.Day_Title || null,
                 dayDescription: row.Day_Description || null,
                 dayType: row.Day_Type || null,
+                dayLink:
+                  row.Day_Link ||
+                  row.Link ||
+                  row.Help_Link ||
+                  row.URL ||
+                  row.Url ||
+                  extractFirstHttpUrl(row) ||
+                  null,
               }))
               .sort((a, b) => new Date(a.day) - new Date(b.day))
           : [],
@@ -534,11 +775,15 @@ async function getTripRequirementsById(tripId, email) {
 
   const destinationVendorId = tripDetails.deal?.destination?.id || null;
 
-  let destinationCountry = null;
+  let destinationCountry = tripDetails.deal?.destinationCountry || null;
 
   if (destinationVendorId) {
-    const vendorRecord = await zohoGetRecord("Vendors", destinationVendorId);
-    destinationCountry = vendorRecord?.Destination_Country || null;
+    try {
+      const vendorRecord = await zohoGetRecord("Vendors", destinationVendorId);
+      if (vendorRecord && vendorRecord.Destination_Country) {
+        destinationCountry = vendorRecord.Destination_Country;
+      }
+    } catch (e) {}
   }
 
   const originCountry = traveler.country || null;
@@ -552,7 +797,10 @@ async function getTripRequirementsById(tripId, email) {
       "Is_Active",
       "Help_Link",
       "Destination_Country",
-      "Description"
+      "Description",
+      "Created_Time",
+      "Modified_Time",
+      "Type"
     ],
     1,
     200
@@ -561,36 +809,68 @@ async function getTripRequirementsById(tripId, email) {
   const normalizedOrigin = String(originCountry || "").trim().toLowerCase();
   const normalizedDestination = String(destinationCountry || "").trim().toLowerCase();
 
+  let needToRevoke = false;
+  const isAcknowledged = tripDetails.trip.documentsAcknowledged;
+  const acknowledgedAt = tripDetails.trip.documentsAcknowledgedAt;
+  const acknowledgedTimeMs = acknowledgedAt ? new Date(acknowledgedAt).getTime() : 0;
+
   const requirements = (records || [])
     .filter((item) => {
-      const isActive = item.Is_Active === true;
-
-      const itemDestination = String(item.Destination_Country || "")
-        .trim()
-        .toLowerCase();
-
-      const destinationMatches =
-        normalizedDestination && itemDestination === normalizedDestination;
+      // By default assume active if it's not explicitly false
+      const isActive = item.Is_Active !== false && item.Is_Active !== "false";
 
       const originMatches =
+        !item.Origin_Country || // Empty applies to all
         includesMultiSelect(item.Origin_Country, originCountry) ||
         includesMultiSelect(item.Origin_Country, "ALL") ||
-        includesMultiSelect(item.Origin_Country, normalizedOrigin) ||
-        includesMultiSelect(item.Origin_Country, "all");
+        includesMultiSelect(item.Origin_Country, "all") ||
+        (normalizedOrigin && includesMultiSelect(item.Origin_Country, normalizedOrigin));
 
-      return isActive && destinationMatches && originMatches;
+      const destinationMatches =
+        !item.Destination_Country || // Empty applies to all
+        includesMultiSelect(item.Destination_Country, destinationCountry) ||
+        includesMultiSelect(item.Destination_Country, "ALL") ||
+        includesMultiSelect(item.Destination_Country, "all") ||
+        (normalizedDestination && String(item.Destination_Country || "").trim().toLowerCase() === normalizedDestination);
+
+      const matches = isActive && destinationMatches && originMatches;
+
+      if (matches && isAcknowledged && acknowledgedTimeMs > 0) {
+        const createdMs = item.Created_Time ? new Date(item.Created_Time).getTime() : 0;
+        const modifiedMs = item.Modified_Time ? new Date(item.Modified_Time).getTime() : 0;
+        if (createdMs > acknowledgedTimeMs || modifiedMs > acknowledgedTimeMs) {
+          needToRevoke = true;
+        }
+      }
+
+      return matches;
     })
     .map((item) => ({
       id: item.id || null,
       name: item.Name || null,
       originCountry: item.Origin_Country || null,
       destinationCountry: item.Destination_Country || null,
-      type: null,
+      type: item.Type || null,
       description: item.Description || null,
       helpLink: item.Help_Link || null,
       isMandatory: item.Is_Mandatory === true,
       isActive: item.Is_Active === true,
     }));
+
+  if (needToRevoke) {
+    try {
+      await zohoUpdateRecord("Sales_Orders", tripId, {
+        Documents_Acknowledged: false
+      });
+      // Update local object so current response is clean
+      tripDetails.trip.documentsAcknowledged = false;
+      // Invalidate related caches so frontend loads fresh status
+      clearDataCacheByPrefix(`trip-details:${tripId}:`);
+      clearDataCacheByPrefix("trips:");
+    } catch (e) {
+      console.error("Failed to revoke document acknowledgment:", e.message);
+    }
+  }
 
   const result = {
     trip: tripDetails.trip,
@@ -618,7 +898,7 @@ async function acknowledgeTripRequirements(tripId, email, version = null) {
     return null;
   }
 
-  const nowIso = new Date().toISOString();
+  const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, '+00:00');
 
   await zohoUpdateRecord("Sales_Orders", tripId, {
     Documents_Acknowledged: true,
@@ -641,4 +921,9 @@ module.exports = {
   getTripDetailsById,
   getTripRequirementsById,
   acknowledgeTripRequirements,
+  streamZohoFile,
+  streamZohoRecordPhoto,
+  runCoqlQuery,
+  zohoGetRecord,
+  zohoListRecords
 };

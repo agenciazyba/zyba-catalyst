@@ -1,4 +1,6 @@
-const API_BASE = "http://localhost:3001/server/Zoho_api";
+export function getApiBase() {
+  return "/api";
+}
 
 export type ApiResponse<T = unknown> = {
   ok: boolean;
@@ -14,6 +16,8 @@ export type Trip = {
   subject: string | null;
   status: string | null;
   totalAmount: number | null;
+  arrivalDate?: string | null;
+  coverId?: string | null;
 };
 
 async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
@@ -30,8 +34,9 @@ async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
 }
 
 export async function requestOtp(email: string) {
-  const response = await fetch(`${API_BASE}/auth/otp/request`, {
+  const response = await fetch(`${getApiBase()}/auth/otp/request`, {
     method: "POST",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
     },
@@ -42,8 +47,9 @@ export async function requestOtp(email: string) {
 }
 
 export async function verifyOtp(email: string, otp: string) {
-  const response = await fetch(`${API_BASE}/auth/otp/verify`, {
+  const response = await fetch(`${getApiBase()}/auth/otp/verify`, {
     method: "POST",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
     },
@@ -54,7 +60,8 @@ export async function verifyOtp(email: string, otp: string) {
 }
 
 export async function getTraveler(sessionToken: string) {
-  const response = await fetch(`${API_BASE}/crm/travelers`, {
+  const response = await fetch(`${getApiBase()}/crm/travelers`, {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
     },
@@ -64,7 +71,8 @@ export async function getTraveler(sessionToken: string) {
 }
 
 export async function getTrips(sessionToken: string): Promise<ApiResponse<Trip[]>> {
-  const response = await fetch(`${API_BASE}/crm/trips`, {
+  const response = await fetch(`${getApiBase()}/crm/trips`, {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
     },
@@ -74,7 +82,8 @@ export async function getTrips(sessionToken: string): Promise<ApiResponse<Trip[]
 }
 
 export async function getTripDetails(sessionToken: string, tripId: string) {
-  const response = await fetch(`${API_BASE}/crm/trips/${tripId}`, {
+  const response = await fetch(`${getApiBase()}/crm/trips/${tripId}`, {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
     },
@@ -84,7 +93,8 @@ export async function getTripDetails(sessionToken: string, tripId: string) {
 }
 
 export async function getTripRequirements(sessionToken: string, tripId: string) {
-  const response = await fetch(`${API_BASE}/crm/trips/${tripId}/requirements`, {
+  const response = await fetch(`${getApiBase()}/crm/trips/${tripId}/requirements`, {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
     },
@@ -99,9 +109,10 @@ export async function acknowledgeRequirements(
   version = "v1"
 ) {
   const response = await fetch(
-    `${API_BASE}/crm/trips/${tripId}/requirements/acknowledge`,
+    `${getApiBase()}/crm/trips/${tripId}/requirements/acknowledge`,
     {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${sessionToken}`,

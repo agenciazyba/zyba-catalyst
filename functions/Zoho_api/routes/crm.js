@@ -6,7 +6,9 @@ const {
   getTripsByLoggedUser,
   getTripDetailsById,
   getTripRequirementsById,
-  acknowledgeTripRequirements
+  acknowledgeTripRequirements,
+  streamZohoFile,
+  streamZohoRecordPhoto
 } = require("../services/zoho");
 
 async function handleCrmRoutes(app, req, res, parsedUrl) {
@@ -51,6 +53,64 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       ok: true,
       data: trips
     });
+    return true;
+  }
+
+  const debugMatch = path.match(/^\/crm\/debug-deals$/);
+  if (method === "GET" && debugMatch) {
+    const { zohoGetRecord, zohoListRecords } = require("../services/zoho");
+    try {
+      const resData = await zohoListRecords("Sales_Orders", ["Deal_Name"], 1, 1);
+      const dealId = resData[0].Deal_Name.id;
+      const deal = await zohoGetRecord("Deals", dealId);
+      sendJson(res, 200, { keys: Object.keys(deal), Deal_Cover: deal.Deal_Cover || "NOT_FOUND" });
+    } catch(e) {
+      sendJson(res, 500, { error: e.message });
+    }
+    return true;
+  }
+
+  const debugFile = path.match(/^\/crm\/debug-file$/);
+  if (method === "GET" && debugFile) {
+    const { streamZohoFile } = require("../services/zoho");
+    await streamZohoFile("sg4s8e3b46c3b081340d0bc01582f1eab4cd3", res);
+    return true;
+  }
+
+  const fileMatch = path.match(/^\/crm\/files\/([^/]+)$/);
+
+  if (method === "GET" && fileMatch) {
+    const fileId = fileMatch[1];
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    let zModule = "Deals";
+    let zRecord = "";
+    let zAttach = fileId;
+    
+    if (fileId.includes("_")) {
+      const parts = fileId.split("_");
+      if (parts.length >= 2) {
+        zModule = parts[0];
+        zRecord = parts[1];
+        zAttach = parts.slice(2).join("_");
+      }
+    }
+
+    try {
+      if (zModule === "Accounts" && zRecord) {
+        await streamZohoRecordPhoto(zModule, zRecord, res);
+      } else {
+        await streamZohoFile(zModule, zRecord, zAttach, res);
+      }
+    } catch (e) {
+      sendJson(res, 500, { ok: false, error: e.message || "Failed to download file" });
+    }
     return true;
   }
 
