@@ -218,3 +218,101 @@ Após os testes online em Vercel + Catalyst, foi feita estabilização focada em
 - OTP funcionando em produção.
 - `/api/auth/session` validando sessão corretamente.
 - `/api/crm/trips` e demais rotas protegidas retornando dados sem `401`.
+
+## 9) Atualização funcional e UX (2026-04-07)
+
+Data/hora de consolidação desta atualização: 2026-04-07
+
+### 9.1 Central de notificações (regra inicial)
+- Implementada central de notificações com badge no ícone de sino e tela overlay dedicada:
+  - rota nova: `/notifications`
+  - badge laranja com número de notificações ativas no header
+  - lista com link direto para a página de documentos da trip
+- Regra inicial implementada:
+  - se `Documents_Acknowledged` for `false`, gerar notificação:
+    - `You need to check some importante Documents for your trip {TRIP SUBJECT}`
+
+Arquivos principais:
+- `zyba-app/components/NotificationsBell.tsx`
+- `zyba-app/app/notifications/page.tsx`
+- `zyba-app/lib/notifications.ts`
+- `zyba-app/lib/notifications-service.ts`
+- `zyba-app/app/globals.css`
+
+### 9.2 Backend para suportar regra por trip
+- Endpoint de listagem de trips atualizado para incluir `Documents_Acknowledged`:
+  - `functions/Zoho_api/services/zoho.js`
+  - COQL agora retorna `Documents_Acknowledged`
+  - payload normalizado com `documentsAcknowledged`
+- Resultado:
+  - frontend consegue decidir notificação sem depender apenas da página de documentos.
+
+### 9.3 Resiliência contra inconsistência de cache/dados
+- Implementado fallback no frontend:
+  - quando `documentsAcknowledged` não vem em `/crm/trips`, a aplicação consulta `/crm/trips/:id/requirements` por trip para fechar a regra.
+- Efeito:
+  - elimina falso negativo de notificação em cenários de payload parcial ou propagação lenta.
+
+### 9.4 Correção UX na página Documents (acknowledge)
+- Problema reportado:
+  - após clicar em `I understand and acknowledge`, UI às vezes continuava exigindo validação por dado stale.
+- Correção aplicada:
+  - atualização otimista imediata (`documentsAcknowledged=true`) para remover o botão na hora.
+  - sincronização em background com retry curto para absorver delay de propagação Zoho.
+  - separação de estado de envio (`isSubmitting`) do estado de carregamento da página (`loading`).
+
+Arquivo:
+- `zyba-app/app/trips/[id]/documents/page.tsx`
+
+### 9.5 Ajustes de layout e navegação
+- Botão `I understand and acknowledge`:
+  - movido para baixo do último card de documents
+  - fundo laranja
+  - evita sobreposição com botão fixo `Back to trip details`
+- Inclusão de botão de voltar (seta à esquerda) antes do título nas páginas:
+  - Documents
+  - Hotel Informations
+  - Transfer Informations
+  - Full Itinerary
+- Comportamento do botão de voltar:
+  - usa `router.back()` com fallback para `Trip Details`
+- Logo do header transformado em link para `/trips` nas telas com cabeçalho.
+
+Arquivos:
+- `zyba-app/app/trips/[id]/documents/page.tsx`
+- `zyba-app/app/trips/[id]/hotel-information/page.tsx`
+- `zyba-app/app/trips/[id]/transfer-information/page.tsx`
+- `zyba-app/app/trips/[id]/full-itinerary/page.tsx`
+- `zyba-app/app/trips/[id]/flight-information/page.tsx`
+- `zyba-app/app/trips/[id]/shop-gears/page.tsx`
+- `zyba-app/app/trips/[id]/page.tsx`
+- `zyba-app/app/trips/page.tsx`
+- `zyba-app/app/profile/page.tsx`
+- `zyba-app/app/globals.css`
+
+### 9.6 Ajustes específicos na Transfer Information
+- Campo `Car Photo Files` passou a renderizar imagens (não só nomes de arquivo).
+- Largura aplicada por item: `50%`.
+
+Arquivo:
+- `zyba-app/app/trips/[id]/transfer-information/page.tsx`
+- `zyba-app/app/globals.css`
+
+### 9.7 Correção de hydration mismatch
+- Causa:
+  - `getSessionToken()` era chamado direto no `href` do botão PDF durante render.
+- Correção:
+  - token movido para estado client-only (`useEffect`) antes de montar URL.
+
+Arquivo:
+- `zyba-app/app/trips/[id]/page.tsx`
+
+### 9.8 Validação executada
+- `npm run lint` (passou)
+- `npm run build` (passou)
+
+Observação:
+- Há warning não-bloqueante de performance na Transfer (`<img>` em vez de `<Image>`), sem erro funcional.
+
+### 9.9 Commit de referência desta atualização
+- `0ae4c68` feat: notifications center, docs ack UX fix, and header/back navigation polish
