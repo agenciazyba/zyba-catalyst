@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import NotificationsBell from "@/components/NotificationsBell";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
@@ -101,12 +102,20 @@ export default function FullItineraryPage() {
   }, [tripId, router]);
 
   const itinerary = data?.deal?.itinerary || [];
+  const goBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push(`/trips/${tripId}`);
+  };
 
   return (
     <main className="trip-details-page">
       <header className="trip-details-header">
         <div className="trip-details-header-top">
           <div className="trip-details-user-block">
+            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
             <Image
               src="/brand/Trans_Simb_Creme.png"
               alt="Zyba symbol"
@@ -114,19 +123,23 @@ export default function FullItineraryPage() {
               height={31}
               style={{ width: 31, height: "auto" }}
             />
+            </Link>
             <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
           </div>
-          <button type="button" className="trips-notify-btn" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="trips-notify-icon">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.5H4.5a1 1 0 0 1-.78-1.63l1.02-1.28c.5-.62.76-1.4.76-2.2V10a6.5 6.5 0 1 1 13 0v2.39c0 .8.27 1.58.76 2.2l1.02 1.28a1 1 0 0 1-.78 1.63h-2.14" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 20a2.5 2.5 0 0 0 5 0" />
-            </svg>
-          </button>
+          <NotificationsBell />
         </div>
       </header>
 
       <section className="trip-details-body">
-        <h5 className="trip-details-section-title trip-details-title-first">Full Itinerary</h5>
+        <div className="trip-section-title-row trip-details-title-first">
+          <button type="button" className="trip-section-back-btn" aria-label="Go back" onClick={goBack}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="trip-section-back-icon" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 5.5 8 12l6.5 6.5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12H20" />
+            </svg>
+          </button>
+          <h5 className="trip-details-section-title">Full Itinerary</h5>
+        </div>
 
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
 

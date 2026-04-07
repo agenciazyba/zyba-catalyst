@@ -25,6 +25,7 @@ export type Trip = {
   subject: string | null;
   status: string | null;
   totalAmount: number | null;
+  documentsAcknowledged?: boolean;
   arrivalDate?: string | null;
   coverId?: string | null;
 };

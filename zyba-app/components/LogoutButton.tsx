@@ -3,7 +3,11 @@
 import { useRouter } from "next/navigation";
 import { clearSessionToken } from "@/lib/auth";
 
-export default function LogoutButton() {
+type LogoutButtonProps = {
+  className?: string;
+};
+
+export default function LogoutButton({ className = "" }: LogoutButtonProps) {
   const router = useRouter();
 
   function handleLogout() {
@@ -12,7 +16,7 @@ export default function LogoutButton() {
   }
 
   return (
-    <button type="button" onClick={handleLogout}>
+    <button type="button" onClick={handleLogout} className={className}>
       Logout
     </button>
   );

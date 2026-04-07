@@ -630,7 +630,7 @@ async function getTripsByLoggedUser(email) {
   if (cached) return cached;
 
   const query = `
-    select id, Deal_Name, Subject, Status, Grand_Total
+    select id, Deal_Name, Subject, Status, Grand_Total, Documents_Acknowledged
     from Sales_Orders
     where ((Status = 'Aproval') and (Account_Name.Email = '${escapeCoql(normalizedEmail)}'))
     limit 0, 200
@@ -685,6 +685,7 @@ async function getTripsByLoggedUser(email) {
         subject: item.Subject || null,
         status: item.Status || null,
         totalAmount: item.Grand_Total ?? null,
+        documentsAcknowledged: item.Documents_Acknowledged === true,
         arrivalDate,
         coverId,
       };

@@ -479,6 +479,7 @@ h5 {
   background: transparent;
   color: var(--color-cream);
   padding: 0;
+  position: relative;
   cursor: pointer;
   transition: transform 120ms ease, opacity 120ms ease;
 }
@@ -491,6 +492,23 @@ h5 {
   width: 24px;
   height: 24px;
   opacity: 0.72;
+}
+
+.trips-notify-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  padding: 0 4px;
+  background: var(--color-orange);
+  color: var(--color-cream);
+  font-family: "BL Melody", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+  text-align: center;
 }
 
 .trips-header-note {
@@ -651,8 +669,45 @@ h5 {
   font-weight: 700;
 }
 
+.trip-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trip-section-back-btn {
+  border: 0;
+  background: transparent;
+  color: var(--color-black);
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-1px);
+}
+
+.trip-section-back-btn:active {
+  transform: translateY(-1px) scale(0.96);
+}
+
+.trip-section-back-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
 .trip-details-title-first {
   margin-top: 20px;
+}
+
+.trip-header-logo-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
 }
 
 .trip-details-info {
@@ -941,6 +996,27 @@ h5 {
   filter: brightness(0.96);
 }
 
+.documents-ack-btn {
+  margin-top: 8px;
+  background: var(--color-orange);
+  color: var(--color-cream);
+}
+
+.transfer-car-photos {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transfer-car-photo {
+  width: 50%;
+  border-radius: 10px;
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  object-fit: cover;
+  display: block;
+}
+
 .profile-logout-wrap {
   margin-top: 30px;
   display: flex;
@@ -968,4 +1044,86 @@ h5 {
 
 .trip-route-body > section {
   padding: 20px;
+}
+
+.notifications-overlay-page {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(35, 35, 35, 0.84);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.notifications-panel {
+  width: min(100%, 520px);
+  background: #ffffff;
+  min-height: 100dvh;
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.notifications-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.notifications-title {
+  margin: 0;
+  color: var(--color-black);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.notifications-close {
+  border: 0;
+  background: transparent;
+  color: var(--color-black);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.notifications-list {
+  margin: 25px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.notifications-item {
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  border-radius: 10px;
+  background: var(--color-cream);
+  padding: 14px;
+}
+
+.notifications-message {
+  margin: 0;
+  color: var(--color-black);
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.notifications-link {
+  margin-top: 10px;
+  display: inline-block;
+  color: var(--color-blue);
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+.notifications-empty {
+  margin-top: 25px;
+  color: var(--color-black);
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
 }

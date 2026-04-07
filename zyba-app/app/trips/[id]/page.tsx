@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 import Image from "next/image";
+import NotificationsBell from "@/components/NotificationsBell";
 
 type TripDetailsResponse = {
   trip: {
@@ -66,6 +67,7 @@ export default function TripIndexPage() {
   const [data, setData] = useState<TripDetailsResponse | null>(null);
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [message, setMessage] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -74,6 +76,7 @@ export default function TripIndexPage() {
         router.replace("/login");
         return;
       }
+      setSessionToken(token);
       const [tripResponse, travelerResponse] = await Promise.all([
         getTripDetails(token, tripId),
         getTraveler(token),
@@ -122,6 +125,7 @@ export default function TripIndexPage() {
       <header className="trip-details-header">
         <div className="trip-details-header-top">
           <div className="trip-details-user-block">
+            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
             <Image
               src="/brand/Trans_Simb_Creme.png"
               alt="Zyba symbol"
@@ -129,14 +133,10 @@ export default function TripIndexPage() {
               height={31}
               style={{ width: 31, height: "auto" }}
             />
+            </Link>
             <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
           </div>
-          <button type="button" className="trips-notify-btn" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="trips-notify-icon">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.5H4.5a1 1 0 0 1-.78-1.63l1.02-1.28c.5-.62.76-1.4.76-2.2V10a6.5 6.5 0 1 1 13 0v2.39c0 .8.27 1.58.76 2.2l1.02 1.28a1 1 0 0 1-.78 1.63h-2.14" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 20a2.5 2.5 0 0 0 5 0" />
-            </svg>
-          </button>
+          <NotificationsBell />
         </div>
       </header>
 
@@ -163,7 +163,7 @@ export default function TripIndexPage() {
         </div>
 
         <a
-          href={`/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(getSessionToken())}`}
+          href={`/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(sessionToken)}`}
           className="btn trip-sales-order-btn"
         >
           Download Sales Order PDF

@@ -6,6 +6,7 @@ import { getTrips, getTraveler, type Trip } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import NotificationsBell from "@/components/NotificationsBell";
 
 type Traveler = {
   travelerName?: string | null;
@@ -54,6 +55,7 @@ export default function TripsPage() {
           subject: item.subject ?? null,
           status: item.status ?? null,
           totalAmount: item.totalAmount ?? null,
+          documentsAcknowledged: item.documentsAcknowledged,
           arrivalDate: item.arrivalDate ?? null,
           coverId: item.coverId ?? null,
         }));
@@ -79,6 +81,7 @@ export default function TripsPage() {
       <header className="trips-header">
         <div className="trips-header-top">
           <div className="trips-user-block">
+            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
             <Image
               src="/brand/Trans_Simb_Creme.png"
               alt="Zyba symbol"
@@ -86,14 +89,10 @@ export default function TripsPage() {
               height={31}
               style={{ width: 31, height: "auto" }}
             />
+            </Link>
             <h2 className="trips-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
           </div>
-          <button type="button" className="trips-notify-btn" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="trips-notify-icon">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.5H4.5a1 1 0 0 1-.78-1.63l1.02-1.28c.5-.62.76-1.4.76-2.2V10a6.5 6.5 0 1 1 13 0v2.39c0 .8.27 1.58.76 2.2l1.02 1.28a1 1 0 0 1-.78 1.63h-2.14" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 20a2.5 2.5 0 0 0 5 0" />
-            </svg>
-          </button>
+          <NotificationsBell />
         </div>
 
         <p className="trips-header-note">

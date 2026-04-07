@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import NotificationsBell from "@/components/NotificationsBell";
 import { useParams, useRouter } from "next/navigation";
 import { acknowledgeRequirements, getTraveler, getTripRequirements } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
@@ -53,6 +54,7 @@ export default function DocumentsPage() {
   const [data, setData] = useState<RequirementsResponse | null>(null);
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -95,32 +97,64 @@ export default function DocumentsPage() {
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
     const result = await acknowledgeRequirements(token, tripId, "v1");
 
     if (!result.ok) {
       setMessage(result.error || result.message || "Failed to verify documents.");
-      setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
-    const updated = await getTripRequirements(token, tripId);
-    if (updated.ok) {
-      setData((updated.data as RequirementsResponse) || null);
-      setMessage("");
+    const nowIso = new Date().toISOString();
+
+    // Optimistic UX: hides action button immediately and avoids repeated user validation.
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        trip: {
+          ...prev.trip,
+          documentsAcknowledged: true,
+          documentsAcknowledgedAt: prev.trip?.documentsAcknowledgedAt || nowIso,
+        },
+      };
+    });
+    setMessage("");
+
+    // Background sync with short retries to absorb eventual Zoho propagation delay.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const updated = await getTripRequirements(token, tripId);
+      if (updated.ok) {
+        const payload = (updated.data as RequirementsResponse) || null;
+        if (payload) {
+          setData(payload);
+          if (payload.trip?.documentsAcknowledged === true) break;
+        }
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
     }
-    setLoading(false);
+
+    setIsSubmitting(false);
   }
 
   const requirements = data?.requirements || [];
   const isAcknowledged = data?.trip?.documentsAcknowledged === true;
   const acknowledgedAt = formatVerifiedDate(data?.trip?.documentsAcknowledgedAt);
+  const goBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push(`/trips/${tripId}`);
+  };
 
   return (
     <main className="trip-details-page">
       <header className="trip-details-header">
         <div className="trip-details-header-top">
           <div className="trip-details-user-block">
+            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
             <Image
               src="/brand/Trans_Simb_Creme.png"
               alt="Zyba symbol"
@@ -128,19 +162,23 @@ export default function DocumentsPage() {
               height={31}
               style={{ width: 31, height: "auto" }}
             />
+            </Link>
             <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
           </div>
-          <button type="button" className="trips-notify-btn" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="trips-notify-icon">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.5H4.5a1 1 0 0 1-.78-1.63l1.02-1.28c.5-.62.76-1.4.76-2.2V10a6.5 6.5 0 1 1 13 0v2.39c0 .8.27 1.58.76 2.2l1.02 1.28a1 1 0 0 1-.78 1.63h-2.14" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 20a2.5 2.5 0 0 0 5 0" />
-            </svg>
-          </button>
+          <NotificationsBell />
         </div>
       </header>
 
       <section className="trip-details-body">
-        <h5 className="trip-details-section-title trip-details-title-first">Documents</h5>
+        <div className="trip-section-title-row trip-details-title-first">
+          <button type="button" className="trip-section-back-btn" aria-label="Go back" onClick={goBack}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="trip-section-back-icon" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 5.5 8 12l6.5 6.5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12H20" />
+            </svg>
+          </button>
+          <h5 className="trip-details-section-title">Documents</h5>
+        </div>
         {isAcknowledged ? (
           <div className="documents-verified-badge" aria-live="polite">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="documents-verified-icon" aria-hidden="true">
@@ -183,13 +221,13 @@ export default function DocumentsPage() {
                 ) : null}
               </div>
             ))}
-        </div>
 
-        {!loading && !isAcknowledged ? (
-          <button className="btn" onClick={handleAcknowledge} disabled={loading}>
-            {loading ? "Verifying..." : "I understand and acknowledge"}
-          </button>
-        ) : null}
+          {!loading && !isAcknowledged ? (
+            <button className="btn documents-ack-btn" onClick={handleAcknowledge} disabled={isSubmitting}>
+              {isSubmitting ? "Verifying..." : "I understand and acknowledge"}
+            </button>
+          ) : null}
+        </div>
 
         <div className="hotel-info-back-fixed">
           <Link href={`/trips/${tripId}`} className="btn">
