@@ -6,12 +6,7 @@ function getCacheSegment(app) {
     return app.cache().segment();
   }
 
-  const numericId = Number(configuredSegmentId);
-  if (Number.isFinite(numericId) && numericId > 0) {
-    return app.cache().segment(numericId);
-  }
-
-  return app.cache().segment(configuredSegmentId);
+  return app.cache().segment(String(configuredSegmentId).trim());
 }
 
 module.exports = {
