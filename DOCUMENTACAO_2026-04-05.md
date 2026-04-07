@@ -185,3 +185,36 @@ Para testes em iPhone (mesma rede), em dev:
 - Frontend: `http://<IP_LOCAL>:3001`
 - Backend Catalyst via rewrite interno do Next para `127.0.0.1:3000`.
 
+## 8) Atualização de estabilização (2026-04-06)
+
+Após os testes online em Vercel + Catalyst, foi feita estabilização focada em autenticação/sessão.
+
+### 8.1 Problemas reais encontrados
+- Fluxo OTP funcionava, mas rotas protegidas retornavam `401`/`INVALID_TOKEN`.
+- CORS ao chamar Catalyst direto do browser em produção.
+- Divergência entre comportamento via Vercel `/api` e chamada direta ao Catalyst.
+
+### 8.2 Causa raiz técnica
+- `CACHE_SEGMENT_ID` grande perdia precisão ao ser convertido para `Number` no backend.
+- Header `Authorization` com token de sessão era tratado como OAuth pelo gateway Catalyst em alguns cenários.
+
+### 8.3 Correções finais aplicadas
+- `functions/Zoho_api/services/cache.js`:
+  - segmento de cache agora tratado como string (sem conversão numérica).
+- `zyba-app/app/api/[...path]/route.ts`:
+  - criado proxy interno para o backend Catalyst.
+  - remoção de `Authorization` ao encaminhar para Catalyst.
+- `zyba-app/next.config.ts`:
+  - removido rewrite externo de `/api` (evita conflito com proxy interno).
+- `zyba-app/lib/api.ts`:
+  - estratégia única: browser chama sempre `"/api"` (same-origin).
+
+### 8.4 Commits de referência (estabilização)
+- `012da28` fix: avoid numeric precision loss on cache segment id
+- `d981380` fix: replace vercel external rewrite with internal api proxy route
+- `e604a69` fix: strip authorization header in internal api proxy for catalyst
+
+### 8.5 Estado final esperado
+- OTP funcionando em produção.
+- `/api/auth/session` validando sessão corretamente.
+- `/api/crm/trips` e demais rotas protegidas retornando dados sem `401`.
