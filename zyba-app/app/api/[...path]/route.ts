@@ -8,6 +8,10 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[
 
   const headers = new Headers(req.headers);
   headers.delete("host");
+  // Catalyst gateway may interpret Authorization as OAuth token and reject
+  // our app session token before the function code runs.
+  headers.delete("authorization");
+  headers.delete("Authorization");
 
   const body =
     req.method === "GET" || req.method === "HEAD"
