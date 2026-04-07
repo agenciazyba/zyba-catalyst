@@ -196,12 +196,20 @@ h5 {
   align-items: center;
   justify-content: center;
   font-family: "BL Melody", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1;
   cursor: pointer;
   transition: transform 120ms ease, filter 120ms ease, box-shadow 160ms ease;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.btn-logout-outline {
+  background: #ffffff;
+  color: var(--color-green-military);
+  border: 1px solid var(--color-green-military);
+  box-shadow: none;
+  margin-bottom: 10px;
 }
 
 .btn:disabled {
@@ -673,6 +681,10 @@ h5 {
   height: 45px;
 }
 
+.trip-sales-order-btn {
+  margin-top: 20px;
+}
+
 .trip-details-cards-row {
   margin-top: 20px;
   display: flex;
@@ -927,6 +939,25 @@ h5 {
 .documents-instruction-link:active {
   transform: scale(0.98);
   filter: brightness(0.96);
+}
+
+.profile-logout-wrap {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.profile-logout-link {
+  border: 0;
+  background: transparent;
+  color: var(--color-green-military);
+  padding: 0;
+  margin: 0;
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .trip-route-body {

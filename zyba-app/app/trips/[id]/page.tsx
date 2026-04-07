@@ -141,7 +141,7 @@ export default function TripIndexPage() {
       </header>
 
       <section className="trip-details-body">
-        <h5 className="trip-details-section-title trip-details-title-first">Notifications</h5>
+        <h5 className="trip-details-section-title trip-details-title-first">Your Trip</h5>
 
         <div className="trip-details-info">
           <p className="trip-details-info-line">
@@ -161,6 +161,13 @@ export default function TripIndexPage() {
             <span className="trip-details-status">{tripStatus}</span>
           </p>
         </div>
+
+        <a
+          href={`/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(getSessionToken())}`}
+          className="btn trip-sales-order-btn"
+        >
+          Download Sales Order PDF
+        </a>
 
         <div className="trip-details-gap-lg" />
 

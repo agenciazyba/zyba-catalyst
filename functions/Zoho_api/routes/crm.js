@@ -8,7 +8,8 @@ const {
   getTripRequirementsById,
   acknowledgeTripRequirements,
   streamZohoFile,
-  streamZohoRecordPhoto
+  streamZohoRecordPhoto,
+  streamSalesOrderPdf
 } = require("../services/zoho");
 
 async function handleCrmRoutes(app, req, res, parsedUrl) {
@@ -166,6 +167,45 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       ok: true,
       data: requirements
     });
+    return true;
+  }
+
+  const tripSalesOrderPdfMatch = path.match(/^\/crm\/trips\/([^/]+)\/sales-order\/pdf$/);
+
+  if (method === "GET" && tripSalesOrderPdfMatch) {
+    const tripId = tripSalesOrderPdfMatch[1];
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    const tripDetails = await getTripDetailsById(tripId, session.email);
+    if (!tripDetails || !tripDetails.trip?.id) {
+      sendJson(res, 404, { ok: false, error: "Trip not found for logged user" });
+      return true;
+    }
+
+    const templateId =
+      parsedUrl.searchParams.get("templateId") ||
+      process.env.SALES_ORDER_TEMPLATE_ID ||
+      "";
+
+    if (!templateId) {
+      sendJson(res, 400, {
+        ok: false,
+        error: "Missing templateId. Set query param templateId or SALES_ORDER_TEMPLATE_ID env var.",
+      });
+      return true;
+    }
+
+    try {
+      await streamSalesOrderPdf(templateId, tripId, res);
+    } catch (e) {
+      sendJson(res, 500, { ok: false, error: e.message || "Failed to download Sales Order PDF" });
+    }
     return true;
   }
 

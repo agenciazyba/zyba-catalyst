@@ -477,6 +477,64 @@ async function streamZohoRecordPhoto(module, recordId, res) {
   });
 }
 
+async function streamSalesOrderPdf(templateId, salesOrderId, res) {
+  const tokenRecord = await getZohoAccessToken();
+  const domain = process.env.ZOHO_API_DOMAIN || "https://www.zohoapis.com";
+  const { URL } = require("url");
+
+  const pdfUrl = new URL(
+    `${domain}/crm/v8/settings/inventory_templates/${escapeCoql(templateId)}/actions/print_preview`
+  );
+  pdfUrl.searchParams.set("record_id", String(salesOrderId || "").trim());
+  pdfUrl.searchParams.set("print_type", "pdf");
+
+  const options = {
+    method: "GET",
+    hostname: pdfUrl.hostname,
+    port: 443,
+    path: pdfUrl.pathname + pdfUrl.search,
+    headers: {
+      Authorization: `Zoho-oauthtoken ${tokenRecord.access_token}`,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (zohoRes) => {
+      if (zohoRes.statusCode !== 200) {
+        let body = "";
+        zohoRes.on("data", (d) => (body += d));
+        zohoRes.on("end", () => {
+          res.writeHead(zohoRes.statusCode, { "Content-Type": "application/json" });
+          res.end(body || JSON.stringify({ ok: false, error: "Failed to generate Sales Order PDF" }));
+          resolve(false);
+        });
+        return;
+      }
+
+      const headers = {};
+      ["content-disposition", "content-type", "content-length"].forEach((h) => {
+        if (zohoRes.headers[h]) headers[h] = zohoRes.headers[h];
+      });
+
+      if (!headers["content-disposition"]) {
+        headers["content-disposition"] = `attachment; filename=\"sales-order-${salesOrderId}.pdf\"`;
+      }
+      if (!headers["content-type"]) {
+        headers["content-type"] = "application/pdf";
+      }
+
+      res.writeHead(200, headers);
+      zohoRes.pipe(res);
+
+      zohoRes.on("end", () => resolve(true));
+      zohoRes.on("error", reject);
+    });
+
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 async function zohoUpdateRecord(moduleApiName, recordId, recordData) {
   const token = await getZohoAccessToken();
   const body = JSON.stringify({
@@ -923,6 +981,7 @@ module.exports = {
   acknowledgeTripRequirements,
   streamZohoFile,
   streamZohoRecordPhoto,
+  streamSalesOrderPdf,
   runCoqlQuery,
   zohoGetRecord,
   zohoListRecords
