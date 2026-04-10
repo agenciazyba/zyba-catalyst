@@ -392,3 +392,25 @@ Arquivo:
 - Sem falhas críticas bloqueadoras encontradas.
 - Ponto menor pendente:
   - warning de lint em `Transfer Information` por uso de `<img>` (performance/LCP), sem impacto funcional no fluxo atual.
+
+### 10.7 Política de cache otimizada (foco em performance + consistência)
+- Objetivo:
+  - manter navegação rápida para consultas frequentes;
+  - evitar inconsistência na tela de `Documents`, que exige atualização imediata.
+- Ajustes aplicados no backend (`services/zoho.js`):
+  - `traveler:{email}`: TTL de `5 min`
+  - `trips:{email}`: TTL de `3 min`
+  - `trip-details:{tripId}:{email}`: TTL de `2 min`
+  - `record:Deals:{dealId}`: TTL de `5 min`
+  - `trip-requirements:{tripId}:{email}`: **cache removido** (sempre consulta Zoho)
+- Variáveis opcionais para override de TTL:
+  - `DATA_CACHE_TTL_TRAVELER_MS`
+  - `DATA_CACHE_TTL_TRIPS_MS`
+  - `DATA_CACHE_TTL_TRIP_DETAILS_MS`
+  - `DATA_CACHE_TTL_DEALS_MS`
+- Resultado esperado:
+  - `Documents` sempre com estado mais atual;
+  - demais telas com resposta mais rápida e baixo risco de desatualização dentro do limite de 5 minutos.
+
+### 10.8 Commit de referência (cache)
+- `91d3d48` perf: tune API cache TTLs and disable documents requirements cache
