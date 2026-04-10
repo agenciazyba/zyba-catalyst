@@ -632,7 +632,7 @@ async function getTripsByLoggedUser(email) {
   const query = `
     select id, Deal_Name, Subject, Status, Grand_Total, Documents_Acknowledged
     from Sales_Orders
-    where ((Status = 'Aproval') and (Account_Name.Email = '${escapeCoql(normalizedEmail)}'))
+    where ((Status in ('Approved', 'Rescheduled')) and (Account_Name.Email = '${escapeCoql(normalizedEmail)}'))
     limit 0, 200
   `;
 

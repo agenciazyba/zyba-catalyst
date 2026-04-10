@@ -8,11 +8,12 @@ import { setSessionToken } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("agenciazyba@gmail.com");
+  const [email, setEmail] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [step, setStep] = useState<"email" | "otp">("email");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   async function handleRequestOtp() {
@@ -122,10 +123,11 @@ export default function LoginPage() {
             <input
               id="email"
               type="email"
-              className="input-login text-h4"
+              className="input-login"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              placeholder="Your Email here"
             />
           ) : (
             <div className="otp-grid" onPaste={handleOtpPaste}>
@@ -169,9 +171,54 @@ export default function LoginPage() {
         </form>
 
         <div className="login-help-wrap">
-          <h4 style={{ margin: 0 }}>Need help?</h4>
+          <button type="button" className="login-help-link" onClick={() => setHelpOpen(true)}>
+            Need help?
+          </button>
         </div>
       </section>
+
+      {helpOpen ? (
+        <div className="login-help-modal" role="dialog" aria-modal="true" aria-label="Need help">
+          <button
+            type="button"
+            className="login-help-overlay"
+            aria-label="Close help"
+            onClick={() => setHelpOpen(false)}
+          />
+          <section className="login-help-sheet">
+            <button
+              type="button"
+              className="login-help-close"
+              aria-label="Close help"
+              onClick={() => setHelpOpen(false)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="login-help-close-icon" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18" />
+              </svg>
+            </button>
+            <h3 className="login-help-sheet-title">Do you need help?</h3>
+
+            <nav className="login-help-menu" aria-label="Help channels">
+              <a href="mailto:support@zyba.com" className="login-help-menu-row">
+                <span className="login-help-menu-left">
+                  <Image src="/icons/help-mail.svg" alt="" width={24} height={24} className="login-help-menu-icon" />
+                  <span className="login-help-menu-text">Mail us</span>
+                </span>
+                <span className="login-help-menu-arrow">›</span>
+              </a>
+
+              <a href="tel:+15550000000" className="login-help-menu-row">
+                <span className="login-help-menu-left">
+                  <Image src="/icons/help-call.svg" alt="" width={24} height={24} className="login-help-menu-icon" />
+                  <span className="login-help-menu-text">Call us</span>
+                </span>
+                <span className="login-help-menu-arrow">›</span>
+              </a>
+            </nav>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

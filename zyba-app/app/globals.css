@@ -104,6 +104,57 @@ select {
   font-weight: 400;
 }
 
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background: #e8e8e8;
+}
+
+.skeleton-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: skeleton-shimmer 1.15s infinite;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+}
+
+.skeleton-line.w-30 {
+  width: 30%;
+}
+
+.skeleton-line.w-40 {
+  width: 40%;
+}
+
+.skeleton-line.w-60 {
+  width: 60%;
+}
+
+.skeleton-line.w-80 {
+  width: 80%;
+}
+
+.skeleton-line.w-100 {
+  width: 100%;
+}
+
+.skeleton-card {
+  border-radius: 10px;
+  border: 1px solid rgba(35, 35, 35, 0.08);
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .stack {
   display: grid;
   gap: 14px;
@@ -353,9 +404,19 @@ h5 {
   border-radius: 10px;
   background: transparent;
   color: var(--color-cream);
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
   padding: 12px 14px;
   text-align: center;
   outline: none;
+}
+
+.input-login::placeholder {
+  color: #3f3f3f;
+  opacity: 1;
+  font-weight: 400;
 }
 
 .input-login:focus {
@@ -387,6 +448,124 @@ h5 {
 .login-help-wrap {
   margin-top: 93px;
   color: var(--color-cream);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.login-help-link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.login-help-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+
+.login-help-overlay {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  cursor: pointer;
+}
+
+.login-help-sheet {
+  background: var(--color-cream);
+  color: var(--color-black);
+  padding: 24px 20px;
+  position: relative;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+}
+
+.login-help-close {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--color-black);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.login-help-close-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.login-help-sheet-title {
+  margin: 0;
+  font-family: "BL Melody", sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--color-black);
+}
+
+.login-help-menu {
+  margin-top: 60px;
+  display: grid;
+}
+
+.login-help-menu-row {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid rgba(35, 35, 35, 0.25);
+  text-decoration: none;
+  color: var(--color-black);
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.login-help-menu-row:active {
+  transform: scale(0.995);
+  opacity: 0.78;
+}
+
+.login-help-menu-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.login-help-menu-icon {
+  display: block;
+}
+
+.login-help-menu-text {
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.login-help-menu-arrow {
+  color: var(--color-black);
+  opacity: 0.65;
+  font-size: 21px;
+  line-height: 1;
 }
 
 .login-message {

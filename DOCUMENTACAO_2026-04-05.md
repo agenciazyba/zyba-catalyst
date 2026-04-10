@@ -316,3 +316,79 @@ Observação:
 
 ### 9.9 Commit de referência desta atualização
 - `0ae4c68` feat: notifications center, docs ack UX fix, and header/back navigation polish
+
+## 10) Atualização UX, status e loading (2026-04-10)
+
+### 10.1 Ajustes de status para listagem de trips
+- Filtro de trips no backend atualizado para considerar novos status oficiais do CRM:
+  - `Approved`
+  - `Rescheduled`
+- A query de `Sales_Orders` agora usa `Status in ('Approved', 'Rescheduled')`.
+
+Arquivo:
+- `functions/Zoho_api/services/zoho.js`
+
+### 10.2 Login: campo de email e modal de ajuda
+- Removido valor fixo do input de email.
+- Placeholder adicionado:
+  - `Your Email here`
+  - estilo regular (sem negrito), com cor mais clara que o preto base.
+- `Need help?` convertido em link com abertura de modal tipo bottom sheet:
+  - overlay preto 80% (parte superior)
+  - painel inferior ocupando 50% da tela
+  - fundo creme
+  - cantos superiores arredondados (20px)
+  - título: `Do you need help?`
+  - gap de 60px entre título e lista
+  - links:
+    - `Mail us` (ícone SVG)
+    - `Call us` (ícone SVG)
+  - botão de fechamento `X` no canto superior direito
+
+Arquivos:
+- `zyba-app/app/login/page.tsx`
+- `zyba-app/app/globals.css`
+- `zyba-app/public/icons/help-mail.svg`
+- `zyba-app/public/icons/help-call.svg`
+
+### 10.3 Transfer Information: fotos do carro
+- Corrigida montagem da URL dos anexos para carregar imagens reais no app:
+  - padrão aplicado: `Sales_Orders_{tripId}_{attachmentId}`
+- Campo `Car Photo Files` agora renderiza miniaturas com `width: 50%`.
+
+Arquivo:
+- `zyba-app/app/trips/[id]/transfer-information/page.tsx`
+- estilos em `zyba-app/app/globals.css`
+
+### 10.4 Skeleton loading padronizado (perceived performance)
+- Implementado padrão visual de loading com shimmer em seções de dados:
+  - `Trips`
+  - `Trip Details`
+  - `Documents`
+  - `Hotel Informations`
+  - `Transfer Informations`
+  - `Full Itinerary`
+  - `Profile`
+- Header/footer permanecem visíveis enquanto os dados carregam no body.
+
+Arquivos:
+- `zyba-app/app/globals.css`
+- `zyba-app/app/trips/page.tsx`
+- `zyba-app/app/trips/[id]/page.tsx`
+- `zyba-app/app/trips/[id]/documents/page.tsx`
+- `zyba-app/app/trips/[id]/hotel-information/page.tsx`
+- `zyba-app/app/trips/[id]/transfer-information/page.tsx`
+- `zyba-app/app/trips/[id]/full-itinerary/page.tsx`
+- `zyba-app/app/profile/page.tsx`
+
+### 10.5 Ajuste de conteúdo Shop Gears
+- Texto de `Coming soon` substituído por versão resumida em inglês:
+  - `We are preparing the best gear for your trip. Soon, you will be able to buy everything you need at the best prices.`
+
+Arquivo:
+- `zyba-app/app/trips/[id]/shop-gears/page.tsx`
+
+### 10.6 Revisão técnica desta rodada
+- Sem falhas críticas bloqueadoras encontradas.
+- Ponto menor pendente:
+  - warning de lint em `Transfer Information` por uso de `<img>` (performance/LCP), sem impacto funcional no fluxo atual.

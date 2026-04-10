@@ -192,9 +192,17 @@ export default function DocumentsPage() {
 
         <div className="trip-details-info hotel-info-content itinerary-days-list">
           {loading ? (
-            <div className="hotel-info-field itinerary-day-card">
-              <p className="hotel-info-value">Loading documents...</p>
-            </div>
+            [0, 1].map((idx) => (
+              <div className="hotel-info-field itinerary-day-card" key={`doc-skeleton-${idx}`}>
+                <div className="documents-card-head">
+                  <span className="skeleton-block skeleton-line w-40" />
+                  <span className="skeleton-block" style={{ width: 72, height: 24, borderRadius: 10 }} />
+                </div>
+                <span className="skeleton-block skeleton-line w-30" />
+                <span className="skeleton-block skeleton-line w-100" />
+                <span className="skeleton-block skeleton-line w-80" />
+              </div>
+            ))
           ) : null}
 
           {!loading && requirements.length === 0 ? (

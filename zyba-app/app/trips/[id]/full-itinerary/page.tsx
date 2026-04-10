@@ -70,6 +70,7 @@ export default function FullItineraryPage() {
 
   const [data, setData] = useState<TripDetailsResponse | null>(null);
   const [traveler, setTraveler] = useState<Traveler | null>(null);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function FullItineraryPage() {
 
       if (!tripResult.ok) {
         setMessage(tripResult.error || tripResult.message || "Failed to load itinerary.");
+        setLoading(false);
         return;
       }
 
@@ -96,6 +98,7 @@ export default function FullItineraryPage() {
       if (travelerResult.ok) {
         setTraveler((travelerResult.data as Traveler) || null);
       }
+      setLoading(false);
     }
 
     void loadData();
@@ -143,7 +146,18 @@ export default function FullItineraryPage() {
 
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
 
-        {itinerary.length === 0 ? (
+        {loading ? (
+          <div className="trip-details-info hotel-info-content itinerary-days-list">
+            {[0, 1].map((idx) => (
+              <div className="hotel-info-field itinerary-day-card" key={`itinerary-skeleton-${idx}`}>
+                <span className="skeleton-block skeleton-line w-40" />
+                <span className="skeleton-block skeleton-line w-30" />
+                <span className="skeleton-block skeleton-line w-100" />
+                <span className="skeleton-block skeleton-line w-80" />
+              </div>
+            ))}
+          </div>
+        ) : itinerary.length === 0 ? (
           <div className="trip-details-info hotel-info-content">
             <div className="hotel-info-field">
               <p className="hotel-info-label">Information</p>

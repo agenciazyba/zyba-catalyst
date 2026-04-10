@@ -70,6 +70,7 @@ function formatDate(date?: string | null) {
 export default function ProfilePage() {
   const router = useRouter();
   const [data, setData] = useState<Traveler | null>(null);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [photoFailed, setPhotoFailed] = useState(false);
 
@@ -83,9 +84,11 @@ export default function ProfilePage() {
       const response = await getTraveler(token);
       if (!response.ok) {
         setMessage(response.error || response.message || "Failed to load profile.");
+        setLoading(false);
         return;
       }
       setData((response.data as Traveler) || null);
+      setLoading(false);
     }
     void load();
   }, [router]);
@@ -130,7 +133,9 @@ export default function ProfilePage() {
 
         <div className="trip-details-info hotel-info-content itinerary-days-list">
           <div className="hotel-info-field" style={{ placeItems: "center" }}>
-            {photoUrl ? (
+            {loading ? (
+              <span className="skeleton-block" style={{ width: 96, height: 96, borderRadius: "50%" }} />
+            ) : photoUrl ? (
               <Image
                 src={photoUrl}
                 alt={data?.travelerName || "Traveler"}
@@ -147,26 +152,37 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="hotel-info-field itinerary-day-card">
-            <p className="hotel-info-label">Name</p>
-            <p className="hotel-info-value">{data?.travelerName || "-"}</p>
-          </div>
-          <div className="hotel-info-field itinerary-day-card">
-            <p className="hotel-info-label">Email</p>
-            <p className="hotel-info-value">{data?.email || "-"}</p>
-          </div>
-          <div className="hotel-info-field itinerary-day-card">
-            <p className="hotel-info-label">Passport</p>
-            <p className="hotel-info-value">{maskPassport(data?.passport)}</p>
-          </div>
-          <div className="hotel-info-field itinerary-day-card">
-            <p className="hotel-info-label">Expiration</p>
-            <p className="hotel-info-value">{formatDate(data?.passportExpiration)}</p>
-          </div>
-          <div className="hotel-info-field itinerary-day-card">
-            <p className="hotel-info-label">Country</p>
-            <p className="hotel-info-value">{data?.country || "-"}</p>
-          </div>
+          {loading ? (
+            [0, 1, 2, 3, 4].map((idx) => (
+              <div className="hotel-info-field itinerary-day-card" key={`profile-skeleton-${idx}`}>
+                <span className="skeleton-block skeleton-line w-30" />
+                <span className="skeleton-block skeleton-line w-80" />
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="hotel-info-field itinerary-day-card">
+                <p className="hotel-info-label">Name</p>
+                <p className="hotel-info-value">{data?.travelerName || "-"}</p>
+              </div>
+              <div className="hotel-info-field itinerary-day-card">
+                <p className="hotel-info-label">Email</p>
+                <p className="hotel-info-value">{data?.email || "-"}</p>
+              </div>
+              <div className="hotel-info-field itinerary-day-card">
+                <p className="hotel-info-label">Passport</p>
+                <p className="hotel-info-value">{maskPassport(data?.passport)}</p>
+              </div>
+              <div className="hotel-info-field itinerary-day-card">
+                <p className="hotel-info-label">Expiration</p>
+                <p className="hotel-info-value">{formatDate(data?.passportExpiration)}</p>
+              </div>
+              <div className="hotel-info-field itinerary-day-card">
+                <p className="hotel-info-label">Country</p>
+                <p className="hotel-info-value">{data?.country || "-"}</p>
+              </div>
+            </>
+          )}
 
           <div className="profile-logout-wrap">
             <LogoutButton className="profile-logout-link" />

@@ -42,6 +42,7 @@ export default function TransferInformationPage() {
 
   const [data, setData] = useState<TripDetailsResponse | null>(null);
   const [traveler, setTraveler] = useState<Traveler | null>(null);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
 
@@ -63,6 +64,7 @@ export default function TransferInformationPage() {
 
       if (!tripResult.ok) {
         setMessage(tripResult.error || tripResult.message || "Failed to load transfer info.");
+        setLoading(false);
         return;
       }
 
@@ -70,6 +72,7 @@ export default function TransferInformationPage() {
       if (travelerResult.ok) {
         setTraveler((travelerResult.data as Traveler) || null);
       }
+      setLoading(false);
     }
 
     void loadData();
@@ -115,43 +118,64 @@ export default function TransferInformationPage() {
         </div>
 
         <div className="trip-details-info hotel-info-content">
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Driver Name</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.driverName)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Driver Phone</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.driverPhone)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Driver Information</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.driverInformation)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">License Plate</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.licensePlate)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Car Photo Files</p>
-            {data?.trip?.carPhoto && data.trip.carPhoto.length > 0 ? (
-              <div className="transfer-car-photos">
-                {data.trip.carPhoto.map((file, index) => {
-                  const fileId = file?.id || file?.previewId;
-                  if (!fileId || !sessionToken) return null;
-                  return (
-                    <img
-                      key={file.id || file.previewId || `${index}`}
-                      src={`/api/crm/files/${fileId}?sessionToken=${encodeURIComponent(sessionToken)}`}
-                      alt={file.fileName || `Car photo ${index + 1}`}
-                      className="transfer-car-photo"
-                    />
-                  );
-                })}
+          {loading ? (
+            <>
+              {[0, 1, 2].map((idx) => (
+                <div className="hotel-info-field skeleton-card" style={{ padding: 12 }} key={`transfer-skeleton-${idx}`}>
+                  <span className="skeleton-block skeleton-line w-30" />
+                  <span className="skeleton-block skeleton-line w-80" />
+                </div>
+              ))}
+              <div className="hotel-info-field skeleton-card" style={{ padding: 12 }}>
+                <span className="skeleton-block skeleton-line w-30" />
+                <div className="transfer-car-photos">
+                  <span className="skeleton-block transfer-car-photo" style={{ height: 84 }} />
+                  <span className="skeleton-block transfer-car-photo" style={{ height: 84 }} />
+                </div>
               </div>
-            ) : (
-              <p className="hotel-info-value">-</p>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="hotel-info-field">
+                <p className="hotel-info-label">Driver Name</p>
+                <p className="hotel-info-value">{renderText(data?.trip?.driverName)}</p>
+              </div>
+              <div className="hotel-info-field">
+                <p className="hotel-info-label">Driver Phone</p>
+                <p className="hotel-info-value">{renderText(data?.trip?.driverPhone)}</p>
+              </div>
+              <div className="hotel-info-field">
+                <p className="hotel-info-label">Driver Information</p>
+                <p className="hotel-info-value">{renderText(data?.trip?.driverInformation)}</p>
+              </div>
+              <div className="hotel-info-field">
+                <p className="hotel-info-label">License Plate</p>
+                <p className="hotel-info-value">{renderText(data?.trip?.licensePlate)}</p>
+              </div>
+              <div className="hotel-info-field">
+                <p className="hotel-info-label">Car Photo Files</p>
+                {data?.trip?.carPhoto && data.trip.carPhoto.length > 0 ? (
+                  <div className="transfer-car-photos">
+                    {data.trip.carPhoto.map((file, index) => {
+                      const attachmentId = file?.id || file?.previewId;
+                      const fileId = attachmentId ? `Sales_Orders_${tripId}_${attachmentId}` : "";
+                      if (!fileId || !sessionToken) return null;
+                      return (
+                        <img
+                          key={file.id || file.previewId || `${index}`}
+                          src={`/api/crm/files/${fileId}?sessionToken=${encodeURIComponent(sessionToken)}`}
+                          alt={file.fileName || `Car photo ${index + 1}`}
+                          className="transfer-car-photo"
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="hotel-info-value">-</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}

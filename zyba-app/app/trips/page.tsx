@@ -104,7 +104,20 @@ export default function TripsPage() {
         <h4 className="trips-section-title">Your Trips</h4>
 
         {loading ? (
-          <p className="text-h5" style={{ marginTop: 25, color: "var(--color-black)" }}>Loading trips...</p>
+          <div className="trips-carousel-view">
+            <div className="trips-carousel-track">
+              {[0, 1].map((item) => (
+                <article key={item} className="trip-card-modern skeleton-block" style={{ backgroundImage: "none" }}>
+                  <span className="trip-date-badge skeleton-block" style={{ width: 104, height: 24, display: "block", background: "rgba(255,255,255,0.28)" }} />
+                  <div className="trip-card-bottom" style={{ gap: 8 }}>
+                    <span className="skeleton-block skeleton-line w-60" />
+                    <span className="skeleton-block skeleton-line w-100" />
+                    <span className="skeleton-block skeleton-line w-80" />
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
         ) : trips.length === 0 ? (
           <p className="text-h5" style={{ marginTop: 25, color: "var(--color-black)" }}>No trips available.</p>
         ) : (

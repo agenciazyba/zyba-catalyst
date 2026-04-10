@@ -66,7 +66,7 @@ export default function ShopGearsPage() {
         <div className="trip-details-info hotel-info-content itinerary-days-list">
           <div className="hotel-info-field itinerary-day-card">
             <p className="hotel-info-label">Coming soon</p>
-            <p className="hotel-info-value">The gear shopping experience is being prepared for V1.1.</p>
+            <p className="hotel-info-value">We are preparing the best gear for your trip. Soon, you will be able to buy everything you need at the best prices.</p>
           </div>
         </div>
 

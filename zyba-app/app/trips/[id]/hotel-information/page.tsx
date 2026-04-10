@@ -39,6 +39,7 @@ export default function HotelInformationPage() {
 
   const [data, setData] = useState<TripDetailsResponse | null>(null);
   const [traveler, setTraveler] = useState<Traveler | null>(null);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function HotelInformationPage() {
 
       if (!tripResult.ok) {
         setMessage(tripResult.error || tripResult.message || "Failed to load hotel info.");
+        setLoading(false);
         return;
       }
 
@@ -65,6 +67,7 @@ export default function HotelInformationPage() {
       if (travelerResult.ok) {
         setTraveler((travelerResult.data as Traveler) || null);
       }
+      setLoading(false);
     }
 
     void loadData();
@@ -110,30 +113,42 @@ export default function HotelInformationPage() {
         </div>
 
         <div className="trip-details-info hotel-info-content">
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Hotel Name</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.hotelName)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Information</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.hotelInformation)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Confirmation</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.hotelConfirmationCode)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Address</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.hotelAddress)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Check in</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.checkIn)}</p>
-          </div>
-          <div className="hotel-info-field">
-            <p className="hotel-info-label">Check out</p>
-            <p className="hotel-info-value">{renderText(data?.trip?.checkOut)}</p>
-          </div>
+          {loading
+            ? [0, 1, 2, 3].map((idx) => (
+                <div className="hotel-info-field skeleton-card" style={{ padding: 12 }} key={`hotel-skeleton-${idx}`}>
+                  <span className="skeleton-block skeleton-line w-30" />
+                  <span className="skeleton-block skeleton-line w-80" />
+                  <span className="skeleton-block skeleton-line w-100" />
+                </div>
+              ))
+            : (
+              <>
+                <div className="hotel-info-field">
+                  <p className="hotel-info-label">Hotel Name</p>
+                  <p className="hotel-info-value">{renderText(data?.trip?.hotelName)}</p>
+                </div>
+                <div className="hotel-info-field">
+                  <p className="hotel-info-label">Information</p>
+                  <p className="hotel-info-value">{renderText(data?.trip?.hotelInformation)}</p>
+                </div>
+                <div className="hotel-info-field">
+                  <p className="hotel-info-label">Confirmation</p>
+                  <p className="hotel-info-value">{renderText(data?.trip?.hotelConfirmationCode)}</p>
+                </div>
+                <div className="hotel-info-field">
+                  <p className="hotel-info-label">Address</p>
+                  <p className="hotel-info-value">{renderText(data?.trip?.hotelAddress)}</p>
+                </div>
+                <div className="hotel-info-field">
+                  <p className="hotel-info-label">Check in</p>
+                  <p className="hotel-info-value">{renderText(data?.trip?.checkIn)}</p>
+                </div>
+                <div className="hotel-info-field">
+                  <p className="hotel-info-label">Check out</p>
+                  <p className="hotel-info-value">{renderText(data?.trip?.checkOut)}</p>
+                </div>
+              </>
+            )}
         </div>
 
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
