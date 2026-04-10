@@ -23,6 +23,11 @@ const DATA_CACHE_TTL_MS =
   Number.isFinite(configuredDataCacheTtl) && configuredDataCacheTtl > 0
     ? configuredDataCacheTtl
     : 5 * 60 * 1000;
+
+const TTL_TRAVELER_MS = Number(process.env.DATA_CACHE_TTL_TRAVELER_MS || 5 * 60 * 1000);
+const TTL_TRIPS_MS = Number(process.env.DATA_CACHE_TTL_TRIPS_MS || 3 * 60 * 1000);
+const TTL_TRIP_DETAILS_MS = Number(process.env.DATA_CACHE_TTL_TRIP_DETAILS_MS || 2 * 60 * 1000);
+const TTL_DEALS_MS = Number(process.env.DATA_CACHE_TTL_DEALS_MS || 5 * 60 * 1000);
 const dataCache = new Map();
 
 function getDataCache(key) {
@@ -310,7 +315,7 @@ async function zohoGetRecord(moduleApiName, recordId) {
 
   const record = response.data?.data?.[0] || null;
   if (record) {
-    setDataCache(recordCacheKey, record);
+    setDataCache(recordCacheKey, record, TTL_DEALS_MS);
   }
 
   return record;
@@ -376,7 +381,7 @@ async function getDealsByIds(dealIds) {
     for (const deal of response.data || []) {
       if (deal?.id) {
         dealsMap.set(String(deal.id), deal);
-        setDataCache(`record:Deals:${deal.id}`, deal);
+        setDataCache(`record:Deals:${deal.id}`, deal, TTL_DEALS_MS);
       }
     }
   }
@@ -618,7 +623,7 @@ async function getTravelerByEmail(email) {
     country: accountRecord?.Country || null,
   };
 
-  setDataCache(cacheKey, result);
+  setDataCache(cacheKey, result, TTL_TRAVELER_MS);
   return result;
 }
 
@@ -691,7 +696,7 @@ async function getTripsByLoggedUser(email) {
       };
     });
 
-  setDataCache(cacheKey, result);
+  setDataCache(cacheKey, result, TTL_TRIPS_MS);
   return result;
 }
 
@@ -804,17 +809,11 @@ async function getTripDetailsById(tripId, email) {
     deal,
   };
 
-  setDataCache(cacheKey, result);
+  setDataCache(cacheKey, result, TTL_TRIP_DETAILS_MS);
   return result;
 }
 
 async function getTripRequirementsById(tripId, email) {
-  const normalizedEmail = normalizeEmail(email);
-  const cacheKey = `trip-requirements:${tripId}:${normalizedEmail}`;
-
-  const cached = getDataCache(cacheKey);
-  if (cached) return cached;
-
   const tripDetails = await getTripDetailsById(tripId, email);
 
   if (!tripDetails) {
@@ -946,7 +945,6 @@ async function getTripRequirementsById(tripId, email) {
     requirements,
   };
 
-  setDataCache(cacheKey, result);
   return result;
 }
 
