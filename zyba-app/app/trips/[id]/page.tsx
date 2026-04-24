@@ -55,6 +55,12 @@ function formatDate(value: string | null | undefined) {
   }).format(d);
 }
 
+function cleanLabelPart(value: string | null | undefined) {
+  const text = String(value || "").trim();
+  if (!text || text === "-" || text === "--") return null;
+  return text;
+}
+
 export default function TripIndexPage() {
   const params = useParams();
   const router = useRouter();
@@ -69,6 +75,7 @@ export default function TripIndexPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -98,16 +105,13 @@ export default function TripIndexPage() {
     if (tripId) void load();
   }, [tripId, router]);
 
-  const destinationVendor =
-    data?.trip?.vendorName ||
-    data?.deal?.vendorName ||
-    data?.trip?.deal?.name ||
-    "-";
-  const destinationCountry =
-    data?.trip?.destinationCountry ||
-    data?.deal?.destinationCountry ||
-    data?.trip?.destination ||
-    "-";
+  const destinationVendor = cleanLabelPart(
+    data?.trip?.vendorName || data?.deal?.vendorName || data?.trip?.deal?.name
+  );
+  const destinationCountry = cleanLabelPart(
+    data?.trip?.destinationCountry || data?.deal?.destinationCountry || data?.trip?.destination
+  );
+  const destinationText = [destinationVendor, destinationCountry].filter(Boolean).join(" - ") || "-";
   const arrivalDate =
     data?.trip?.arrivalDate ||
     data?.deal?.arrivalDate ||
@@ -117,6 +121,55 @@ export default function TripIndexPage() {
     data?.trip?.status ||
     data?.deal?.status ||
     "-";
+
+  async function handleDownloadSalesOrder() {
+    if (!sessionToken || !tripId || downloadingPdf) return;
+
+    setMessage("");
+    setDownloadingPdf(true);
+
+    try {
+      const response = await fetch(
+        `/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(sessionToken)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+            "X-Session-Token": sessionToken,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        let errorMessage = "Failed to download Sales Order PDF.";
+
+        try {
+          const body = await response.json();
+          errorMessage = body.error || body.message || errorMessage;
+        } catch {}
+
+        throw new Error(errorMessage);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeTripId = String(tripId || "trip").trim();
+
+      link.href = url;
+      link.download = `sales-order-${safeTripId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Failed to download Sales Order PDF."
+      );
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
 
   return (
     <main className="trip-details-page">
@@ -158,7 +211,7 @@ export default function TripIndexPage() {
             <div className="trip-details-info">
               <p className="trip-details-info-line">
                 <strong>Destination:</strong>{" "}
-                {destinationVendor} - {destinationCountry}
+                {destinationText}
               </p>
               <p className="trip-details-info-line">
                 <strong>Arrival Date:</strong>{" "}
@@ -170,12 +223,14 @@ export default function TripIndexPage() {
               </p>
             </div>
 
-            <a
-              href={`/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(sessionToken)}`}
+            <button
+              type="button"
+              onClick={handleDownloadSalesOrder}
               className="btn trip-sales-order-btn"
+              disabled={!sessionToken || downloadingPdf}
             >
-              Download Sales Order PDF
-            </a>
+              {downloadingPdf ? "Downloading PDF..." : "Download Sales Order PDF"}
+            </button>
           </>
         )}
 

@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 
-const API_BASE = "https://zyba-costumer-app-915232350.development.catalystserverless.com/server/Zoho_api";
+const API_BASE =
+  process.env.API_PROXY_TARGET ||
+  (process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:3001/server/Zoho_api"
+    : "https://zyba-costumer-app-915232350.development.catalystserverless.com/server/Zoho_api");
 
 async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
   const { path = [] } = await ctx.params;

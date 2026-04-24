@@ -237,8 +237,8 @@ export default function DocumentsPage() {
           ) : null}
         </div>
 
-        <div className="hotel-info-back-fixed">
-          <Link href={`/trips/${tripId}`} className="btn">
+        <div className="trip-back-action">
+          <Link href={`/trips/${tripId}`} className="trip-back-link">
             Back to trip details
           </Link>
         </div>

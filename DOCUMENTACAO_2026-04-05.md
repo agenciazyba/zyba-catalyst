@@ -182,8 +182,11 @@ Nota: essas alterações de backend não foram revertidas e permanecem no estado
 
 ## 7) Observação operacional
 Para testes em iPhone (mesma rede), em dev:
-- Frontend: `http://<IP_LOCAL>:3001`
-- Backend Catalyst via rewrite interno do Next para `127.0.0.1:3000`.
+- Frontend: `http://<IP_LOCAL>:3000`
+- Backend Catalyst local: `http://127.0.0.1:3001/server/Zoho_api`
+- Proxy interno do Next em desenvolvimento:
+  - usa `API_PROXY_TARGET` se definido;
+  - caso contrário, usa `http://127.0.0.1:3001/server/Zoho_api`.
 
 ## 8) Atualização de estabilização (2026-04-06)
 
@@ -414,3 +417,320 @@ Arquivo:
 
 ### 10.8 Commit de referência (cache)
 - `91d3d48` perf: tune API cache TTLs and disable documents requirements cache
+
+## 11) Atualização CRM Flights + PDF + ambiente local (2026-04-20 a 2026-04-22)
+
+### 11.1 Novo módulo customizado `Flights`
+- Backend preparado para criar registros no módulo customizado `Flights`.
+- Campos suportados no payload:
+  - `trackingNumber` -> `Name`
+  - `airlineCompany` -> `Airline_Company`
+  - `airportDestination` -> `Airport_Destination`
+  - `arrival` -> `Arrival`
+  - `departure` -> `Departure`
+  - `departureAirport` -> `Departure_Airport`
+  - `status` -> `Status`
+  - `connectionsInformation[]` -> `Connection_Info`
+- Subform suportado:
+  - `connectionAirport` -> `Connection_Airport`
+  - `countryCity` -> `Country_City`
+  - `date` -> `Date`
+  - `duration` -> `Duration`
+  - `time` -> `Time`
+
+Arquivos:
+- `functions/Zoho_api/routes/crm.js`
+- `functions/Zoho_api/services/zoho.js`
+- `zyba-app/lib/api.ts`
+
+### 11.2 API name real do módulo e correção aplicada
+- Durante a validação no Zoho, foi confirmado que o API name real do módulo principal é `Flights`.
+- O nome `FLIGHTS` não era válido para as chamadas da API.
+- Correção aplicada no backend para usar:
+  - módulo principal: `Flights`
+  - módulo de ligação do multi-lookup: `Trips_X_Flights`
+
+### 11.3 Campo `Flights` em `TRIPS` (multi-select lookup)
+- O módulo `Sales_Orders`/`TRIPS` recebeu o campo:
+  - `Flights` - `Flights` - `Multi-Select Lookup`
+- As rotas abaixo passaram a retornar o campo:
+  - `GET /crm/trips`
+  - `GET /crm/trips/:tripId`
+- Formato básico retornado:
+
+```json
+{
+  "flights": [
+    { "id": "6623116000003094106", "name": "TESTE6789" }
+  ]
+}
+```
+
+### 11.4 Limitação do COQL com multi-select lookup
+- O campo `Flights` não pôde ser consultado diretamente no COQL de `Sales_Orders`.
+- Sintoma observado:
+  - erro `unsupported column`
+  - lista de trips vazia no app por falha na rota `/crm/trips`
+- Correção aplicada:
+  - `Flights` removido do COQL
+  - enriquecimento posterior via `zohoGetRecord("Sales_Orders", tripId)`
+- Resultado:
+  - trips voltaram a carregar normalmente
+  - campo `flights` permaneceu disponível no payload final
+
+### 11.5 Particularidade do multi-select lookup no Zoho
+- O array `Sales_Orders.Flights` não retorna diretamente o registro final do módulo `Flights`.
+- O Zoho devolve o registro do módulo de ligação, com este formato:
+
+```json
+{
+  "id": "6623116000003094147",
+  "Flights": {
+    "id": "6623116000003094106",
+    "name": "TESTE6789"
+  }
+}
+```
+
+- Correção aplicada no backend:
+  - extração do voo real a partir de `item.Flights`
+  - leitura completa do voo em `Flights/{id}`
+- Resultado:
+  - a tela `Flight Info` passou a exibir dados reais do voo e das conexões
+
+### 11.6 Nova tela `Flight Info`
+- A página `/trips/[id]/flight-information` foi implementada como primeira versão funcional.
+- Estrutura atual:
+  - um card com borda por voo vinculado
+  - cada linha no formato `Nome da variável = valor`
+  - renderização de `connectionsInformation` quando houver
+- Objetivo desta versão:
+  - permitir desenho/avaliação visual rápida da tela antes do refinamento final
+
+Arquivo:
+- `zyba-app/app/trips/[id]/flight-information/page.tsx`
+
+### 11.7 PDF de Sales Order / invoice
+- A geração do PDF foi validada localmente contra Zoho com sucesso.
+- Template confirmado:
+  - `SALES_ORDER_TEMPLATE_ID=6623116000003103002`
+- Template configurado em:
+  - `functions/Zoho_api/.env`
+  - `functions/Zoho_api/.env.example`
+- Endpoint funcional:
+  - `GET /crm/trips/:tripId/sales-order/pdf`
+
+### 11.8 Download do PDF sem sair da página
+- O botão de PDF em `Trip Details` foi alterado para:
+  - buscar o arquivo via `fetch`
+  - gerar download local com `blob`
+  - manter o usuário na mesma tela
+- Nome do arquivo:
+  - `sales-order-<tripId>.pdf`
+
+Arquivo:
+- `zyba-app/app/trips/[id]/page.tsx`
+
+### 11.9 Proxy interno local corrigido
+- Em desenvolvimento, o frontend estava chamando o backend remoto do Catalyst.
+- Isso causava inconsistência entre:
+  - código local
+  - sessão local
+  - dados vistos no app
+- Correção aplicada em `zyba-app/app/api/[...path]/route.ts`:
+  - `development` -> `http://127.0.0.1:3001/server/Zoho_api`
+  - produção -> URL remota do Catalyst
+  - `API_PROXY_TARGET` continua suportado para override
+
+### 11.10 Observação operacional sobre sessão/cache
+- O frontend guarda a sessão em:
+  - `localStorage["zyba_session_token"]`
+- Ao alternar entre backend remoto e backend local, é necessário limpar a sessão antiga do navegador e autenticar novamente.
+- Passo recomendado:
+  - abrir DevTools
+  - `Application` -> `Local Storage` -> `http://localhost:3000`
+  - remover `zyba_session_token`
+  - relogar no app
+
+### 11.11 Validação funcional desta rodada
+- Token OAuth novo do Zoho gerado com escopo amplo de teste
+- Acesso validado a:
+  - `Sales_Orders`
+  - `settings/inventory_templates`
+  - módulo `Flights`
+- PDF testado com retorno:
+  - `statusCode: 200`
+  - `content-type: application/pdf`
+
+### 11.12 Estado final desta atualização
+- `Trips` continuam listando normalmente
+- `Trip Details` retorna `flights`
+- `Flight Info` mostra os dados reais do módulo `Flights`
+- download do PDF funciona localmente sem sair da página
+- proxy local está apontando para o backend local correto
+
+## 12) Atualização visual das páginas internas (2026-04-22 a 2026-04-23)
+
+Versão consolidada desta rodada:
+- `UI Trip Experience v1.2`
+
+### 12.1 Página Profile refeita
+- A página `Profile` foi redesenhada com base no layout de referência aprovado.
+- Estrutura final:
+  - topbar escura com marca `Zyba Outdoors`
+  - avatar central grande com botão de edição
+  - nome do traveler centralizado
+  - cards para:
+    - `Full Name`
+    - `Email`
+    - `Country`
+    - `Passport Number`
+  - botão principal de retorno no fim do conteúdo
+- Ajustes visuais aplicados depois:
+  - fundo alterado para tom próximo ao mock (`#f4f4f1`)
+  - remoção do subtítulo `Adventurer & Explorer`
+  - aumento do padding geral da tela
+
+Arquivos:
+- `zyba-app/app/profile/page.tsx`
+- `zyba-app/app/globals.css`
+
+### 12.2 Página Flight Info reestruturada
+- A tela `Flight Info` deixou de ser uma lista simples de campos e passou a seguir layout visual de itinerário.
+- Estrutura consolidada:
+  - título `Flight Itinerary`
+  - chip de `PNR`
+  - chip de `Status`
+  - header escuro por voo com companhia aérea e número do voo
+  - bloco visual de rota com:
+    - código do aeroporto
+    - nome do aeroporto
+    - horário
+    - linha central com ícone de avião
+  - conexões exibidas apenas com dados úteis e sem ruído visual
+  - botão de retorno no fim da página
+
+### 12.3 Refinos de Flight Info
+- Ajustes sucessivos de UX/hierarquia:
+  - redução geral de textos para melhor leitura
+  - melhora da hierarquia entre:
+    - código do aeroporto
+    - nome do aeroporto
+    - horário
+    - metadados
+  - remoção da palavra `Stop`
+  - remoção de cidade/país na linha de conexão
+  - exibição da data da conexão isoladamente
+  - reintrodução do tempo de voo acima do ícone do avião
+  - centralização e compactação do card de data
+  - redução em `2px` do nome do aeroporto
+  - alinhamento do `Status` à direita
+  - `Status` mantendo as cores anteriores, mas com padding/borda compatíveis com o chip do número do voo
+  - ajuste de espaçamento entre título da página e conteúdo
+  - ajuste de respiro entre o card de data e a linha divisória seguinte
+
+Arquivo:
+- `zyba-app/app/trips/[id]/flight-information/page.tsx`
+- estilos em `zyba-app/app/globals.css`
+
+### 12.4 Página Hotel Information refeita
+- A página `Hotel Information` foi redesenhada com estrutura de card editorial.
+- Estrutura final:
+  - confirmation number no topo
+  - status em chip
+  - nome do hotel
+  - endereço com ícone de pin location
+  - hero card do hotel com botão `View Map`
+  - cards de `Check-in` e `Check-out`
+  - card `Hotel Details` exibindo apenas `hotelInformation`
+- Ajuste aplicado:
+  - `confirmation number` substituiu o texto `Upcoming Stay`
+  - `Hotel Details` passou a mostrar somente informações da hospedagem
+
+Arquivo:
+- `zyba-app/app/trips/[id]/hotel-information/page.tsx`
+- estilos em `zyba-app/app/globals.css`
+
+### 12.5 Página Transfer Information refeita
+- A página `Transfer Information` foi remodelada para o padrão visual aprovado.
+- Estrutura final:
+  - título `Transfer Details`
+  - subtítulo curto
+  - card `Your Driver`
+  - card `Vehicle`
+  - hero visual com foto do carro
+  - legenda da imagem
+  - card `Information`
+  - botão de retorno no fim do conteúdo
+- Ajuste de conteúdo aplicado:
+  - telefone do motorista movido para logo abaixo do nome
+  - alinhamento do telefone à esquerda no mesmo bloco do nome
+
+Arquivo:
+- `zyba-app/app/trips/[id]/transfer-information/page.tsx`
+- estilos em `zyba-app/app/globals.css`
+
+### 12.6 Resolução da imagem do veículo no card
+- Problema observado:
+  - a imagem do veículo não era renderizada no hero card da página `Transfer`
+  - o browser exibia apenas o alt/nome do arquivo
+- Causas identificadas:
+  1. o campo `Car_Photo` no Zoho não era attachment tradicional; era attachment de campo upload
+  2. o backend tentava baixar o arquivo pela rota de `Attachments`
+  3. o payload do frontend usava inicialmente `File_Id__s`, mas o endpoint correto precisava do `id` do item do campo
+  4. a rota `/crm/files/:fileId` quebrava o parse do módulo `Sales_Orders` ao dividir o identificador em `_`
+- Correções aplicadas:
+  - fallback em `streamZohoFile()` para `download_fields_attachment`
+  - `carPhoto.id` passou a usar o `id` do item do campo
+  - `fileId` foi mantido separado para referência
+  - parser da rota `/crm/files/:fileId` corrigido para interpretar corretamente:
+    - módulo: `Sales_Orders`
+    - recordId
+    - attachmentId
+- Resultado esperado:
+  - imagem do veículo passa a ser servida pelo backend local com o identificador correto
+
+Arquivos:
+- `functions/Zoho_api/services/zoho.js`
+- `functions/Zoho_api/routes/crm.js`
+
+### 12.7 Padronização dos botões `Back to trip details`
+- Todos os botões `Back to trip details` das páginas internas da trip foram padronizados para seguir o visual da página `Profile`.
+- Mudança de comportamento:
+  - deixaram de ser fixos no rodapé
+  - passaram a ser o último elemento do conteúdo
+- Nova classe compartilhada:
+  - `.trip-back-action`
+  - `.trip-back-link`
+
+Páginas padronizadas:
+- `Documents`
+- `Full Itinerary`
+- `Shop Gears`
+- `Hotel Information`
+- `Transfer Information`
+- `Flight Information`
+
+Arquivos:
+- `zyba-app/app/globals.css`
+- páginas em `zyba-app/app/trips/[id]/*`
+
+### 12.8 Footer mais escuro
+- O menu inferior (`BottomNav`) recebeu fundo mais escuro para melhorar contraste visual com as telas internas.
+- Cor aplicada:
+  - `#314132`
+
+Arquivo:
+- `zyba-app/app/globals.css`
+
+### 12.9 Observações técnicas desta rodada
+- O projeto continua com warning de lint não bloqueante em `Transfer Information` por uso de `<img>` para a foto do veículo.
+- Esse warning não bloqueia a renderização funcional da imagem e foi mantido por praticidade nesta etapa de refinamento visual.
+
+### 12.10 Estado final desta atualização
+- `Profile` redesenhada no padrão visual novo
+- `Flight Info` reorganizada com layout de itinerário
+- `Hotel Information` reorganizada com hero card + detalhes da hospedagem
+- `Transfer Information` reorganizada com cards de motorista e veículo
+- botões `Back to trip details` padronizados e não fixos
+- fluxo de imagem do veículo documentado e corrigido no backend

@@ -28,6 +28,29 @@ export type Trip = {
   documentsAcknowledged?: boolean;
   arrivalDate?: string | null;
   coverId?: string | null;
+  flights?: Array<{
+    id: string | null;
+    name: string | null;
+  }>;
+};
+
+export type FlightConnectionInput = {
+  connectionAirport?: string | null;
+  countryCity?: string | null;
+  date?: string | null;
+  duration?: number | null;
+  time?: string | null;
+};
+
+export type FlightInput = {
+  trackingNumber: string;
+  airlineCompany?: string | null;
+  airportDestination?: string | null;
+  arrival?: string | null;
+  departure?: string | null;
+  departureAirport?: string | null;
+  status?: string | null;
+  connectionsInformation?: FlightConnectionInput[];
 };
 
 async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
@@ -144,6 +167,21 @@ export async function acknowledgeRequirements(
       body: JSON.stringify({ version }),
     }
   );
+
+  return parseResponse(response);
+}
+
+export async function createFlight(sessionToken: string, payload: FlightInput) {
+  const response = await fetch(withSessionToken(`${getApiBase()}/crm/flights`, sessionToken), {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${sessionToken}`,
+      "X-Session-Token": sessionToken,
+    },
+    body: JSON.stringify(payload),
+  });
 
   return parseResponse(response);
 }

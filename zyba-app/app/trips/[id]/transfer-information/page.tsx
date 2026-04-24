@@ -26,8 +26,8 @@ type Traveler = {
   travelerName?: string | null;
 };
 
-function renderText(value: string | null | undefined) {
-  return value && value.trim() ? value : "-";
+function hasText(value?: string | null) {
+  return Boolean(String(value || "").trim());
 }
 
 export default function TransferInformationPage() {
@@ -78,13 +78,18 @@ export default function TransferInformationPage() {
     void loadData();
   }, [tripId, router]);
 
-  const goBack = () => {
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push(`/trips/${tripId}`);
-  };
+  const carPhotos =
+    data?.trip?.carPhoto?.map((file, index) => {
+      const attachmentId = file?.id || file?.previewId;
+      const fileId = attachmentId ? `Sales_Orders_${tripId}_${attachmentId}` : "";
+      if (!fileId || !sessionToken) return null;
+
+      return {
+        id: file.id || file.previewId || `${index}`,
+        src: `/api/crm/files/${fileId}?sessionToken=${encodeURIComponent(sessionToken)}`,
+        alt: file.fileName || `Vehicle photo ${index + 1}`,
+      };
+    }).filter(Boolean) || [];
 
   return (
     <main className="trip-details-page">
@@ -92,13 +97,13 @@ export default function TransferInformationPage() {
         <div className="trip-details-header-top">
           <div className="trip-details-user-block">
             <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-            <Image
-              src="/brand/Trans_Simb_Creme.png"
-              alt="Zyba symbol"
-              width={31}
-              height={31}
-              style={{ width: 31, height: "auto" }}
-            />
+              <Image
+                src="/brand/Trans_Simb_Creme.png"
+                alt="Zyba symbol"
+                width={31}
+                height={31}
+                style={{ width: 31, height: "auto" }}
+              />
             </Link>
             <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
           </div>
@@ -107,83 +112,75 @@ export default function TransferInformationPage() {
       </header>
 
       <section className="trip-details-body">
-        <div className="trip-section-title-row trip-details-title-first">
-          <button type="button" className="trip-section-back-btn" aria-label="Go back" onClick={goBack}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="trip-section-back-icon" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 5.5 8 12l6.5 6.5" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12H20" />
-            </svg>
-          </button>
-          <h5 className="trip-details-section-title">Transfer Informations</h5>
-        </div>
+        <div className="transfer-page-stack">
+          <div className="transfer-page-heading">
+            <h1 className="transfer-page-title">Transfer Details</h1>
+            <p className="transfer-page-subtitle">Your ride to the trailhead is confirmed.</p>
+          </div>
 
-        <div className="trip-details-info hotel-info-content">
           {loading ? (
             <>
-              {[0, 1, 2].map((idx) => (
-                <div className="hotel-info-field skeleton-card" style={{ padding: 12 }} key={`transfer-skeleton-${idx}`}>
-                  <span className="skeleton-block skeleton-line w-30" />
-                  <span className="skeleton-block skeleton-line w-80" />
-                </div>
-              ))}
-              <div className="hotel-info-field skeleton-card" style={{ padding: 12 }}>
-                <span className="skeleton-block skeleton-line w-30" />
-                <div className="transfer-car-photos">
-                  <span className="skeleton-block transfer-car-photo" style={{ height: 84 }} />
-                  <span className="skeleton-block transfer-car-photo" style={{ height: 84 }} />
-                </div>
-              </div>
+              <div className="transfer-panel skeleton-card" style={{ minHeight: 180 }} />
+              <div className="transfer-panel skeleton-card" style={{ minHeight: 300 }} />
             </>
           ) : (
             <>
-              <div className="hotel-info-field">
-                <p className="hotel-info-label">Driver Name</p>
-                <p className="hotel-info-value">{renderText(data?.trip?.driverName)}</p>
-              </div>
-              <div className="hotel-info-field">
-                <p className="hotel-info-label">Driver Phone</p>
-                <p className="hotel-info-value">{renderText(data?.trip?.driverPhone)}</p>
-              </div>
-              <div className="hotel-info-field">
-                <p className="hotel-info-label">Driver Information</p>
-                <p className="hotel-info-value">{renderText(data?.trip?.driverInformation)}</p>
-              </div>
-              <div className="hotel-info-field">
-                <p className="hotel-info-label">License Plate</p>
-                <p className="hotel-info-value">{renderText(data?.trip?.licensePlate)}</p>
-              </div>
-              <div className="hotel-info-field">
-                <p className="hotel-info-label">Car Photo Files</p>
-                {data?.trip?.carPhoto && data.trip.carPhoto.length > 0 ? (
-                  <div className="transfer-car-photos">
-                    {data.trip.carPhoto.map((file, index) => {
-                      const attachmentId = file?.id || file?.previewId;
-                      const fileId = attachmentId ? `Sales_Orders_${tripId}_${attachmentId}` : "";
-                      if (!fileId || !sessionToken) return null;
-                      return (
-                        <img
-                          key={file.id || file.previewId || `${index}`}
-                          src={`/api/crm/files/${fileId}?sessionToken=${encodeURIComponent(sessionToken)}`}
-                          alt={file.fileName || `Car photo ${index + 1}`}
-                          className="transfer-car-photo"
-                        />
-                      );
-                    })}
+              {(hasText(data?.trip?.driverName) || hasText(data?.trip?.driverPhone)) ? (
+                <section className="transfer-panel">
+                  <h2 className="transfer-panel-title">Your Driver</h2>
+
+                  {hasText(data?.trip?.driverName) ? (
+                    <div className="transfer-driver-card">
+                      <div className="transfer-driver-avatar">👨</div>
+                      <div className="transfer-driver-copy">
+                        <div className="transfer-driver-name">{data?.trip?.driverName}</div>
+                        {hasText(data?.trip?.driverPhone) ? (
+                          <div className="transfer-driver-phone">{data?.trip?.driverPhone}</div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {(carPhotos.length > 0 || hasText(data?.trip?.licensePlate) || hasText(data?.trip?.driverInformation)) ? (
+                <section className="transfer-panel">
+                  <div className="transfer-panel-header">
+                    <h2 className="transfer-panel-title">Vehicle</h2>
+                    {hasText(data?.trip?.licensePlate) ? (
+                      <div className="transfer-plate-chip">{data?.trip?.licensePlate}</div>
+                    ) : null}
                   </div>
-                ) : (
-                  <p className="hotel-info-value">-</p>
-                )}
-              </div>
+
+                  {carPhotos.length > 0 ? (
+                    <div className="transfer-vehicle-hero">
+                      <img src={carPhotos[0]?.src} alt={carPhotos[0]?.alt} className="transfer-vehicle-image" />
+                      {hasText(carPhotos[0]?.alt) ? (
+                        <div className="transfer-vehicle-caption">{carPhotos[0]?.alt}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {hasText(data?.trip?.driverInformation) ? (
+                    <div className="transfer-info-grid">
+                      <div className="transfer-info-card">
+                        <div className="transfer-info-label">Information</div>
+                        <div className="transfer-info-value">{data?.trip?.driverInformation}</div>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
             </>
           )}
-        </div>
 
-        {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
+          {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)" }}>{message}</p> : null}
 
-        <div className="hotel-info-back-fixed">
-          <Link href={`/trips/${tripId}`} className="btn">
-            Back to trip details
-          </Link>
+          <div className="trip-back-action">
+            <Link href={`/trips/${tripId}`} className="trip-back-link">
+              Back to trip details
+            </Link>
+          </div>
         </div>
       </section>
     </main>

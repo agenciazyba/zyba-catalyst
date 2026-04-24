@@ -95,9 +95,6 @@ export default function TripsPage() {
           <NotificationsBell />
         </div>
 
-        <p className="trips-header-note">
-          Avisos para o viajante , importante....
-        </p>
       </header>
 
       <section className="trips-body">

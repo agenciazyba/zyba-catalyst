@@ -3,18 +3,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import NotificationsBell from "@/components/NotificationsBell";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getTraveler } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
-import LogoutButton from "@/components/LogoutButton";
 
 type Traveler = {
   id?: string | null;
   travelerName?: string | null;
   email?: string | null;
   passport?: string | null;
-  passportExpiration?: string | null;
   country?: string | null;
   recordImage?: unknown;
 };
@@ -50,21 +48,52 @@ function getFileKeyFromRecordImage(recordImage: unknown, recordId: string) {
 }
 
 function maskPassport(value?: string | null) {
-  if (!value) return "-";
-  if (value.length <= 2) return value;
-  return `${"*".repeat(Math.max(0, value.length - 2))}${value.slice(-2)}`;
+  const text = String(value || "").trim();
+  if (!text) return "-";
+  if (text.length <= 4) return text;
+
+  const start = text.slice(0, Math.min(4, text.length - 2));
+  const end = text.slice(-2);
+  const hiddenCount = Math.max(2, text.length - start.length - end.length);
+  return `${start}${"*".repeat(hiddenCount)}${end}`;
 }
 
-function formatDate(date?: string | null) {
-  if (!date) return "-";
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return date;
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(d);
+function getCountryFlag(country?: string | null) {
+  const normalized = String(country || "").trim().toLowerCase();
+
+  if (normalized === "sweden") return "🇸🇪";
+  if (normalized === "brazil") return "🇧🇷";
+  if (normalized === "usa" || normalized === "united states" || normalized === "united states of america") return "🇺🇸";
+  if (normalized === "argentina") return "🇦🇷";
+  if (normalized === "colombia") return "🇨🇴";
+  return "🌍";
+}
+
+function ProfileCard({
+  label,
+  value,
+  icon,
+  trailing,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+  trailing?: ReactNode;
+}) {
+  return (
+    <article className="profile-card">
+      <div className="profile-card-head">
+        <h2 className="profile-card-label">{label}</h2>
+        <span className="profile-card-icon" aria-hidden="true">
+          {icon}
+        </span>
+      </div>
+      <div className="profile-card-value-wrap">
+        <p className="profile-card-value">{value}</p>
+        {trailing}
+      </div>
+    </article>
+  );
 }
 
 export default function ProfilePage() {
@@ -81,116 +110,120 @@ export default function ProfilePage() {
         router.replace("/login");
         return;
       }
+
       const response = await getTraveler(token);
       if (!response.ok) {
         setMessage(response.error || response.message || "Failed to load profile.");
         setLoading(false);
         return;
       }
+
       setData((response.data as Traveler) || null);
       setLoading(false);
     }
+
     void load();
   }, [router]);
 
   const photoUrl = useMemo(() => {
     if (!data) return "";
     const token = getSessionToken();
-    if (!token) return "";
-    if (photoFailed) return "";
+    if (!token || photoFailed) return "";
 
     const recordId = String(data.id || "").trim();
     const fileKey = getFileKeyFromRecordImage(data.recordImage, recordId);
     if (!fileKey) return "";
-
     if (fileKey.startsWith("http://") || fileKey.startsWith("https://")) return fileKey;
     return `/api/crm/files/${fileKey}?sessionToken=${token}`;
   }, [data, photoFailed]);
 
+  const firstName = data?.travelerName?.split(" ")[0] || "Traveler";
+  const country = data?.country || "-";
+  const countryFlag = getCountryFlag(data?.country);
+
   return (
-    <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
+    <main className="profile-page-shell">
+      <header className="profile-topbar">
+        <div className="profile-topbar-brand">
+          <Link href="/trips" aria-label="Go to trips" className="profile-topbar-logo">
             <Image
               src="/brand/Trans_Simb_Creme.png"
               alt="Zyba symbol"
-              width={31}
-              height={31}
-              style={{ width: 31, height: "auto" }}
+              width={32}
+              height={32}
+              style={{ width: 32, height: 32 }}
             />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{data?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
+          </Link>
+          <span className="profile-topbar-title">Zyba Outdoors</span>
         </div>
+        <NotificationsBell />
       </header>
 
-      <section className="trip-details-body">
-        <h5 className="trip-details-section-title trip-details-title-first">Profile</h5>
-        {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
-
-        <div className="trip-details-info hotel-info-content itinerary-days-list">
-          <div className="hotel-info-field" style={{ placeItems: "center" }}>
+      <section className="profile-page-body">
+        <div className="profile-hero">
+          <div className="profile-avatar-wrap">
             {loading ? (
-              <span className="skeleton-block" style={{ width: 96, height: 96, borderRadius: "50%" }} />
+              <span className="skeleton-block profile-avatar-skeleton" />
             ) : photoUrl ? (
               <Image
                 src={photoUrl}
                 alt={data?.travelerName || "Traveler"}
-                width={96}
-                height={96}
+                width={128}
+                height={128}
                 unoptimized
                 onError={() => setPhotoFailed(true)}
-                style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid #232323" }}
+                className="profile-avatar-image"
               />
             ) : (
-              <div style={{ width: 96, height: 96, borderRadius: "50%", border: "1px solid #232323", display: "grid", placeItems: "center" }}>
-                Photo
-              </div>
+              <div className="profile-avatar-fallback">{firstName.slice(0, 1)}</div>
             )}
+            <button type="button" className="profile-avatar-edit" aria-label="Edit profile photo">
+              ✎
+            </button>
           </div>
 
+          <h1 className="profile-hero-name">{loading ? "Loading..." : data?.travelerName || "Traveler"}</h1>
+        </div>
+
+        {message ? <p className="page-subtitle profile-error">{message}</p> : null}
+
+        <div className="profile-cards-grid">
           {loading ? (
-            [0, 1, 2, 3, 4].map((idx) => (
-              <div className="hotel-info-field itinerary-day-card" key={`profile-skeleton-${idx}`}>
+            [0, 1, 2, 3].map((idx) => (
+              <div className="profile-card skeleton-card" key={`profile-card-skeleton-${idx}`}>
                 <span className="skeleton-block skeleton-line w-30" />
                 <span className="skeleton-block skeleton-line w-80" />
               </div>
             ))
           ) : (
             <>
-              <div className="hotel-info-field itinerary-day-card">
-                <p className="hotel-info-label">Name</p>
-                <p className="hotel-info-value">{data?.travelerName || "-"}</p>
-              </div>
-              <div className="hotel-info-field itinerary-day-card">
-                <p className="hotel-info-label">Email</p>
-                <p className="hotel-info-value">{data?.email || "-"}</p>
-              </div>
-              <div className="hotel-info-field itinerary-day-card">
-                <p className="hotel-info-label">Passport</p>
-                <p className="hotel-info-value">{maskPassport(data?.passport)}</p>
-              </div>
-              <div className="hotel-info-field itinerary-day-card">
-                <p className="hotel-info-label">Expiration</p>
-                <p className="hotel-info-value">{formatDate(data?.passportExpiration)}</p>
-              </div>
-              <div className="hotel-info-field itinerary-day-card">
-                <p className="hotel-info-label">Country</p>
-                <p className="hotel-info-value">{data?.country || "-"}</p>
-              </div>
+              <ProfileCard label="Full Name" value={data?.travelerName || "-"} icon="🪪" />
+              <ProfileCard label="Email" value={data?.email || "-"} icon="✉" />
+              <ProfileCard
+                label="Country"
+                value={country}
+                icon="◔"
+                trailing={<span className="profile-card-trailing-flag">{countryFlag}</span>}
+              />
+              <ProfileCard
+                label="Passport Number"
+                value={maskPassport(data?.passport)}
+                icon="✈"
+                trailing={
+                  <button type="button" className="profile-card-verify">
+                    Verify
+                  </button>
+                }
+              />
             </>
           )}
-
-          <div className="profile-logout-wrap">
-            <LogoutButton className="profile-logout-link" />
-          </div>
         </div>
 
-        <div className="hotel-info-back-fixed">
-          <Link href="/trips" className="btn">Back to trip details</Link>
+        <div className="profile-primary-action">
+          <Link href="/trips" className="profile-back-btn">
+            <span aria-hidden="true">←</span>
+            <span>Back to trip details</span>
+          </Link>
         </div>
       </section>
     </main>

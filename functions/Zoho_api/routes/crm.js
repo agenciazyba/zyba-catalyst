@@ -7,6 +7,7 @@ const {
   getTripDetailsById,
   getTripRequirementsById,
   acknowledgeTripRequirements,
+  createFlightForLoggedUser,
   streamZohoFile,
   streamZohoRecordPhoto,
   streamSalesOrderPdf
@@ -57,6 +58,38 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     return true;
   }
 
+  if (method === "POST" && path === "/crm/flights") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const body = await getRequestBody(req);
+      const flight = await createFlightForLoggedUser(session.email, body);
+
+      if (!flight) {
+        sendJson(res, 404, { ok: false, error: "Traveler not found for logged user" });
+        return true;
+      }
+
+      sendJson(res, 201, {
+        ok: true,
+        data: flight
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Failed to create flight"
+      });
+    }
+
+    return true;
+  }
+
   const debugMatch = path.match(/^\/crm\/debug-deals$/);
   if (method === "GET" && debugMatch) {
     const { zohoGetRecord, zohoListRecords } = require("../services/zoho");
@@ -95,11 +128,11 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     let zAttach = fileId;
     
     if (fileId.includes("_")) {
-      const parts = fileId.split("_");
-      if (parts.length >= 2) {
-        zModule = parts[0];
-        zRecord = parts[1];
-        zAttach = parts.slice(2).join("_");
+      const match = fileId.match(/^(.+)_([^_]+)_([^_]+)$/);
+      if (match) {
+        zModule = match[1];
+        zRecord = match[2];
+        zAttach = match[3];
       }
     }
 

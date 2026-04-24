@@ -141,6 +141,44 @@ function mapLookup(value) {
   };
 }
 
+function mapLookupList(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (item && typeof item === "object" && item.Flights) {
+        return mapLookup(item.Flights);
+      }
+      return mapLookup(item);
+    })
+    .filter((item) => item && (item.id || item.name));
+}
+
+function mapFlightRecord(record) {
+  if (!record) return null;
+
+  return {
+    id: record.id || null,
+    trackingNumber: record.Name || null,
+    airlineCompany: record.Airline_Company || null,
+    airportDestination: record.Airport_Destination || null,
+    arrival: record.Arrival || null,
+    departure: record.Departure || null,
+    departureAirport: record.Departure_Airport || null,
+    status: record.Status || null,
+    connectionsInformation: Array.isArray(record.Connection_Info)
+      ? record.Connection_Info.map((row) => ({
+          id: row.id || null,
+          connectionAirport: row.Connection_Airport || null,
+          countryCity: row.Country_City || null,
+          date: row.Date || null,
+          duration: row.Duration ?? null,
+          time: row.Time || null,
+        }))
+      : [],
+  };
+}
+
 function includesMultiSelect(value, target) {
   if (!value || !target) return false;
 
@@ -185,6 +223,51 @@ function extractFirstHttpUrl(value) {
     if (match) return match[0];
   }
   return null;
+}
+
+function pickFirstValue(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function normalizeOptionalString(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+function normalizeOptionalNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeOptionalIsoDate(value) {
+  const text = normalizeOptionalString(value);
+  if (!text) return null;
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+function normalizeOptionalIsoDateTime(value) {
+  const text = normalizeOptionalString(value);
+  if (!text) return null;
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString().replace(/\.\d{3}Z$/, "+00:00");
 }
 
 /*
@@ -389,50 +472,106 @@ async function getDealsByIds(dealIds) {
   return dealsMap;
 }
 
+async function getFlightsByIds(flightIds) {
+  const cleanIds = Array.from(
+    new Set(
+      (flightIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (cleanIds.length === 0) return new Map();
+
+  const flightsMap = new Map();
+
+  await Promise.all(
+    cleanIds.map(async (flightId) => {
+      try {
+        const record = await zohoGetRecord("Flights", flightId);
+        if (record) {
+          flightsMap.set(String(flightId), mapFlightRecord(record));
+        }
+      } catch (e) {}
+    })
+  );
+
+  return flightsMap;
+}
+
 async function streamZohoFile(module, recordId, attachmentId, res) {
   const tokenRecord = await getZohoAccessToken();
   const domain = process.env.ZOHO_API_DOMAIN || "https://www.zohoapis.com";
-
   const { URL } = require("url");
-  const fileUrl = new URL(`${domain}/crm/v6/${escapeCoql(module)}/${escapeCoql(recordId)}/Attachments/${escapeCoql(attachmentId)}`);
 
-  const options = {
-    method: "GET",
-    hostname: fileUrl.hostname,
-    port: 443,
-    path: fileUrl.pathname + fileUrl.search,
-    headers: {
-      Authorization: `Zoho-oauthtoken ${tokenRecord.access_token}`,
-    },
-  };
+  async function requestFile(fileUrl) {
+    const options = {
+      method: "GET",
+      hostname: fileUrl.hostname,
+      port: 443,
+      path: fileUrl.pathname + fileUrl.search,
+      headers: {
+        Authorization: `Zoho-oauthtoken ${tokenRecord.access_token}`,
+      },
+    };
 
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, (zohoRes) => {
-      if (zohoRes.statusCode !== 200) {
-        let body = "";
-        zohoRes.on("data", (d) => (body += d));
-        zohoRes.on("end", () => {
-          res.writeHead(zohoRes.statusCode, { "Content-Type": "application/json" });
-          res.end(body);
-          resolve(false);
+    return new Promise((resolve, reject) => {
+      const req = https.request(options, (zohoRes) => {
+        if (zohoRes.statusCode !== 200) {
+          let body = "";
+          zohoRes.on("data", (d) => (body += d));
+          zohoRes.on("end", () => {
+            resolve({
+              ok: false,
+              statusCode: zohoRes.statusCode,
+              body,
+            });
+          });
+          return;
+        }
+
+        const headers = {};
+        ["content-disposition", "content-type", "content-length"].forEach((h) => {
+          if (zohoRes.headers[h]) headers[h] = zohoRes.headers[h];
         });
-        return;
-      }
 
-      const headers = {};
-      ["content-disposition", "content-type", "content-length"].forEach(h => {
-        if (zohoRes.headers[h]) headers[h] = zohoRes.headers[h];
+        resolve({
+          ok: true,
+          headers,
+          stream: zohoRes,
+        });
       });
 
-      res.writeHead(200, headers);
-      zohoRes.pipe(res);
-      
-      zohoRes.on("end", () => resolve(true));
-      zohoRes.on("error", reject);
+      req.on("error", reject);
+      req.end();
     });
+  }
 
-    req.on("error", reject);
-    req.end();
+  const attachmentUrl = new URL(
+    `${domain}/crm/v6/${escapeCoql(module)}/${escapeCoql(recordId)}/Attachments/${escapeCoql(attachmentId)}`
+  );
+  let fileResponse = await requestFile(attachmentUrl);
+
+  if (!fileResponse.ok) {
+    const fieldAttachmentUrl = new URL(
+      `${domain}/crm/v8/${escapeCoql(module)}/${escapeCoql(recordId)}/actions/download_fields_attachment`
+    );
+    fieldAttachmentUrl.searchParams.set("fields_attachment_id", String(attachmentId || "").trim());
+    fileResponse = await requestFile(fieldAttachmentUrl);
+  }
+
+  if (!fileResponse.ok) {
+    res.writeHead(fileResponse.statusCode || 500, { "Content-Type": "application/json" });
+    res.end(fileResponse.body || JSON.stringify({ error: "Failed to download file" }));
+    return false;
+  }
+
+  res.writeHead(200, fileResponse.headers || {});
+  fileResponse.stream.pipe(res);
+
+  return new Promise((resolve, reject) => {
+    fileResponse.stream.on("end", () => resolve(true));
+    fileResponse.stream.on("error", reject);
   });
 }
 
@@ -586,6 +725,48 @@ async function zohoUpdateRecord(moduleApiName, recordId, recordData) {
   return response.data;
 }
 
+async function zohoCreateRecord(moduleApiName, recordData) {
+  const token = await getZohoAccessToken();
+  const body = JSON.stringify({
+    data: [recordData],
+  });
+
+  const url = new URL(`/crm/v8/${moduleApiName}`, process.env.ZOHO_API_DOMAIN);
+
+  const response = await httpsRequest(
+    {
+      hostname: url.hostname,
+      path: url.pathname,
+      method: "POST",
+      headers: {
+        Authorization: `Zoho-oauthtoken ${token.access_token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    },
+    body
+  );
+
+  if (response.statusCode >= 400) {
+    console.error("ZOHO CREATE ERROR:", JSON.stringify(response.data, null, 2));
+    throw new Error(
+      typeof response.data === "string"
+        ? response.data
+        : response.data.message || `Failed to create record in ${moduleApiName}`
+    );
+  }
+
+  const result = response.data?.data?.[0] || null;
+
+  if (result && result.status === "error") {
+    console.error("ZOHO CREATE ERROR (200):", JSON.stringify(result, null, 2));
+    throw new Error(result.message || `Failed to create record in ${moduleApiName}`);
+  }
+
+  return result;
+}
+
 /*
 |--------------------------------------------------------------------------
 | Business logic
@@ -666,9 +847,23 @@ async function getTripsByLoggedUser(email) {
     );
   }
 
+  const tripRecordsById = new Map();
+  await Promise.all(
+    items.map(async (item) => {
+      if (!item?.id) return;
+      try {
+        const record = await zohoGetRecord("Sales_Orders", item.id);
+        if (record) {
+          tripRecordsById.set(String(item.id), record);
+        }
+      } catch (e) {}
+    })
+  );
+
   const result = items.map((item) => {
       let arrivalDate = null;
       let coverId = null;
+      const tripRecord = tripRecordsById.get(String(item.id));
 
       if (item.Deal_Name && item.Deal_Name.id) {
         const dealRecord = dealsById.get(String(item.Deal_Name.id));
@@ -693,6 +888,7 @@ async function getTripsByLoggedUser(email) {
         documentsAcknowledged: item.Documents_Acknowledged === true,
         arrivalDate,
         coverId,
+        flights: mapLookupList(tripRecord?.Flights),
       };
     });
 
@@ -722,6 +918,8 @@ async function getTripDetailsById(tripId, email) {
   }
 
   const tripRecord = await zohoGetRecord("Sales_Orders", tripId);
+  const flightLookups = mapLookupList(tripRecord?.Flights || trip?.Flights);
+  const flightsById = await getFlightsByIds(flightLookups.map((item) => item.id));
 
   const dealLookup = trip.Deal_Name || null;
   const dealId = dealLookup?.id || null;
@@ -780,6 +978,21 @@ async function getTripDetailsById(tripId, email) {
       subject: trip.Subject || null,
       status: trip.Status || null,
       totalAmount: trip.Grand_Total ?? null,
+      flights: flightLookups.map((item) => {
+        const flight = item.id ? flightsById.get(String(item.id)) : null;
+        return {
+          id: item.id || null,
+          name: item.name || flight?.trackingNumber || null,
+          trackingNumber: flight?.trackingNumber || item.name || null,
+          airlineCompany: flight?.airlineCompany || null,
+          airportDestination: flight?.airportDestination || null,
+          arrival: flight?.arrival || null,
+          departure: flight?.departure || null,
+          departureAirport: flight?.departureAirport || null,
+          status: flight?.status || null,
+          connectionsInformation: flight?.connectionsInformation || [],
+        };
+      }),
       hotelName: tripRecord?.Hotel_Name || null,
       hotelInformation: tripRecord?.Hotel_Information || null,
       hotelConfirmationCode: tripRecord?.Hotel_Confirmation_Code || null,
@@ -792,7 +1005,8 @@ async function getTripDetailsById(tripId, email) {
       licensePlate: tripRecord?.License_Plate || null,
       carPhoto: Array.isArray(tripRecord?.Car_Photo)
         ? tripRecord.Car_Photo.map((file) => ({
-            id: file.File_Id__s || null,
+            id: file.id || null,
+            fileId: file.File_Id__s || null,
             previewId: file.Preview_Id__s || null,
             fileName: file.File_Name__s || null,
           }))
@@ -971,6 +1185,109 @@ async function acknowledgeTripRequirements(tripId, email, version = null) {
   return await getTripDetailsById(tripId, email);
 }
 
+async function createFlightForLoggedUser(email, payload = {}) {
+  const traveler = await getTravelerByEmail(email);
+
+  if (!traveler) {
+    return null;
+  }
+
+  const trackingNumber = normalizeOptionalString(
+    pickFirstValue(payload.trackingNumber, payload.name, payload.Name)
+  );
+  const airlineCompany = normalizeOptionalString(
+    pickFirstValue(payload.airlineCompany, payload.Airline_Company)
+  );
+  const airportDestination = normalizeOptionalString(
+    pickFirstValue(payload.airportDestination, payload.Airport_Destination)
+  );
+  const arrival = normalizeOptionalIsoDateTime(
+    pickFirstValue(payload.arrival, payload.Arrival)
+  );
+  const departure = normalizeOptionalIsoDateTime(
+    pickFirstValue(payload.departure, payload.Departure)
+  );
+  const departureAirport = normalizeOptionalString(
+    pickFirstValue(payload.departureAirport, payload.Departure_Airport)
+  );
+  const status = normalizeOptionalString(
+    pickFirstValue(payload.status, payload.Status)
+  );
+
+  const connectionRows = Array.isArray(
+    pickFirstValue(payload.connectionsInformation, payload.Connection_Info)
+  )
+    ? pickFirstValue(payload.connectionsInformation, payload.Connection_Info)
+    : [];
+
+  if (!trackingNumber) {
+    throw new Error("Tracking Number is required");
+  }
+
+  const zohoPayload = {
+    Name: trackingNumber,
+    Airline_Company: airlineCompany,
+    Airport_Destination: airportDestination,
+    Arrival: arrival,
+    Departure: departure,
+    Departure_Airport: departureAirport,
+    Status: status,
+    Connection_Info: connectionRows
+      .map((row) => ({
+        Connection_Airport: normalizeOptionalString(
+          pickFirstValue(row?.connectionAirport, row?.Connection_Airport)
+        ),
+        Country_City: normalizeOptionalString(
+          pickFirstValue(row?.countryCity, row?.Country_City)
+        ),
+        Date: normalizeOptionalIsoDate(
+          pickFirstValue(row?.date, row?.Date)
+        ),
+        Duration: normalizeOptionalNumber(
+          pickFirstValue(row?.duration, row?.Duration)
+        ),
+        Time: normalizeOptionalString(
+          pickFirstValue(row?.time, row?.Time)
+        ),
+      }))
+      .filter((row) =>
+        row.Connection_Airport ||
+        row.Country_City ||
+        row.Date ||
+        row.Duration !== null ||
+        row.Time
+      ),
+  };
+
+  const created = await zohoCreateRecord("Flights", zohoPayload);
+
+  clearDataCacheByPrefix("record:Flights:");
+
+  return {
+    id: created?.details?.id || null,
+    trackingNumber,
+    airlineCompany,
+    airportDestination,
+    arrival,
+    departure,
+    departureAirport,
+    status,
+    connectionsInformation: zohoPayload.Connection_Info.map((row) => ({
+      connectionAirport: row.Connection_Airport,
+      countryCity: row.Country_City,
+      date: row.Date,
+      duration: row.Duration,
+      time: row.Time,
+    })),
+    traveler: {
+      id: traveler.id || null,
+      email: traveler.email || null,
+      travelerName: traveler.travelerName || null,
+    },
+    zoho: created,
+  };
+}
+
 module.exports = {
   getZohoAccessToken,
   getTravelerByEmail,
@@ -983,5 +1300,6 @@ module.exports = {
   streamSalesOrderPdf,
   runCoqlQuery,
   zohoGetRecord,
-  zohoListRecords
+  zohoListRecords,
+  createFlightForLoggedUser
 };

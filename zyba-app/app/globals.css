@@ -583,7 +583,7 @@ h5 {
   bottom: 0;
   width: min(var(--max-width), 100%);
   height: var(--nav-total-height);
-  background: var(--color-green-military);
+  background: #314132;
   border-top: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1196,6 +1196,624 @@ h5 {
   display: block;
 }
 
+.flight-itinerary-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.flight-ticket {
+  display: grid;
+  gap: 10px;
+}
+
+.flight-ticket-topmeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.flight-pnr-chip {
+  width: fit-content;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(35, 35, 35, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  color: #494949;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.flight-pnr-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.flight-ticket-card {
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(35, 35, 35, 0.14);
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(35, 35, 35, 0.08);
+}
+
+.flight-ticket-header {
+  padding: 14px 16px;
+  background: #2f3131;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.flight-brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.flight-brand-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #2f3131;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.flight-brand-name {
+  color: #ffffff;
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.flight-number-chip {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f4f4;
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.flight-ticket-body {
+  padding: 18px 14px 10px;
+  display: grid;
+  gap: 12px;
+}
+
+.flight-leg {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.flight-leg.is-divided {
+  padding-top: 14px;
+  border-top: 1px dashed rgba(35, 35, 35, 0.14);
+}
+
+.flight-leg-side {
+  min-width: 0;
+}
+
+.flight-leg-side.is-right {
+  text-align: right;
+}
+
+.flight-leg-code {
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 30px;
+  line-height: 0.92;
+}
+
+.flight-leg-label {
+  margin-top: 4px;
+  color: rgba(35, 35, 35, 0.72);
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.flight-leg-time {
+  margin-top: 8px;
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.flight-leg-center {
+  min-width: 108px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.flight-leg-duration {
+  color: rgba(35, 35, 35, 0.76);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.flight-leg-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #232323;
+}
+
+.flight-leg-dash {
+  width: 46px;
+  border-top: 2px dashed rgba(35, 35, 35, 0.22);
+}
+
+.flight-leg-plane {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.flight-connections-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.flight-connection-pill-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.flight-meta-pill {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(35, 35, 35, 0.08);
+  background: #f7f6f2;
+  display: inline-flex;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin: 0 auto;
+  color: #868069;
+  font-family: "BL Melody", sans-serif;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.flight-meta-pill strong {
+  color: inherit;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.flight-ticket-footer {
+  padding: 14px 16px 16px;
+  border-top: 1px dashed rgba(35, 35, 35, 0.14);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.flight-ticket-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+}
+
+.flight-footer-block {
+  display: grid;
+  gap: 4px;
+}
+
+.flight-footer-label {
+  color: rgba(35, 35, 35, 0.62);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.flight-footer-value {
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 13px;
+  line-height: 1.15;
+  font-weight: 400;
+}
+
+.flight-status-topchip {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(89, 97, 62, 0.12);
+  background: #d8d9bb;
+  color: #59613e;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.flight-page-actions {
+  margin-top: 20px;
+  display: flex;
+}
+
+.hotel-page-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.hotel-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hotel-page-kicker {
+  color: rgba(35, 35, 35, 0.68);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hotel-page-status {
+  min-height: 32px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #e8e6de;
+  color: #595959;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hotel-page-title {
+  margin: 0;
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 24px;
+  line-height: 1.08;
+}
+
+.hotel-page-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: rgba(35, 35, 35, 0.72);
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.hotel-page-address-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: rgba(35, 35, 35, 0.78);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hotel-page-address-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hotel-hero-card {
+  position: relative;
+  min-height: 164px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  background:
+    linear-gradient(180deg, rgba(44, 100, 165, 0.15), rgba(27, 32, 39, 0.08)),
+    linear-gradient(135deg, #6aa3d9 0%, #bdc8d2 36%, #d6d1c6 36%, #ece8dc 100%);
+  box-shadow: 0 10px 24px rgba(35, 35, 35, 0.08);
+}
+
+.hotel-hero-badge {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  min-height: 32px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(24, 109, 140, 0.9);
+  color: #ffffff;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hotel-map-btn {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(35, 35, 35, 0.08);
+  color: #4b4b4b;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow: 0 8px 18px rgba(35, 35, 35, 0.12);
+}
+
+.hotel-stay-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hotel-stay-card {
+  min-height: 120px;
+  border-radius: 16px;
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(35, 35, 35, 0.06);
+  padding: 16px 14px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.hotel-stay-label {
+  color: rgba(35, 35, 35, 0.68);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.hotel-stay-date {
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.hotel-stay-time {
+  color: rgba(35, 35, 35, 0.76);
+  font-family: "BL Melody", sans-serif;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.hotel-booking-card {
+  border-radius: 16px;
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(35, 35, 35, 0.06);
+  padding: 18px 14px;
+  display: grid;
+  gap: 16px;
+}
+
+.hotel-booking-title {
+  margin: 0;
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 24px;
+  line-height: 1.08;
+}
+
+.hotel-booking-copy {
+  color: rgba(35, 35, 35, 0.76);
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.transfer-page-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.transfer-page-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.transfer-page-title {
+  margin: 0;
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 24px;
+  line-height: 1.08;
+}
+
+.transfer-page-subtitle {
+  margin: 0;
+  color: rgba(35, 35, 35, 0.76);
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.transfer-panel {
+  border-radius: 16px;
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(35, 35, 35, 0.06);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.transfer-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transfer-panel-title {
+  margin: 0;
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 20px;
+  line-height: 1.08;
+}
+
+.transfer-driver-card {
+  min-height: 78px;
+  border-radius: 14px;
+  background: #f4f4f1;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.transfer-driver-copy {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.transfer-driver-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #4bb1d8, #27425a);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.transfer-driver-name {
+  color: #232323;
+  font-family: "BL Melody", sans-serif;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.transfer-driver-phone {
+  color: rgba(35, 35, 35, 0.88);
+  font-family: "BL Melody", sans-serif;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.transfer-plate-chip {
+  min-height: 32px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #d8d9bb;
+  color: #59613e;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+.transfer-vehicle-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  min-height: 172px;
+  background: linear-gradient(180deg, #1f2324, #111314);
+}
+
+.transfer-vehicle-image {
+  width: 100%;
+  height: 172px;
+  object-fit: cover;
+  display: block;
+}
+
+.transfer-vehicle-caption {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  color: #ffffff;
+  font-family: "BL Melody", sans-serif;
+  font-size: 15px;
+  line-height: 1.15;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.transfer-info-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.transfer-info-card {
+  min-height: 86px;
+  border-radius: 12px;
+  background: #f4f4f1;
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.transfer-info-label {
+  color: rgba(35, 35, 35, 0.62);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.transfer-info-value {
+  color: rgba(35, 35, 35, 0.84);
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
 .profile-logout-wrap {
   margin-top: 30px;
   display: flex;
@@ -1213,6 +1831,238 @@ h5 {
   font-weight: 400;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.profile-page-shell {
+  min-height: calc(100dvh - var(--nav-total-height));
+  background: #f4f4f1;
+}
+
+.profile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px 14px;
+  background: #1c1715;
+  color: var(--color-cream);
+}
+
+.profile-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-topbar-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.profile-topbar-title {
+  font-family: "BL Melody", sans-serif;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.profile-page-body {
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 32px 18px calc(32px + env(safe-area-inset-bottom, 0px));
+}
+
+.profile-hero {
+  padding: 28px 12px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  margin-bottom: 18px;
+}
+
+.profile-avatar-image,
+.profile-avatar-fallback,
+.profile-avatar-skeleton {
+  width: 128px;
+  height: 128px;
+  border-radius: 999px;
+  border: 4px solid #ffffff;
+  box-shadow: 0 10px 24px rgba(35, 35, 35, 0.12);
+}
+
+.profile-avatar-image {
+  object-fit: cover;
+  background: #d8d7d1;
+}
+
+.profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #26313c 0%, #131a21 100%);
+  color: var(--color-cream);
+  font-family: "BL Melody", sans-serif;
+  font-size: 42px;
+}
+
+.profile-avatar-edit {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 3px solid #ffffff;
+  background: #73765c;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 6px 14px rgba(35, 35, 35, 0.18);
+}
+
+.profile-hero-name {
+  margin: 0;
+  color: #373737;
+  font-family: "BL Melody", sans-serif;
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.profile-error {
+  margin: 0 8px 14px;
+}
+
+.profile-cards-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-card {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(98, 109, 80, 0.08);
+  box-shadow: 0 8px 18px rgba(35, 35, 35, 0.07);
+  padding: 14px 14px 12px;
+}
+
+.profile-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.profile-card-label {
+  margin: 0;
+  color: rgba(55, 55, 55, 0.64);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-card-icon {
+  color: rgba(55, 55, 55, 0.62);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.profile-card-value-wrap {
+  min-height: 52px;
+  border-radius: 12px;
+  background: #f5f4ef;
+  border: 1px solid rgba(116, 120, 120, 0.14);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-card-value {
+  margin: 0;
+  color: #373737;
+  font-family: "BL Melody", sans-serif;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+.profile-card-trailing-flag {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.profile-card-verify {
+  border: 0;
+  background: transparent;
+  color: #73765c;
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.profile-primary-action {
+  padding: 28px 4px 10px;
+}
+
+.profile-back-btn {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 999px;
+  background: #6d7258;
+  color: var(--color-cream);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 10px 20px rgba(109, 114, 88, 0.24);
+}
+
+.trip-back-action {
+  padding: 28px 4px 10px;
+}
+
+.trip-back-link {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 999px;
+  background: #6d7258;
+  color: var(--color-cream);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+  font-family: "BL Melody", sans-serif;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 10px 20px rgba(109, 114, 88, 0.24);
 }
 
 .trip-route-body {
