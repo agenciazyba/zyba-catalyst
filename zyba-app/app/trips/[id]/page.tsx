@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import AppTopBar from "@/components/AppTopBar";
 
 type TripDetailsResponse = {
   trip: {
@@ -38,8 +38,8 @@ type Traveler = {
 };
 
 const links = [
-  { label: "Hotel Informations", slug: "hotel-information", icon: "hotel" as const },
-  { label: "Transfer Informations", slug: "transfer-information", icon: "transfer" as const },
+  { label: "Hotel Information", slug: "hotel-information", icon: "hotel" as const },
+  { label: "Transfer Information", slug: "transfer-information", icon: "transfer" as const },
   { label: "Full Itinerary", slug: "full-itinerary", icon: "itinerary" as const },
 ];
 
@@ -59,6 +59,37 @@ function cleanLabelPart(value: string | null | undefined) {
   const text = String(value || "").trim();
   if (!text || text === "-" || text === "--") return null;
   return text;
+}
+
+function formatTripStatusLabel(value: string | null | undefined) {
+  const text = String(value || "").trim();
+  if (!text) return "-";
+
+  const normalized = text.toLowerCase();
+  if (normalized === "approved") return "Ready to Travel";
+  if (normalized === "rescheduled") return "Trip Updated";
+  return text;
+}
+
+function getCountryFlag(value: string | null | undefined) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return "";
+
+  const flags: Record<string, string> = {
+    brazil: "🇧🇷",
+    brasil: "🇧🇷",
+    italy: "🇮🇹",
+    italia: "🇮🇹",
+    argentina: "🇦🇷",
+    colombia: "🇨🇴",
+    peru: "🇵🇪",
+    usa: "🇺🇸",
+    "united states": "🇺🇸",
+    canada: "🇨🇦",
+    mexico: "🇲🇽",
+  };
+
+  return flags[text] || "";
 }
 
 export default function TripIndexPage() {
@@ -111,7 +142,7 @@ export default function TripIndexPage() {
   const destinationCountry = cleanLabelPart(
     data?.trip?.destinationCountry || data?.deal?.destinationCountry || data?.trip?.destination
   );
-  const destinationText = [destinationVendor, destinationCountry].filter(Boolean).join(" - ") || "-";
+  const destinationFlag = getCountryFlag(destinationCountry);
   const arrivalDate =
     data?.trip?.arrivalDate ||
     data?.deal?.arrivalDate ||
@@ -121,6 +152,7 @@ export default function TripIndexPage() {
     data?.trip?.status ||
     data?.deal?.status ||
     "-";
+  const tripHeadingCountry = destinationCountry || "your destination";
 
   async function handleDownloadSalesOrder() {
     if (!sessionToken || !tripId || downloadingPdf) return;
@@ -173,26 +205,21 @@ export default function TripIndexPage() {
 
   return (
     <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-            <Image
-              src="/brand/Trans_Simb_Creme.png"
-              alt="Zyba symbol"
-              width={31}
-              height={31}
-              style={{ width: 31, height: "auto" }}
-            />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
-        <h5 className="trip-details-section-title trip-details-title-first">Your Trip</h5>
+        <div className="trip-page-heading">
+          <h5 className="trip-details-section-title">
+            {`Your trip to ${tripHeadingCountry}`}
+            {destinationFlag ? <span className="trip-page-heading-flag" aria-hidden="true"> {destinationFlag}</span> : null}
+          </h5>
+          {!loading ? (
+            <span className="trip-details-status-row">
+              <span className="trip-details-status-dot" aria-hidden="true" />
+              <strong className="trip-details-status-text">{formatTripStatusLabel(tripStatus)}</strong>
+            </span>
+          ) : null}
+        </div>
 
         {loading ? (
           <>
@@ -208,29 +235,32 @@ export default function TripIndexPage() {
           </>
         ) : (
           <>
-            <div className="trip-details-info">
-              <p className="trip-details-info-line">
-                <strong>Destination:</strong>{" "}
-                {destinationText}
-              </p>
-              <p className="trip-details-info-line">
-                <strong>Arrival Date:</strong>{" "}
-                {formatDate(arrivalDate)}
-              </p>
-              <p className="trip-details-info-line">
-                <strong>Status:</strong>{" "}
-                <span className="trip-details-status">{tripStatus}</span>
-              </p>
-            </div>
+            <div className="trip-details-info-card">
+              <div className="trip-details-info-grid">
+                <div className="trip-details-info-block">
+                  <span className="trip-details-info-label">Destination</span>
+                  <strong className="trip-details-info-value">{destinationVendor || "-"}</strong>
+                </div>
+                <div className="trip-details-info-block">
+                  <span className="trip-details-info-label">Arrival Date</span>
+                  <strong className="trip-details-info-value">{formatDate(arrivalDate)}</strong>
+                </div>
+              </div>
 
-            <button
-              type="button"
-              onClick={handleDownloadSalesOrder}
-              className="btn trip-sales-order-btn"
-              disabled={!sessionToken || downloadingPdf}
-            >
-              {downloadingPdf ? "Downloading PDF..." : "Download Sales Order PDF"}
-            </button>
+              <button
+                type="button"
+                onClick={handleDownloadSalesOrder}
+                className="btn trip-sales-order-btn"
+                disabled={!sessionToken || downloadingPdf}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="trip-sales-order-icon" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v10" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8 10 4 4 4-4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 18h14" />
+                </svg>
+                <span>{downloadingPdf ? "Downloading PDF..." : "Download Sales Order PDF"}</span>
+              </button>
+            </div>
           </>
         )}
 
@@ -280,11 +310,11 @@ export default function TripIndexPage() {
                 <Link key={item.label} href={`/trips/${tripId}/${item.slug}`} className="trip-details-link-row">
                   <span className="trip-details-link-left">
                     {item.icon === "hotel" ? (
-                      <Image src="/icons/Icon_Hotel.svg" alt="" width={24} height={29} className="trip-details-link-icon" />
+                      <Image src="/icons/Icon_Hotel.svg" alt="" width={28} height={28} className="trip-details-link-icon" />
                     ) : item.icon === "transfer" ? (
-                      <Image src="/icons/Icon_TRansfer.svg" alt="" width={24} height={29} className="trip-details-link-icon" />
+                      <Image src="/icons/Icon_TRansfer.svg" alt="" width={28} height={28} className="trip-details-link-icon" />
                     ) : (
-                      <Image src="/icons/Icon_Itinerary.svg" alt="" width={24} height={29} className="trip-details-link-icon" />
+                      <Image src="/icons/Icon_Itinerary.svg" alt="" width={28} height={28} className="trip-details-link-icon" />
                     )}
                     <span className="trip-details-link-text">{item.label}</span>
                   </span>

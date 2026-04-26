@@ -76,12 +76,13 @@ Arquivo:
 
 ### 2.5 Página TRIPS
 - Reestruturação visual da tela TRIPS conforme mock aprovado:
-  - header preto (206px)
+  - header preto com linha útil padronizada em `56px + safe area`
   - bloco usuário com símbolo e saudação
   - ícone de notificação no topo
   - body branco
   - carrossel horizontal de cards
 - Ajustes posteriores solicitados:
+  - header extra grande removido como padrão; a área de topo passou a seguir o mesmo componente compartilhado do restante do app
   - remoção da seção de notifications
   - body ocupando altura útil entre header e footer
   - cards com altura ampliada e depois limitada à viewport para evitar rolagem
@@ -97,7 +98,8 @@ Arquivo:
 
 ### 2.6 Footer / navegação inferior
 - Footer ajustado para:
-  - altura 78px
+  - linha útil de `56px`
+  - altura total de `56px + safe-area-inset-bottom`
   - fundo verde militar
   - ícones e textos em creme
   - efeito de clique
@@ -577,7 +579,8 @@ Versão consolidada desta rodada:
 ### 12.1 Página Profile refeita
 - A página `Profile` foi redesenhada com base no layout de referência aprovado.
 - Estrutura final:
-  - topbar escura com marca `Zyba Outdoors`
+  - topbar escura compartilhada com `My Trips` e páginas internas
+  - símbolo Zyba à esquerda, saudação do traveler e sino de notificações
   - avatar central grande com botão de edição
   - nome do traveler centralizado
   - cards para:
@@ -719,11 +722,33 @@ Arquivos:
 - O menu inferior (`BottomNav`) recebeu fundo mais escuro para melhorar contraste visual com as telas internas.
 - Cor aplicada:
   - `#314132`
+- Padrão consolidado depois:
+  - mesmo componente em todo o app
+  - mesma altura útil de `56px`
+  - mesmo respeito a `safe-area-inset-bottom`
 
 Arquivo:
 - `zyba-app/app/globals.css`
 
-### 12.9 Observações técnicas desta rodada
+### 12.9 Padrão consolidado de header e footer
+- O app passou a usar um único componente compartilhado de header mobile:
+  - `zyba-app/components/AppTopBar.tsx`
+- Estrutura padrão:
+  - símbolo Zyba clicável
+  - saudação `Hi,<nome>`
+  - sino de notificações
+- Regras consolidadas:
+  - linha útil do header: `56px`
+  - linha útil do footer: `56px`
+  - header total com `safe-area-inset-top`
+  - footer total com `safe-area-inset-bottom`
+  - padding horizontal do header: `20px`
+- Páginas que devem seguir esse padrão:
+  - `My Trips`
+  - `Profile`
+  - páginas internas de trip como `Hotel`, `Transfer`, `Flight`, `Documents`, `Itinerary` e `Shop Gears`
+
+### 12.10 Observações técnicas desta rodada
 - O projeto continua com warning de lint não bloqueante em `Transfer Information` por uso de `<img>` para a foto do veículo.
 - Esse warning não bloqueia a renderização funcional da imagem e foi mantido por praticidade nesta etapa de refinamento visual.
 

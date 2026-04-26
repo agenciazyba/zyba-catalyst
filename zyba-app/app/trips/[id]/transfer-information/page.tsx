@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import TripBackLink from "@/components/TripBackLink";
+import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
-import Link from "next/link";
 
 type TripDetailsResponse = {
   trip: {
@@ -16,6 +16,7 @@ type TripDetailsResponse = {
     licensePlate: string | null;
     carPhoto: Array<{
       id: string | null;
+      fileId?: string | null;
       previewId: string | null;
       fileName: string | null;
     }>;
@@ -33,6 +34,7 @@ function hasText(value?: string | null) {
 export default function TransferInformationPage() {
   const params = useParams();
   const router = useRouter();
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tripId = useMemo(() => {
     const raw = params?.id;
@@ -78,14 +80,34 @@ export default function TransferInformationPage() {
     void loadData();
   }, [tripId, router]);
 
+  useEffect(() => {
+    return () => {
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, []);
+
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  function handleBackNavigation(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (isLeaving) return;
+
+    setIsLeaving(true);
+    exitTimerRef.current = setTimeout(() => {
+      router.push(`/trips/${tripId}`);
+    }, 220);
+  }
+
   const carPhotos =
     data?.trip?.carPhoto?.map((file, index) => {
-      const attachmentId = file?.id || file?.previewId;
+      const attachmentId = file?.id || file?.previewId || file?.fileId;
       const fileId = attachmentId ? `Sales_Orders_${tripId}_${attachmentId}` : "";
       if (!fileId || !sessionToken) return null;
 
       return {
-        id: file.id || file.previewId || `${index}`,
+        id: file.id || file.previewId || file.fileId || `${index}`,
         src: `/api/crm/files/${fileId}?sessionToken=${encodeURIComponent(sessionToken)}`,
         alt: file.fileName || `Vehicle photo ${index + 1}`,
       };
@@ -93,29 +115,13 @@ export default function TransferInformationPage() {
 
   return (
     <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-              <Image
-                src="/brand/Trans_Simb_Creme.png"
-                alt="Zyba symbol"
-                width={31}
-                height={31}
-                style={{ width: 31, height: "auto" }}
-              />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
+        <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
         <div className="transfer-page-stack">
           <div className="transfer-page-heading">
             <h1 className="transfer-page-title">Transfer Details</h1>
-            <p className="transfer-page-subtitle">Your ride to the trailhead is confirmed.</p>
           </div>
 
           {loading ? (
@@ -154,18 +160,24 @@ export default function TransferInformationPage() {
 
                   {carPhotos.length > 0 ? (
                     <div className="transfer-vehicle-hero">
-                      <img src={carPhotos[0]?.src} alt={carPhotos[0]?.alt} className="transfer-vehicle-image" />
-                      {hasText(carPhotos[0]?.alt) ? (
-                        <div className="transfer-vehicle-caption">{carPhotos[0]?.alt}</div>
-                      ) : null}
+                      <Image
+                        src={carPhotos[0]?.src || ""}
+                        alt={carPhotos[0]?.alt || "Vehicle photo"}
+                        width={1200}
+                        height={688}
+                        unoptimized
+                        className="transfer-vehicle-image"
+                      />
                     </div>
                   ) : null}
 
                   {hasText(data?.trip?.driverInformation) ? (
                     <div className="transfer-info-grid">
                       <div className="transfer-info-card">
-                        <div className="transfer-info-label">Information</div>
-                        <div className="transfer-info-value">{data?.trip?.driverInformation}</div>
+                        <h3 className="trip-content-card-title">Transfer Details</h3>
+                        <div className="trip-content-card-copy">
+                          <p className="trip-content-card-line">{data?.trip?.driverInformation}</p>
+                        </div>
                       </div>
                     </div>
                   ) : null}
@@ -177,10 +189,9 @@ export default function TransferInformationPage() {
           {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)" }}>{message}</p> : null}
 
           <div className="trip-back-action">
-            <Link href={`/trips/${tripId}`} className="trip-back-link">
-              Back to trip details
-            </Link>
+            <TripBackLink href={`/trips/${tripId}`} onClick={handleBackNavigation} ariaDisabled={isLeaving} />
           </div>
+        </div>
         </div>
       </section>
     </main>

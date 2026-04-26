@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import LogoutButton from "@/components/LogoutButton";
+import AppTopBar from "@/components/AppTopBar";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getTraveler } from "@/lib/api";
@@ -143,21 +143,7 @@ export default function ProfilePage() {
 
   return (
     <main className="profile-page-shell">
-      <header className="profile-topbar">
-        <div className="profile-topbar-brand">
-          <Link href="/trips" aria-label="Go to trips" className="profile-topbar-logo">
-            <Image
-              src="/brand/Trans_Simb_Creme.png"
-              alt="Zyba symbol"
-              width={32}
-              height={32}
-              style={{ width: 32, height: 32 }}
-            />
-          </Link>
-          <span className="profile-topbar-title">Zyba Outdoors</span>
-        </div>
-        <NotificationsBell />
-      </header>
+      <AppTopBar firstName={firstName} />
 
       <section className="profile-page-body">
         <div className="profile-hero">
@@ -177,12 +163,10 @@ export default function ProfilePage() {
             ) : (
               <div className="profile-avatar-fallback">{firstName.slice(0, 1)}</div>
             )}
-            <button type="button" className="profile-avatar-edit" aria-label="Edit profile photo">
-              ✎
-            </button>
           </div>
 
           <h1 className="profile-hero-name">{loading ? "Loading..." : data?.travelerName || "Traveler"}</h1>
+          {!loading ? <p className="profile-hero-caption">Photo synced from your traveler record.</p> : null}
         </div>
 
         {message ? <p className="page-subtitle profile-error">{message}</p> : null}
@@ -209,22 +193,17 @@ export default function ProfilePage() {
                 label="Passport Number"
                 value={maskPassport(data?.passport)}
                 icon="✈"
-                trailing={
-                  <button type="button" className="profile-card-verify">
-                    Verify
-                  </button>
-                }
+                trailing={<span className="profile-card-meta">On file</span>}
               />
             </>
           )}
         </div>
 
-        <div className="profile-primary-action">
-          <Link href="/trips" className="profile-back-btn">
-            <span aria-hidden="true">←</span>
-            <span>Back to trip details</span>
-          </Link>
-        </div>
+        {!loading ? (
+          <div className="profile-logout-wrap">
+            <LogoutButton className="profile-logout-link" />
+          </div>
+        ) : null}
       </section>
     </main>
   );

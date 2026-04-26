@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import { useEffect, useMemo, useRef, useState } from "react";
+import TripBackLink from "@/components/TripBackLink";
+import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
@@ -61,6 +60,7 @@ function extractUrl(value: string | null | undefined) {
 export default function FullItineraryPage() {
   const params = useParams();
   const router = useRouter();
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tripId = useMemo(() => {
     const raw = params?.id;
@@ -104,52 +104,41 @@ export default function FullItineraryPage() {
     void loadData();
   }, [tripId, router]);
 
-  const itinerary = data?.deal?.itinerary || [];
-  const goBack = () => {
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push(`/trips/${tripId}`);
-  };
+  useEffect(() => {
+    return () => {
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, []);
 
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  function handleBackNavigation(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (isLeaving) return;
+
+    setIsLeaving(true);
+    exitTimerRef.current = setTimeout(() => {
+      router.push(`/trips/${tripId}`);
+    }, 220);
+  }
+
+  const itinerary = data?.deal?.itinerary || [];
   return (
     <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-            <Image
-              src="/brand/Trans_Simb_Creme.png"
-              alt="Zyba symbol"
-              width={31}
-              height={31}
-              style={{ width: 31, height: "auto" }}
-            />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
-        <div className="trip-section-title-row trip-details-title-first">
-          <button type="button" className="trip-section-back-btn" aria-label="Go back" onClick={goBack}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="trip-section-back-icon" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 5.5 8 12l6.5 6.5" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12H20" />
-            </svg>
-          </button>
-          <h5 className="trip-details-section-title">Full Itinerary</h5>
-        </div>
+        <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
+        <h5 className="trip-details-section-title">Full Itinerary</h5>
 
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
 
         {loading ? (
-          <div className="trip-details-info hotel-info-content itinerary-days-list">
+          <div className="itinerary-page-stack">
             {[0, 1].map((idx) => (
-              <div className="hotel-info-field itinerary-day-card" key={`itinerary-skeleton-${idx}`}>
+              <div className="itinerary-day-card skeleton-card" key={`itinerary-skeleton-${idx}`}>
                 <span className="skeleton-block skeleton-line w-40" />
                 <span className="skeleton-block skeleton-line w-30" />
                 <span className="skeleton-block skeleton-line w-100" />
@@ -158,24 +147,36 @@ export default function FullItineraryPage() {
             ))}
           </div>
         ) : itinerary.length === 0 ? (
-          <div className="trip-details-info hotel-info-content">
-            <div className="hotel-info-field">
-              <p className="hotel-info-label">Information</p>
-              <p className="hotel-info-value">No itinerary found.</p>
+          <div className="itinerary-empty-card">
+            <h2 className="trip-content-card-title">Itinerary</h2>
+            <div className="trip-content-card-copy">
+              <p className="trip-content-card-line">No itinerary found.</p>
             </div>
           </div>
         ) : (
-          <div className="trip-details-info hotel-info-content itinerary-days-list">
+          <div className="itinerary-page-stack">
             {itinerary.map((item, index) => (
               (() => {
                 const dayLink = extractUrl(item.dayLink || item.dayDescription);
+                const dayHeading =
+                  renderText(item.dayType) !== "-" ? renderText(item.dayType) : renderText(item.dayTitle) || "Scheduled Plan";
                 return (
-                  <div className="hotel-info-field itinerary-day-card" key={item.id || index}>
-                    <p className="hotel-info-label">
-                      Day {index + 1} - {renderText(item.dayType) !== "-" ? renderText(item.dayType) : renderText(item.dayTitle) || "Scheduled Plan"}
-                    </p>
-                    <p className="itinerary-day-date">{formatDate(item.day, `Day ${index + 1}`)}</p>
-                    <p className="hotel-info-value">{renderText(item.dayDescription)}</p>
+                  <article className="itinerary-day-card" key={item.id || index}>
+                    <div className="itinerary-day-index">
+                      <span className="itinerary-day-index-label">Day</span>
+                      <strong className="itinerary-day-index-value">{index + 1}</strong>
+                    </div>
+
+                    <div className="itinerary-day-content">
+                      <div className="itinerary-day-head">
+                        <h2 className="itinerary-day-title">{dayHeading}</h2>
+                        <p className="itinerary-day-date">{formatDate(item.day, `Day ${index + 1}`)}</p>
+                      </div>
+
+                      <div className="trip-content-card-copy">
+                        <p className="trip-content-card-line">{renderText(item.dayDescription)}</p>
+                      </div>
+
                     {dayLink ? (
                       <a
                         href={dayLink}
@@ -190,10 +191,11 @@ export default function FullItineraryPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5h10v10" />
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
                         </svg>
-                        <span>VIEW INSTRUCTION</span>
+                        <span>Apply now</span>
                       </a>
                     ) : null}
-                  </div>
+                    </div>
+                  </article>
                 );
               })()
             ))}
@@ -201,9 +203,8 @@ export default function FullItineraryPage() {
         )}
 
         <div className="trip-back-action">
-          <Link href={`/trips/${tripId}`} className="trip-back-link">
-            Back to trip details
-          </Link>
+          <TripBackLink href={`/trips/${tripId}`} onClick={handleBackNavigation} ariaDisabled={isLeaving} />
+        </div>
         </div>
       </section>
     </main>

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import { useEffect, useMemo, useRef, useState } from "react";
+import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
@@ -52,6 +51,7 @@ function formatTime(value?: string | null) {
 export default function HotelInformationPage() {
   const params = useParams();
   const router = useRouter();
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tripId = useMemo(() => {
     const raw = params?.id;
@@ -63,6 +63,7 @@ export default function HotelInformationPage() {
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [isLeaving, setIsLeaving] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -95,6 +96,14 @@ export default function HotelInformationPage() {
     void loadData();
   }, [tripId, router]);
 
+  useEffect(() => {
+    return () => {
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, []);
+
   const hotelName = String(data?.trip?.hotelName || "").trim();
   const hotelAddress = String(data?.trip?.hotelAddress || "").trim();
   const hotelInformation = String(data?.trip?.hotelInformation || "").trim();
@@ -107,49 +116,49 @@ export default function HotelInformationPage() {
   const mapHref = hotelAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotelAddress)}`
     : "";
+  const hotelInfoLines = hotelInformation
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  function handleBackNavigation(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (isLeaving) return;
+
+    setIsLeaving(true);
+    exitTimerRef.current = setTimeout(() => {
+      router.push(`/trips/${tripId}`);
+    }, 220);
+  }
 
   return (
     <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-              <Image
-                src="/brand/Trans_Simb_Creme.png"
-                alt="Zyba symbol"
-                width={31}
-                height={31}
-                style={{ width: 31, height: "auto" }}
-              />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
+        <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
         <div className="hotel-page-stack">
-          <div className="hotel-page-heading">
+          <div className="hotel-page-summary">
             {hotelConfirmationCode ? (
-              <div className="hotel-page-kicker">{hotelConfirmationCode}</div>
+              <div className="hotel-page-heading">
+                <div className="hotel-page-kicker">Confirmation: {hotelConfirmationCode}</div>
+              </div>
             ) : null}
-            {status ? <div className="hotel-page-status">{status}</div> : null}
+
+            {hotelName ? <h1 className="hotel-page-title">{hotelName}</h1> : null}
+
+            {hotelAddress ? (
+              <div className="hotel-page-address">
+                <span className="hotel-page-address-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s7-6.045 7-11a7 7 0 1 0-14 0c0 4.955 7 11 7 11Z" />
+                    <circle cx="12" cy="10" r="2.7" />
+                  </svg>
+                </span>
+                <span>{hotelAddress}</span>
+              </div>
+            ) : null}
           </div>
-
-          {hotelName ? <h1 className="hotel-page-title">{hotelName}</h1> : null}
-
-          {hotelAddress ? (
-            <div className="hotel-page-address">
-              <span className="hotel-page-address-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s7-6.045 7-11a7 7 0 1 0-14 0c0 4.955 7 11 7 11Z" />
-                  <circle cx="12" cy="10" r="2.7" />
-                </svg>
-              </span>
-              <span>{hotelAddress}</span>
-            </div>
-          ) : null}
 
           {loading ? (
             <>
@@ -162,18 +171,22 @@ export default function HotelInformationPage() {
             </>
           ) : (
             <>
-              {(hotelName || mapHref) ? (
+              {(status || mapHref || hotelAddress) ? (
                 <div className="hotel-hero-card">
-                  <div className="hotel-hero-badge">Hotel</div>
+                  {status ? <div className="hotel-hero-badge">{status}</div> : null}
                   {mapHref ? (
                     <a
                       href={mapHref}
                       target="_blank"
                       rel="noreferrer"
                       className="hotel-map-btn"
+                      aria-label={`Open ${hotelName || "hotel location"} in Google Maps`}
                     >
-                      <span aria-hidden="true">⌘</span>
-                      <span>View Map</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="hotel-map-btn-icon" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s7-6.045 7-11a7 7 0 1 0-14 0c0 4.955 7 11 7 11Z" />
+                        <circle cx="12" cy="10" r="2.7" />
+                      </svg>
+                      <span>VIEW MAP</span>
                     </a>
                   ) : null}
                 </div>
@@ -201,8 +214,18 @@ export default function HotelInformationPage() {
 
               {hotelInformation ? (
                 <section className="hotel-booking-card">
-                  <h2 className="hotel-booking-title">Hotel Details</h2>
-                  <div className="hotel-booking-copy">{hotelInformation}</div>
+                  <h2 className="trip-content-card-title">Hotel Details</h2>
+                  <div className="trip-content-card-copy">
+                    {hotelInfoLines.length > 1 ? (
+                      hotelInfoLines.map((line, index) => (
+                        <p key={`hotel-info-line-${index}`} className="trip-content-card-line">
+                          {line}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="trip-content-card-line">{hotelInformation}</p>
+                    )}
+                  </div>
                 </section>
               ) : null}
             </>
@@ -211,10 +234,27 @@ export default function HotelInformationPage() {
           {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)" }}>{message}</p> : null}
 
           <div className="trip-back-action">
-            <Link href={`/trips/${tripId}`} className="trip-back-link">
-              Back to trip details
+            <Link
+              href={`/trips/${tripId}`}
+              className="trip-back-link"
+              onClick={handleBackNavigation}
+              aria-disabled={isLeaving}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                className="trip-back-icon"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 5.5 8 12l6.5 6.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12H20" />
+              </svg>
+              <span className="trip-back-label">Back to trip details</span>
             </Link>
           </div>
+        </div>
         </div>
       </section>
     </main>

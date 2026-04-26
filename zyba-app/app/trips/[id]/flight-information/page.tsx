@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import TripBackLink from "@/components/TripBackLink";
+import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
-import Link from "next/link";
 
 type FlightConnection = {
   id?: string | null;
@@ -121,6 +120,7 @@ function FlightLeg({
   departureTime,
   arrivalTime,
   duration,
+  centerLabel,
   showDivider = false,
 }: {
   origin: string;
@@ -128,6 +128,7 @@ function FlightLeg({
   departureTime?: string | null;
   arrivalTime?: string | null;
   duration?: string | null;
+  centerLabel?: string | null;
   showDivider?: boolean;
 }) {
   return (
@@ -145,6 +146,7 @@ function FlightLeg({
           <span className="flight-leg-plane">✈</span>
           <span className="flight-leg-dash" />
         </div>
+        {centerLabel ? <div className="flight-leg-connection-label">{centerLabel}</div> : null}
       </div>
 
       <div className="flight-leg-side is-right">
@@ -206,26 +208,10 @@ export default function FlightInformationPage() {
 
   return (
     <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-              <Image
-                src="/brand/Trans_Simb_Creme.png"
-                alt="Zyba symbol"
-                width={31}
-                height={31}
-                style={{ width: 31, height: "auto" }}
-              />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
-        <h5 className="trip-details-section-title trip-details-title-first" style={{ marginBottom: 16 }}>
+        <h5 className="trip-details-section-title" style={{ marginBottom: 16 }}>
           Flight Itinerary
         </h5>
 
@@ -245,8 +231,8 @@ export default function FlightInformationPage() {
               </div>
             ))
           ) : flights.length === 0 ? (
-            <div className="hotel-info-field" style={{ border: "1px solid rgba(0,0,0,0.12)" }}>
-              <p className="hotel-info-value">No flights linked to this trip.</p>
+            <div className="flight-empty-card">
+              <p className="flight-empty-copy">No flights found.</p>
             </div>
           ) : (
             flights.map((flight, index) => {
@@ -256,9 +242,6 @@ export default function FlightInformationPage() {
               const destinationAirport = flight.airportDestination || "";
               const departureTime = formatTime(flight.departure);
               const arrivalTime = formatTime(flight.arrival);
-              const departureDate = formatDate(flight.departure);
-              const arrivalDate = formatDate(flight.arrival);
-              const status = String(flight.status || "").trim();
               const connections = Array.isArray(flight.connectionsInformation)
                 ? flight.connectionsInformation.filter(
                     (item) =>
@@ -272,18 +255,6 @@ export default function FlightInformationPage() {
 
               return (
                 <div key={flight.id || `flight-${index}`} className="flight-ticket">
-                  {pnr || status ? (
-                    <div className="flight-ticket-topmeta">
-                      {pnr ? (
-                        <div className="flight-pnr-chip">
-                          <span className="flight-pnr-icon">🎟</span>
-                          <span>PNR: {pnr}</span>
-                        </div>
-                      ) : null}
-                      {status ? <div className="flight-status-topchip">{status}</div> : null}
-                    </div>
-                  ) : null}
-
                   <div className="flight-ticket-card">
                     <div className="flight-ticket-header">
                       <div className="flight-brand">
@@ -321,6 +292,7 @@ export default function FlightInformationPage() {
                                   destination={destinationAirport}
                                   departureTime=""
                                   arrivalTime={arrivalTime}
+                                  centerLabel="Connection"
                                   showDivider
                                 />
                               ) : null}
@@ -330,25 +302,6 @@ export default function FlightInformationPage() {
                       ) : null}
                     </div>
 
-                    {traveler?.travelerName || status || departureDate || arrivalDate ? (
-                      <div className="flight-ticket-footer">
-                        <div className="flight-ticket-meta">
-                          {traveler?.travelerName ? (
-                            <div className="flight-footer-block">
-                              <span className="flight-footer-label">Passenger</span>
-                              <strong className="flight-footer-value">{traveler.travelerName}</strong>
-                            </div>
-                          ) : null}
-                          {departureDate || arrivalDate ? (
-                            <div className="flight-footer-block">
-                              <span className="flight-footer-label">Date</span>
-                              <strong className="flight-footer-value">{departureDate || arrivalDate}</strong>
-                            </div>
-                          ) : null}
-                        </div>
-
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               );
@@ -359,9 +312,7 @@ export default function FlightInformationPage() {
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
 
         <div className="trip-back-action">
-          <Link href={`/trips/${tripId}`} className="trip-back-link">
-            Back to trip details
-          </Link>
+          <TripBackLink href={`/trips/${tripId}`} />
         </div>
       </section>
     </main>

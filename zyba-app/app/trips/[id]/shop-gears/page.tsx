@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import TripBackLink from "@/components/TripBackLink";
+import AppTopBar from "@/components/AppTopBar";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler } from "@/lib/api";
@@ -42,23 +41,7 @@ export default function ShopGearsPage() {
 
   return (
     <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-            <Image
-              src="/brand/Trans_Simb_Creme.png"
-              alt="Zyba symbol"
-              width={31}
-              height={31}
-              style={{ width: 31, height: "auto" }}
-            />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
         <h5 className="trip-details-section-title trip-details-title-first">Shop gears</h5>
@@ -71,9 +54,7 @@ export default function ShopGearsPage() {
         </div>
 
         <div className="trip-back-action">
-          <Link href={`/trips/${tripId}`} className="trip-back-link">
-            Back to trip details
-          </Link>
+          <TripBackLink href={`/trips/${tripId}`} />
         </div>
       </section>
     </main>

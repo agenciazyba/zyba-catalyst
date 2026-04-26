@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 import { getTrips, getTraveler, type Trip } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import AppTopBar from "@/components/AppTopBar";
 
 type Traveler = {
   travelerName?: string | null;
@@ -78,24 +77,7 @@ export default function TripsPage() {
 
   return (
     <main className="trips-page">
-      <header className="trips-header">
-        <div className="trips-header-top">
-          <div className="trips-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-            <Image
-              src="/brand/Trans_Simb_Creme.png"
-              alt="Zyba symbol"
-              width={31}
-              height={31}
-              style={{ width: 31, height: "auto" }}
-            />
-            </Link>
-            <h2 className="trips-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trips-body">
         <h4 className="trips-section-title">Your Trips</h4>

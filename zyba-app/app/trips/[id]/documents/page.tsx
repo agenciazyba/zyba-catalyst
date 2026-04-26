@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import NotificationsBell from "@/components/NotificationsBell";
+import TripBackLink from "@/components/TripBackLink";
+import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { acknowledgeRequirements, getTraveler, getTripRequirements } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
@@ -141,44 +140,12 @@ export default function DocumentsPage() {
   const requirements = data?.requirements || [];
   const isAcknowledged = data?.trip?.documentsAcknowledged === true;
   const acknowledgedAt = formatVerifiedDate(data?.trip?.documentsAcknowledgedAt);
-  const goBack = () => {
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push(`/trips/${tripId}`);
-  };
-
   return (
     <main className="trip-details-page">
-      <header className="trip-details-header">
-        <div className="trip-details-header-top">
-          <div className="trip-details-user-block">
-            <Link href="/trips" aria-label="Go to trips" className="trip-header-logo-link">
-            <Image
-              src="/brand/Trans_Simb_Creme.png"
-              alt="Zyba symbol"
-              width={31}
-              height={31}
-              style={{ width: 31, height: "auto" }}
-            />
-            </Link>
-            <h2 className="trip-details-greeting">Hi,{traveler?.travelerName?.split(" ")[0] || "Traveler"}</h2>
-          </div>
-          <NotificationsBell />
-        </div>
-      </header>
+      <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
-        <div className="trip-section-title-row trip-details-title-first">
-          <button type="button" className="trip-section-back-btn" aria-label="Go back" onClick={goBack}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="trip-section-back-icon" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 5.5 8 12l6.5 6.5" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12H20" />
-            </svg>
-          </button>
-          <h5 className="trip-details-section-title">Documents</h5>
-        </div>
+        <h5 className="trip-details-section-title">Documents</h5>
         {isAcknowledged ? (
           <div className="documents-verified-badge" aria-live="polite">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="documents-verified-icon" aria-hidden="true">
@@ -190,10 +157,10 @@ export default function DocumentsPage() {
 
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
 
-        <div className="trip-details-info hotel-info-content itinerary-days-list">
+        <div className="documents-page-stack">
           {loading ? (
             [0, 1].map((idx) => (
-              <div className="hotel-info-field itinerary-day-card" key={`doc-skeleton-${idx}`}>
+              <div className="documents-card skeleton-card" key={`doc-skeleton-${idx}`}>
                 <div className="documents-card-head">
                   <span className="skeleton-block skeleton-line w-40" />
                   <span className="skeleton-block" style={{ width: 72, height: 24, borderRadius: 10 }} />
@@ -206,25 +173,31 @@ export default function DocumentsPage() {
           ) : null}
 
           {!loading && requirements.length === 0 ? (
-            <div className="hotel-info-field itinerary-day-card">
-              <p className="hotel-info-value">No mandatory documents found for this trip.</p>
+            <div className="documents-card">
+              <p className="documents-card-copy">No mandatory documents found for this trip.</p>
             </div>
           ) : null}
 
           {!loading &&
             requirements.map((item) => (
-              <div className="hotel-info-field itinerary-day-card" key={item.id}>
+              <div className="documents-card" key={item.id}>
                 <div className="documents-card-head">
-                  <p className="hotel-info-label">{item.name || "Document"}</p>
-                  {item.isMandatory ? <span className="documents-mandatory">Mandatory</span> : null}
+                  <p className="documents-card-title">{item.name || "Document"}</p>
+                  <span className={item.isMandatory ? "documents-badge is-mandatory" : "documents-badge is-recommended"}>
+                    {item.isMandatory ? "Mandatory" : "Recommended"}
+                  </span>
                 </div>
-                <p className="hotel-info-value">
-                  {item.type || "Type not provided"}
-                </p>
-                <p className="hotel-info-value">{item.description || "No description provided."}</p>
+                {item.type ? <p className="documents-card-meta">{item.type}</p> : null}
+                <p className="documents-card-copy">{item.description || "No description provided."}</p>
                 {item.helpLink ? (
                   <a href={item.helpLink} target="_blank" rel="noreferrer" className="documents-instruction-link">
-                    Click here to apply
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="documents-instruction-icon" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10 14 14 10" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 14v-4h-4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5h10v10" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
+                    </svg>
+                    <span>Apply now</span>
                   </a>
                 ) : null}
               </div>
@@ -238,9 +211,7 @@ export default function DocumentsPage() {
         </div>
 
         <div className="trip-back-action">
-          <Link href={`/trips/${tripId}`} className="trip-back-link">
-            Back to trip details
-          </Link>
+          <TripBackLink href={`/trips/${tripId}`} />
         </div>
       </section>
     </main>
