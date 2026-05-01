@@ -38,6 +38,16 @@ type ShopCartResponse = {
   updatedAt?: string | null;
 };
 
+type ShopCartApiResult =
+  | {
+      ok: true;
+      data: ShopCartResponse;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 function getCartKey(tripId: string) {
   return `zyba_shop_cart:${String(tripId || "").trim()}`;
 }
@@ -146,7 +156,7 @@ export function clearShopCartSnapshot(tripId: string) {
   clearShopCartStorage(tripId);
 }
 
-async function parseCartResponse(response: Response) {
+async function parseCartResponse(response: Response): Promise<ShopCartApiResult> {
   const text = await response.text();
 
   try {
@@ -210,8 +220,13 @@ function runCartOperation<T>(tripId: string, operation: () => Promise<T>) {
   });
 }
 
-async function authorizedCartRequest(path: string, init?: RequestInit) {
-  if (typeof window === "undefined") return;
+async function authorizedCartRequest(path: string, init?: RequestInit): Promise<ShopCartApiResult> {
+  if (typeof window === "undefined") {
+    return {
+      ok: false,
+      error: "Cart requests are only available in the browser",
+    };
+  }
   const sessionToken = getSessionToken();
   if (!sessionToken) {
     throw new Error("Missing session");
