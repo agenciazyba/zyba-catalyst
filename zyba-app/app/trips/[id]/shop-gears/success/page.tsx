@@ -99,7 +99,7 @@ export default function ShopGearsSuccessPage() {
       };
     }
 
-    let cleanup;
+    let cleanup: (() => void) | undefined;
     void load().then((fn) => {
       cleanup = fn;
     });
