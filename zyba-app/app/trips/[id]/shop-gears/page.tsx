@@ -31,6 +31,11 @@ type ProductListResponse = {
   items?: Array<{
     id?: string | null;
     productName?: string | null;
+    productCode?: string | null;
+    vendorName?: {
+      id?: string | null;
+      name?: string | null;
+    } | null;
     unitPrice?: number | null;
     lureImageCatalog?: Array<{
       downloadKey?: string | null;
