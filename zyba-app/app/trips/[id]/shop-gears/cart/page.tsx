@@ -3,7 +3,13 @@
 import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
-import { createCheckoutSession, getCheckoutStatus, getTraveler } from "@/lib/api";
+import {
+  createCheckoutSession,
+  getCheckoutStatus,
+  getTraveler,
+  type ApiResponse,
+  type CheckoutStatusResponse,
+} from "@/lib/api";
 import {
   clearShopCart,
   removeShopCartItem,
@@ -85,7 +91,9 @@ export default function ShopCartPage() {
     async function loadTraveler() {
       setSessionToken(token);
       const travelerPromise = getTraveler(token);
-      const statusPromise = tripId ? getCheckoutStatus(token, tripId) : Promise.resolve({ ok: false });
+      const statusPromise: Promise<ApiResponse<CheckoutStatusResponse>> = tripId
+        ? getCheckoutStatus(token, tripId)
+        : Promise.resolve({ ok: false });
       const [travelerResult, checkoutStatusResult] = await Promise.all([travelerPromise, statusPromise]);
       if (travelerResult.ok) {
         setTraveler((travelerResult.data as Traveler) || null);
