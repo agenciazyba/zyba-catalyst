@@ -19,6 +19,34 @@ export type ApiResponse<T = unknown> = {
   sessionToken?: string;
 };
 
+export type CheckoutSessionResponse = {
+  id?: string | null;
+  url?: string | null;
+};
+
+export type CheckoutStatusResponse = {
+  tripId?: string;
+  status?: string | null;
+  checkoutSessionId?: string | null;
+  paymentStatus?: string | null;
+  stripeEventId?: string | null;
+  amountTotal?: number | null;
+  currency?: string | null;
+  customerEmail?: string | null;
+  updatedAt?: string | null;
+};
+
+export type FinalizeCheckoutResponse = {
+  tripId?: string;
+  checkoutSessionId?: string | null;
+  paymentStatus?: string | null;
+  amountTotal?: number | null;
+  currency?: string | null;
+  customerEmail?: string | null;
+  stripeEventId?: string | null;
+  finalizedAt?: string | null;
+};
+
 export type Trip = {
   id: string;
   dealName: string | null;
@@ -184,4 +212,55 @@ export async function createFlight(sessionToken: string, payload: FlightInput) {
   });
 
   return parseResponse(response);
+}
+
+export async function createCheckoutSession(sessionToken: string, tripId: string) {
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/checkout/session`, sessionToken),
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+      body: JSON.stringify({ tripId }),
+    }
+  );
+
+  return parseResponse<CheckoutSessionResponse>(response);
+}
+
+export async function getCheckoutStatus(sessionToken: string, tripId: string) {
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/checkout/status?tripId=${encodeURIComponent(tripId)}`, sessionToken),
+    {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+    }
+  );
+
+  return parseResponse<CheckoutStatusResponse>(response);
+}
+
+export async function finalizeCheckout(sessionToken: string, tripId: string, sessionId?: string) {
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/checkout/finalize`, sessionToken),
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+      body: JSON.stringify({ tripId, sessionId: sessionId || null }),
+    }
+  );
+
+  return parseResponse<FinalizeCheckoutResponse>(response);
 }

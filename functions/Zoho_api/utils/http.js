@@ -2,7 +2,7 @@ function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Token"
   });
   res.end(JSON.stringify(data, null, 2));
@@ -38,7 +38,29 @@ function getRequestBody(req) {
   });
 }
 
+function getRawRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    const MAX_PAYLOAD_SIZE = 2 * 1024 * 1024;
+
+    req.on("data", (chunk) => {
+      body += chunk.toString("utf8");
+      if (Buffer.byteLength(body, "utf8") > MAX_PAYLOAD_SIZE) {
+        req.destroy();
+        reject(new Error("Payload Too Large"));
+      }
+    });
+
+    req.on("end", () => {
+      resolve(body);
+    });
+
+    req.on("error", reject);
+  });
+}
+
 module.exports = {
   sendJson,
-  getRequestBody
+  getRequestBody,
+  getRawRequestBody
 };

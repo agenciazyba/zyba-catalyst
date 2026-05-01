@@ -55,6 +55,7 @@ module.exports = {
   isValidEmail,
   generateOtp,
   generateSessionToken,
+  hashKey,
   buildOtpCacheKey,
   buildSessionCacheKey,
   getSessionTokenFromRequest

@@ -28,6 +28,7 @@ const TTL_TRAVELER_MS = Number(process.env.DATA_CACHE_TTL_TRAVELER_MS || 5 * 60 
 const TTL_TRIPS_MS = Number(process.env.DATA_CACHE_TTL_TRIPS_MS || 3 * 60 * 1000);
 const TTL_TRIP_DETAILS_MS = Number(process.env.DATA_CACHE_TTL_TRIP_DETAILS_MS || 2 * 60 * 1000);
 const TTL_DEALS_MS = Number(process.env.DATA_CACHE_TTL_DEALS_MS || 5 * 60 * 1000);
+const TTL_PRODUCTS_MS = Number(process.env.DATA_CACHE_TTL_PRODUCTS_MS || 2 * 60 * 1000);
 const dataCache = new Map();
 
 function getDataCache(key) {
@@ -152,6 +153,81 @@ function mapLookupList(value) {
       return mapLookup(item);
     })
     .filter((item) => item && (item.id || item.name));
+}
+
+function mapUploadedFiles(moduleApiName, recordId, value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((file) => {
+      if (!file || typeof file !== "object") return null;
+
+      const attachmentId = normalizeOptionalString(
+        file.id ||
+          file.attachment_Id ||
+          file.attachment_id ||
+          file.File_Id__s ||
+          file.file_id ||
+          file.Preview_Id__s ||
+          file.preview_id
+      );
+
+      if (!attachmentId) return null;
+
+      return {
+        id: normalizeOptionalString(file.id) || attachmentId,
+        fileId: normalizeOptionalString(file.File_Id__s || file.file_id),
+        previewId: normalizeOptionalString(file.Preview_Id__s || file.preview_id),
+        fileName: normalizeOptionalString(
+          file.File_Name__s || file.file_name || file.name || file.Name
+        ),
+        downloadKey: `${moduleApiName}_${recordId}_${attachmentId}`,
+      };
+    })
+    .filter(Boolean);
+}
+
+function mapRecordPhoto(moduleApiName, recordId, value) {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text) return null;
+    if (text.startsWith("http://") || text.startsWith("https://")) {
+      return {
+        raw: text,
+        downloadKey: null,
+      };
+    }
+  }
+
+  if (!recordId) return null;
+
+  return {
+    raw: value,
+    downloadKey: `${moduleApiName}_${recordId}_photo`,
+  };
+}
+
+function mapLayout(value) {
+  if (!value) return null;
+
+  if (typeof value === "object") {
+    return {
+      id: normalizeOptionalString(value.id),
+      name: normalizeOptionalString(value.name),
+      displayLabel: normalizeOptionalString(value.display_label),
+    };
+  }
+
+  const text = normalizeOptionalString(value);
+  if (!text) return null;
+
+  return {
+    id: null,
+    name: text,
+    displayLabel: text,
+  };
 }
 
 function mapFlightRecord(record) {
@@ -925,11 +1001,36 @@ async function getTripDetailsById(tripId, email) {
   const dealId = dealLookup?.id || null;
 
   let deal = null;
+  let vendorName = null;
+  let destinationCountry = null;
 
   if (dealId) {
     const dealRecord = await zohoGetRecord("Deals", dealId);
 
     if (dealRecord) {
+      const destinationLookup = mapLookup(dealRecord.Destination);
+      vendorName = destinationLookup?.name || null;
+      destinationCountry = dealRecord.Destination_Country || null;
+
+      if (destinationLookup?.id && (!vendorName || !destinationCountry)) {
+        try {
+          const vendorRecord = await zohoGetRecord("Vendors", destinationLookup.id);
+          if (vendorRecord) {
+            vendorName =
+              vendorName ||
+              vendorRecord.Vendor_Name ||
+              vendorRecord.Name ||
+              vendorRecord.Deal_Name ||
+              null;
+            destinationCountry =
+              destinationCountry ||
+              vendorRecord.Destination_Country ||
+              vendorRecord.Country ||
+              null;
+          }
+        } catch (e) {}
+      }
+
       deal = {
         id: dealRecord.id || null,
         dealName: dealRecord.Deal_Name || null,
@@ -937,6 +1038,7 @@ async function getTripDetailsById(tripId, email) {
         arrivalDate: dealRecord.Arrival_Date || null,
         departureDate: dealRecord.Departure_Date || null,
         country: dealRecord.Country || null,
+        vendorName,
         dealCover: Array.isArray(dealRecord.Deal_Cover)
           ? dealRecord.Deal_Cover.map((file) => ({
               id: file.File_Id__s || null,
@@ -944,8 +1046,8 @@ async function getTripDetailsById(tripId, email) {
               fileName: file.File_Name__s || null,
             }))
           : [],
-        destination: mapLookup(dealRecord.Destination),
-        destinationCountry: dealRecord.Destination_Country || null,
+        destination: destinationLookup,
+        destinationCountry,
         fishingDays: dealRecord.Fishing_Days ?? null,
         included: dealRecord.Included || null,
         notIncluded: dealRecord.Not_Included || null,
@@ -1015,6 +1117,8 @@ async function getTripDetailsById(tripId, email) {
       documentsAcknowledgedAt: tripRecord?.Documents_Acknowledged_At || null,
       documentsRequirementsVersion:
         tripRecord?.Documents_Requirements_Version || null,
+      vendorName,
+      destinationCountry,
       deal: {
         id: dealLookup?.id || null,
         name: dealLookup?.name || null,
@@ -1288,6 +1392,185 @@ async function createFlightForLoggedUser(email, payload = {}) {
   };
 }
 
+function mapProductRecord(record) {
+  if (!record) return null;
+
+  return {
+    id: record.id || null,
+    color: normalizeOptionalString(record.Color),
+    description: normalizeOptionalString(record.Description),
+    recordImage: mapRecordPhoto("Products", record.id || null, record.Record_Image),
+    destinationRelated: Array.isArray(record.Destination_Related)
+      ? record.Destination_Related.map((item) => mapLookup(item?.Destination_Related || item)).filter(
+          (item) => item && (item.id || item.name)
+        )
+      : [],
+    layout: mapLayout(record.Layout),
+    productActive:
+      record.Product_Active === true ||
+      String(record.Product_Active || "").trim().toLowerCase() === "true",
+    productCode: normalizeOptionalString(record.Product_Code),
+    lureImageCatalog: mapUploadedFiles("Products", record.id || null, record.Lure_Image_Catalog),
+    lureImageReal: mapUploadedFiles("Products", record.id || null, record.Lure_Image_Real),
+    productName: normalizeOptionalString(record.Product_Name),
+    unitPrice: normalizeOptionalNumber(record.Unit_Price),
+    vendorName: mapLookup(record.Vendor_Name),
+  };
+}
+
+async function listProducts(payload = {}) {
+  const page = Math.max(1, Number(payload.page) || 1);
+  const perPage = Math.min(200, Math.max(1, Number(payload.perPage) || 50));
+  const layout = normalizeOptionalString(payload.layout) || "Lures and Flies";
+  const productActive =
+    payload.productActive === undefined || payload.productActive === null || payload.productActive === ""
+      ? true
+      : String(payload.productActive).trim().toLowerCase() === "true";
+  const search = normalizeOptionalString(payload.search);
+  const vendorName = normalizeOptionalString(payload.vendorName);
+  const destinationRelated = normalizeOptionalString(payload.destinationRelated);
+  const destinationRelatedId = normalizeOptionalString(payload.destinationRelatedId);
+  const cacheKey = `products:list:${JSON.stringify({
+    page,
+    perPage,
+    layout,
+    productActive,
+    search,
+    vendorName,
+    destinationRelated,
+    destinationRelatedId,
+  })}`;
+
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const records = await zohoListRecords(
+    "Products",
+    [
+      "Color",
+      "Description",
+      "Record_Image",
+      "Destination_Related",
+      "Layout",
+      "Product_Active",
+      "Product_Code",
+      "Lure_Image_Catalog",
+      "Lure_Image_Real",
+      "Product_Name",
+      "Unit_Price",
+      "Vendor_Name",
+    ],
+    1,
+    200
+  );
+
+  const normalizedLayout = layout.trim().toLowerCase();
+  const normalizedSearch = search ? search.toLowerCase() : null;
+  const normalizedVendor = vendorName ? vendorName.toLowerCase() : null;
+  const normalizedDestination = destinationRelated ? destinationRelated.toLowerCase() : null;
+  const normalizedDestinationId = destinationRelatedId ? destinationRelatedId.toLowerCase() : null;
+
+  const hydratedRecords =
+    normalizedDestination || normalizedDestinationId
+      ? await Promise.all(
+          (records || []).map(async (record) => {
+            if (!record?.id) return record;
+            try {
+              return await zohoGetRecord("Products", record.id);
+            } catch {
+              return record;
+            }
+          })
+        )
+      : records || [];
+
+  const filteredItems = hydratedRecords
+    .map(mapProductRecord)
+    .filter(Boolean)
+    .filter((item) => {
+      const layoutName = String(
+        item.layout?.displayLabel || item.layout?.name || ""
+      )
+        .trim()
+        .toLowerCase();
+      if (normalizedLayout && layoutName !== normalizedLayout) return false;
+      if (productActive && item.productActive !== true) return false;
+      if (
+        normalizedSearch &&
+        !String(item.productName || "").toLowerCase().includes(normalizedSearch)
+      ) {
+        return false;
+      }
+      if (
+        normalizedVendor &&
+        String(item.vendorName?.name || "").trim().toLowerCase() !== normalizedVendor
+      ) {
+        return false;
+      }
+      if (
+        normalizedDestinationId &&
+        !item.destinationRelated.some(
+          (entry) => String(entry?.id || "").trim().toLowerCase() === normalizedDestinationId
+        )
+      ) {
+        return false;
+      }
+      if (
+        normalizedDestination &&
+        !item.destinationRelated.some(
+          (entry) => String(entry?.name || "").trim().toLowerCase() === normalizedDestination
+        )
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => String(a.productName || "").localeCompare(String(b.productName || "")));
+
+  const offset = (page - 1) * perPage;
+  const items = filteredItems.slice(offset, offset + perPage);
+
+  const result = {
+    items,
+    page,
+    perPage,
+    count: filteredItems.length,
+    filters: {
+      layout,
+      productActive,
+      search,
+      vendorName,
+      destinationRelated,
+      destinationRelatedId,
+    },
+  };
+
+  setDataCache(cacheKey, result, TTL_PRODUCTS_MS);
+  return result;
+}
+
+async function getProductById(productId, payload = {}) {
+  const layout = normalizeOptionalString(payload.layout) || "Lures and Flies";
+  const cacheKey = `products:detail:${productId}:${layout}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const record = await zohoGetRecord("Products", productId);
+  const product = mapProductRecord(record);
+  if (!product) return null;
+
+  const layoutName = String(product.layout?.displayLabel || product.layout?.name || "")
+    .trim()
+    .toLowerCase();
+
+  if (layoutName && layoutName !== layout.trim().toLowerCase()) {
+    return null;
+  }
+
+  setDataCache(cacheKey, product, TTL_PRODUCTS_MS);
+  return product;
+}
+
 module.exports = {
   getZohoAccessToken,
   getTravelerByEmail,
@@ -1301,5 +1584,7 @@ module.exports = {
   runCoqlQuery,
   zohoGetRecord,
   zohoListRecords,
-  createFlightForLoggedUser
+  createFlightForLoggedUser,
+  listProducts,
+  getProductById
 };

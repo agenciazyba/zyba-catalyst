@@ -64,6 +64,57 @@
   font-weight: 400;
 }
 
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-topbar-cart-link {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-cream);
+  color: #116033;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 18px rgba(28, 28, 28, 0.18);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+.app-topbar-cart-link:active {
+  transform: scale(0.97);
+  filter: brightness(0.97);
+}
+
+.app-topbar-cart-link:focus-visible {
+  outline: 2px solid rgba(244, 233, 211, 0.9);
+  outline-offset: 2px;
+}
+
+.app-topbar-cart-icon {
+  width: 21px;
+  height: 21px;
+}
+
+.app-topbar-cart-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  padding: 0 5px;
+  background: #116033;
+  color: #ffffff;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  line-height: 18px;
+  text-align: center;
+}
+
 :root {
   --color-cream: #f4e9d3;
   --color-blue: #72b5dd;
@@ -2485,6 +2536,734 @@ h5 {
 
 .trip-back-label {
   white-space: nowrap;
+}
+
+.shop-gears-shell {
+  display: grid;
+  gap: 22px;
+  padding: 20px 0 28px;
+}
+
+.shop-gears-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 22px 18px 18px;
+  background:
+    radial-gradient(circle at top right, rgba(244, 242, 106, 0.34), transparent 34%),
+    linear-gradient(145deg, #173228 0%, #314132 54%, #c65a32 100%);
+  box-shadow: 0 16px 34px rgba(24, 35, 29, 0.24);
+}
+
+.shop-gears-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+.shop-gears-title {
+  margin-top: 14px;
+  color: #ffffff;
+  font-size: 30px;
+  line-height: 0.96;
+}
+
+.shop-gears-summary {
+  margin: 12px 0 0;
+  max-width: 290px;
+  color: rgba(255, 255, 255, 0.86);
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.shop-gears-hero-grid {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.shop-gears-hero-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.shop-gears-hero-card-accent {
+  background: rgba(244, 233, 211, 0.9);
+  border-color: rgba(244, 233, 211, 0.7);
+}
+
+.shop-gears-hero-card-accent .shop-gears-card-label,
+.shop-gears-hero-card-accent .shop-gears-card-meta {
+  color: rgba(35, 35, 35, 0.72);
+}
+
+.shop-gears-hero-card-accent .shop-gears-card-value {
+  color: #1c1c1c;
+}
+
+.shop-gears-card-label {
+  color: rgba(255, 255, 255, 0.74);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.shop-gears-card-value {
+  color: #ffffff;
+  font-family: "BL Melody", sans-serif;
+  font-size: 18px;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.shop-gears-card-meta {
+  color: rgba(255, 255, 255, 0.82);
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.shop-gears-section {
+  display: grid;
+  gap: 14px;
+}
+
+.shop-gears-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shop-gears-section-title {
+  margin: 0;
+  color: #1c1c1c;
+  font-family: "BL Melody", sans-serif;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.shop-gears-section-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(98, 109, 80, 0.14);
+  color: #314132;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.shop-gears-section-chip.is-live {
+  background: rgba(255, 111, 65, 0.12);
+  color: #a24a2c;
+}
+
+.shop-gears-product-list {
+  display: grid;
+  gap: 12px;
+}
+
+.shop-gears-product-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fffdf8 0%, #f7f0e3 100%);
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  box-shadow: 0 10px 20px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-product-badge {
+  display: grid;
+  place-items: center;
+  min-height: 58px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #314132 0%, #626d50 100%);
+  color: #f4f26a;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.shop-gears-product-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.shop-gears-product-type,
+.shop-gears-product-note,
+.shop-gears-api-purpose,
+.shop-gears-api-group-title,
+.shop-gears-message {
+  margin: 0;
+}
+
+.shop-gears-product-type {
+  color: #626d50;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.shop-gears-product-name {
+  margin: 0;
+  color: #1c1c1c;
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.shop-gears-product-note {
+  color: rgba(28, 28, 28, 0.76);
+  font-family: "BL Melody", sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.shop-gears-api-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.shop-gears-api-group {
+  display: grid;
+  gap: 10px;
+}
+
+.shop-gears-api-group-title {
+  color: #314132;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.shop-gears-api-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-api-card-planned {
+  background: #fdf7ef;
+  border-color: rgba(255, 111, 65, 0.18);
+}
+
+.shop-gears-api-row {
+  display: grid;
+  gap: 8px;
+}
+
+.shop-gears-api-method {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(17, 96, 51, 0.1);
+  color: #116033;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.shop-gears-api-method.is-planned {
+  background: rgba(255, 111, 65, 0.14);
+  color: #b35531;
+}
+
+.shop-gears-api-path {
+  color: #1c1c1c;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.shop-gears-api-purpose {
+  color: rgba(28, 28, 28, 0.76);
+  font-family: "BL Melody", sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.shop-gears-message {
+  color: #b35531;
+  font-family: "BL Melody", sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.shop-gears-product-line-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-product-line-clickzone {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.shop-gears-product-line-clickzone.is-clickable {
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.shop-gears-product-line-clickzone.is-clickable:hover {
+  border-color: rgba(17, 96, 51, 0.24);
+}
+
+.shop-gears-product-line-clickzone.is-clickable:active {
+  transform: scale(0.992);
+}
+
+.shop-gears-product-line-clickzone.is-clickable:focus-visible {
+  outline: 2px solid rgba(17, 96, 51, 0.28);
+  outline-offset: 2px;
+}
+
+.shop-gears-product-media {
+  width: 72px;
+  height: 72px;
+}
+
+.shop-gears-product-image {
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  object-fit: cover;
+  display: block;
+  background: #f3ecde;
+}
+
+.shop-gears-product-image-placeholder {
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(98, 109, 80, 0.35);
+}
+
+.shop-gears-product-image-placeholder-text {
+  color: #73765c;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.shop-gears-product-line-content {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.shop-gears-product-line-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+
+.shop-gears-product-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.shop-gears-qty-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+
+.shop-gears-qty-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(17, 96, 51, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 242, 210, 0.5);
+  color: #116033;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.shop-gears-qty-btn:hover {
+  background: rgba(255, 242, 210, 0.8);
+  border-color: rgba(17, 96, 51, 0.22);
+}
+
+.shop-gears-qty-btn:active {
+  transform: scale(0.97);
+  background: rgba(255, 242, 210, 0.92);
+}
+
+.shop-gears-qty-btn:focus-visible {
+  outline: 2px solid rgba(17, 96, 51, 0.28);
+  outline-offset: 2px;
+}
+
+.shop-gears-qty-value {
+  min-width: 26px;
+  text-align: center;
+  color: #1c1c1c;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.shop-gears-product-price {
+  margin: 0;
+  color: rgba(28, 28, 28, 0.62);
+  font-family: "BL Melody", sans-serif;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.shop-gears-add-btn {
+  width: fit-content;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #116033;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #116033;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(28, 28, 28, 0.08);
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  margin-left: auto;
+}
+
+.shop-gears-add-btn:hover {
+  background: rgba(17, 96, 51, 0.05);
+}
+
+.shop-gears-add-btn:active {
+  transform: translateY(1px) scale(0.985);
+  background: #116033;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(28, 28, 28, 0.08);
+}
+
+.shop-gears-add-btn:focus-visible {
+  outline: 2px solid rgba(17, 96, 51, 0.28);
+  outline-offset: 2px;
+}
+
+.shop-gears-detail-card {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-carousel {
+  display: grid;
+  gap: 12px;
+}
+
+.shop-gears-carousel-stage {
+  position: relative;
+}
+
+.shop-gears-carousel-image {
+  width: 100%;
+  height: 240px;
+  border-radius: 18px;
+  object-fit: contain;
+  display: block;
+  background: #f3ecde;
+}
+
+.shop-gears-carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #116033;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(28, 28, 28, 0.08);
+}
+
+.shop-gears-carousel-nav.is-prev {
+  left: 10px;
+}
+
+.shop-gears-carousel-nav.is-next {
+  right: 10px;
+}
+
+.shop-gears-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.shop-gears-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(17, 96, 51, 0.22);
+  cursor: pointer;
+  padding: 0;
+}
+
+.shop-gears-carousel-dot.is-active {
+  width: 18px;
+  background: #116033;
+}
+
+.shop-gears-detail-info {
+  display: grid;
+  gap: 12px;
+}
+
+.shop-gears-detail-row {
+  display: grid;
+  gap: 4px;
+}
+
+.shop-gears-detail-label {
+  color: #626d50;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.shop-gears-detail-value {
+  margin: 0;
+  color: #1c1c1c;
+  font-family: "BL Melody", sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.shop-gears-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.shop-gears-cart-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-cart-summary-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.shop-gears-cart-link,
+.shop-gears-cart-clear-btn,
+.shop-gears-cart-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #116033;
+  background: #ffffff;
+  color: #116033;
+  text-decoration: none;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shop-gears-cart-item-card {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-cart-item-content {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.shop-gears-checkout-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-checkout-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shop-gears-checkout-row.is-total {
+  padding-top: 10px;
+  border-top: 1px solid rgba(17, 96, 51, 0.12);
+}
+
+.shop-gears-checkout-row.is-total .shop-gears-detail-label,
+.shop-gears-checkout-row.is-total .shop-gears-detail-value {
+  color: #116033;
+}
+
+.shop-gears-pay-btn {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-orange);
+  color: #ffffff;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(28, 28, 28, 0.08);
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.shop-gears-pay-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.shop-gears-api-card.is-success {
+  border-color: rgba(17, 96, 51, 0.22);
+  background: linear-gradient(180deg, rgba(255, 242, 210, 0.72) 0%, #ffffff 100%);
+}
+
+.shop-gears-paid-note {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 96, 51, 0.18);
+  background: linear-gradient(180deg, rgba(255, 242, 210, 0.72) 0%, #ffffff 100%);
+}
+
+.shop-gears-cart-clear-btn:disabled,
+.shop-gears-cart-remove-btn:disabled,
+.shop-gears-qty-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.shop-gears-success-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(17, 96, 51, 0.18);
+  background: linear-gradient(180deg, rgba(255, 242, 210, 0.82) 0%, #ffffff 100%);
+  box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
+}
+
+.shop-gears-success-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.shop-gears-pay-btn:not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+  background: #d95b31;
 }
 
 .trip-route-body {

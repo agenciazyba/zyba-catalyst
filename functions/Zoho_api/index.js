@@ -6,6 +6,7 @@ const catalyst = require("zcatalyst-sdk-node");
 const { sendJson } = require("./utils/http");
 const { handleAuthRoutes } = require("./routes/auth");
 const { handleCrmRoutes } = require("./routes/crm");
+const { handleStripeRoutes } = require("./routes/stripe");
 
 dotenv.config({ path: __dirname + "/.env", override: true });
 
@@ -18,8 +19,8 @@ module.exports = async (req, res) => {
     if (method === "OPTIONS") {
       res.writeHead(204, {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Token"
+        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Token, Stripe-Signature"
       });
       res.end();
       return;
@@ -31,6 +32,10 @@ module.exports = async (req, res) => {
     }
 
     if (await handleAuthRoutes(app, req, res, parsedUrl)) {
+      return;
+    }
+
+    if (await handleStripeRoutes(app, req, res, parsedUrl)) {
       return;
     }
 

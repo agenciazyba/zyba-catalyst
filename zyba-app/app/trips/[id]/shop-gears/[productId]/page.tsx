@@ -1,0 +1,339 @@
+"use client";
+
+import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
+import { getSessionToken } from "@/lib/auth";
+import { getTraveler } from "@/lib/api";
+import { addItemToShopCart, useShopCart } from "@/lib/shop-cart";
+import Image from "next/image";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
+type Traveler = {
+  travelerName?: string | null;
+};
+
+type ProductDetailResponse = {
+  product?: {
+    id?: string | null;
+    productName?: string | null;
+    productCode?: string | null;
+    unitPrice?: number | null;
+    vendorName?: {
+      id?: string | null;
+      name?: string | null;
+    } | null;
+    lureImageCatalog?: Array<{
+      downloadKey?: string | null;
+      fileName?: string | null;
+    }> | null;
+    lureImageReal?: Array<{
+      downloadKey?: string | null;
+      fileName?: string | null;
+    }> | null;
+  } | null;
+};
+
+function formatCurrency(value?: number | null) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(Number(value));
+}
+
+export default function GearsDetailsPage() {
+  const params = useParams();
+  const router = useRouter();
+
+  const tripId = useMemo(() => {
+    const raw = params?.id;
+    if (Array.isArray(raw)) return raw[0] || "";
+    return typeof raw === "string" ? raw : "";
+  }, [params]);
+
+  const productId = useMemo(() => {
+    const raw = params?.productId;
+    if (Array.isArray(raw)) return raw[0] || "";
+    return typeof raw === "string" ? raw : "";
+  }, [params]);
+
+  const [traveler, setTraveler] = useState<Traveler | null>(null);
+  const [product, setProduct] = useState<ProductDetailResponse["product"] | null>(null);
+  const [quantity, setQuantity] = useState(0);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
+  const { subtotal, totalItems } = useShopCart(tripId);
+
+  useEffect(() => {
+    async function loadData() {
+      const token = getSessionToken();
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
+      setSessionToken(token);
+
+      setLoading(true);
+      setMessage("");
+
+      const [travelerResult, productResponse] = await Promise.all([
+        getTraveler(token),
+        fetch(`/api/crm/products/${productId}`, {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "X-Session-Token": token,
+          },
+        }),
+      ]);
+
+      if (travelerResult.ok) {
+        setTraveler((travelerResult.data as Traveler) || null);
+      }
+
+      const body = (await productResponse.json()) as {
+        ok: boolean;
+        data?: ProductDetailResponse;
+        error?: string;
+        message?: string;
+      };
+
+      if (!productResponse.ok || !body.ok || !body.data?.product) {
+        setMessage(body.error || body.message || "Failed to load product details.");
+        setLoading(false);
+        return;
+      }
+
+      setProduct(body.data.product);
+      setActiveImageIndex(0);
+      setLoading(false);
+    }
+
+    if (productId) {
+      void loadData();
+    }
+  }, [router, productId]);
+
+  const images = [
+    ...(Array.isArray(product?.lureImageCatalog) ? product.lureImageCatalog : []),
+    ...(Array.isArray(product?.lureImageReal) ? product.lureImageReal : []),
+  ]
+    .map((image, index) => {
+      const downloadKey = String(image?.downloadKey || "").trim();
+      if (!downloadKey || !sessionToken) return null;
+      return {
+        id: `${downloadKey}-${index}`,
+        src: `/api/crm/files/${encodeURIComponent(downloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`,
+        alt: String(image?.fileName || product?.productName || "Product image"),
+      };
+    })
+    .filter((image): image is { id: string; src: string; alt: string } => Boolean(image));
+
+  const activeImage = images[activeImageIndex] || null;
+
+  function changeQuantity(delta: number) {
+    setQuantity((current) => Math.max(0, current + delta));
+  }
+
+  async function handleAddToCart() {
+    if (!product?.id) return;
+    if (quantity <= 0) {
+      setMessage("Select a quantity before adding to cart.");
+      return;
+    }
+
+    try {
+      await addItemToShopCart(
+        tripId,
+        {
+          productId: product.id,
+          productName: product.productName || "Product",
+          productCode: product.productCode || null,
+          unitPrice: typeof product.unitPrice === "number" ? product.unitPrice : null,
+          imageDownloadKey: product.lureImageCatalog?.[0]?.downloadKey || product.lureImageReal?.[0]?.downloadKey || null,
+          imageAlt: product.lureImageCatalog?.[0]?.fileName || product.lureImageReal?.[0]?.fileName || product.productName || null,
+          vendorName: product.vendorName?.name || null,
+        },
+        quantity
+      );
+
+      setMessage(`${product.productName || "Product"} added to cart.`);
+      setQuantity(0);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to add item to cart.");
+    }
+  }
+
+  function showPreviousImage() {
+    setActiveImageIndex((current) => {
+      if (images.length === 0) return 0;
+      return current === 0 ? images.length - 1 : current - 1;
+    });
+  }
+
+  function showNextImage() {
+    setActiveImageIndex((current) => {
+      if (images.length === 0) return 0;
+      return current === images.length - 1 ? 0 : current + 1;
+    });
+  }
+
+  return (
+    <main className="trip-details-page">
+      <AppTopBar
+        firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"}
+        cartHref={`/trips/${tripId}/shop-gears/cart`}
+        cartCount={totalItems}
+      />
+
+      <section className="trip-details-body">
+        <div className="shop-gears-shell">
+          {loading ? (
+            <div className="shop-gears-api-card">
+              <p className="shop-gears-api-purpose">Loading product details...</p>
+            </div>
+          ) : product ? (
+            <>
+              <section className="shop-gears-cart-summary">
+                <div className="shop-gears-cart-summary-copy">
+                  <span className="shop-gears-detail-label">Your Tackle Box</span>
+                  <p className="shop-gears-detail-value">
+                    {totalItems} items · {formatCurrency(subtotal)}
+                  </p>
+                </div>
+
+                <Link href={`/trips/${tripId}/shop-gears/cart`} className="shop-gears-cart-link">
+                  VIEW CART
+                </Link>
+              </section>
+
+              <section className="shop-gears-detail-card">
+                <div className="shop-gears-carousel">
+                  <div className="shop-gears-carousel-stage">
+                    {activeImage ? (
+                      <Image
+                        src={activeImage.src}
+                        alt={activeImage.alt}
+                        width={340}
+                        height={240}
+                        className="shop-gears-carousel-image"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="shop-gears-carousel-image shop-gears-product-image-placeholder">
+                        <span className="shop-gears-product-image-placeholder-text">No image</span>
+                      </div>
+                    )}
+
+                    {images.length > 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          className="shop-gears-carousel-nav is-prev"
+                          onClick={showPreviousImage}
+                          aria-label="Previous image"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          className="shop-gears-carousel-nav is-next"
+                          onClick={showNextImage}
+                          aria-label="Next image"
+                        >
+                          ›
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+
+                  {images.length > 1 ? (
+                    <div className="shop-gears-carousel-dots">
+                      {images.map((image, index) => (
+                        <button
+                          key={image.id}
+                          type="button"
+                          className={`shop-gears-carousel-dot${index === activeImageIndex ? " is-active" : ""}`}
+                          onClick={() => setActiveImageIndex(index)}
+                          aria-label={`Go to image ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="shop-gears-detail-info">
+                  <div className="shop-gears-detail-row">
+                    <span className="shop-gears-detail-label">Name</span>
+                    <p className="shop-gears-detail-value">{product.productName || "-"}</p>
+                  </div>
+                  <div className="shop-gears-detail-row">
+                    <span className="shop-gears-detail-label">Code</span>
+                    <p className="shop-gears-detail-value">{product.productCode || "-"}</p>
+                  </div>
+                  <div className="shop-gears-detail-row">
+                    <span className="shop-gears-detail-label">Brand</span>
+                    <p className="shop-gears-detail-value">{product.vendorName?.name || "-"}</p>
+                  </div>
+                  <div className="shop-gears-detail-row">
+                    <span className="shop-gears-detail-label">Price</span>
+                    <p className="shop-gears-detail-value">{formatCurrency(product.unitPrice)}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="shop-gears-detail-actions">
+                <div className="shop-gears-qty-picker" aria-label="Quantity selector">
+                  <button
+                    type="button"
+                    className="shop-gears-qty-btn"
+                    onClick={() => changeQuantity(-1)}
+                    aria-label="Decrease quantity"
+                  >
+                    -
+                  </button>
+                  <span className="shop-gears-qty-value">{quantity}</span>
+                  <button
+                    type="button"
+                    className="shop-gears-qty-btn"
+                    onClick={() => changeQuantity(1)}
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="shop-gears-add-btn"
+                  disabled={quantity <= 0}
+                  onClick={() => void handleAddToCart()}
+                >
+                  ADD TO CART
+                </button>
+              </section>
+            </>
+          ) : (
+            <div className="shop-gears-api-card">
+              <p className="shop-gears-api-purpose">Product not found.</p>
+            </div>
+          )}
+
+          {message ? (
+            <p className="shop-gears-message" role="status">
+              {message}
+            </p>
+          ) : null}
+
+          <div className="trip-back-action">
+            <TripBackLink href={`/trips/${tripId}/shop-gears`} />
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -8,10 +8,76 @@ const {
   getTripRequirementsById,
   acknowledgeTripRequirements,
   createFlightForLoggedUser,
+  listProducts,
+  getProductById,
   streamZohoFile,
   streamZohoRecordPhoto,
   streamSalesOrderPdf
 } = require("../services/zoho");
+const {
+  getCart,
+  addCartItem,
+  setCartItemQuantity,
+  removeCartItem,
+  clearCart,
+  replaceCart,
+} = require("../services/cart");
+const { createCheckoutSession, getCheckoutSession } = require("../services/stripe");
+const { getCheckoutStatusByTrip, setCheckoutStatus } = require("../services/checkout-state");
+
+async function buildTrustedCartItem(productId, fallbackItem = {}) {
+  const safeProductId = String(productId || "").trim();
+  if (!safeProductId) {
+    throw new Error("Missing productId");
+  }
+
+  const product = await getProductById(safeProductId, {});
+
+  if (!product) {
+    throw new Error("Product not found");
+  }
+
+  if (typeof product.unitPrice !== "number" || !Number.isFinite(product.unitPrice) || product.unitPrice < 0) {
+    throw new Error(`Product ${safeProductId} does not have a valid price`);
+  }
+
+  return {
+    productId: safeProductId,
+    productName: String(product.productName || fallbackItem.productName || "Product").trim(),
+    productCode: String(product.productCode || fallbackItem.productCode || "").trim() || null,
+    unitPrice: product.unitPrice,
+    imageDownloadKey:
+      String(
+        product?.lureImageCatalog?.[0]?.downloadKey ||
+          product?.lureImageReal?.[0]?.downloadKey ||
+          fallbackItem.imageDownloadKey ||
+          ""
+      ).trim() || null,
+    imageAlt:
+      String(
+        product?.lureImageCatalog?.[0]?.fileName ||
+          product?.lureImageReal?.[0]?.fileName ||
+          fallbackItem.imageAlt ||
+          product.productName ||
+          ""
+      ).trim() || null,
+    vendorName: String(product?.vendorName?.name || fallbackItem.vendorName || "").trim() || null,
+  };
+}
+
+async function buildTrustedCartItems(items) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+
+  return Promise.all(
+    items.map(async (item) => {
+      const trusted = await buildTrustedCartItem(item?.productId, item || {});
+      return {
+        ...trusted,
+        quantity: item?.quantity,
+      };
+    })
+  );
+}
 
 async function handleCrmRoutes(app, req, res, parsedUrl) {
   const path = parsedUrl.pathname;
@@ -90,6 +156,392 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     return true;
   }
 
+  if (method === "GET" && path === "/crm/products") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const data = await listProducts({
+        page: parsedUrl.searchParams.get("page"),
+        perPage: parsedUrl.searchParams.get("perPage"),
+        layout: parsedUrl.searchParams.get("layout"),
+        productActive: parsedUrl.searchParams.get("productActive"),
+        search: parsedUrl.searchParams.get("search"),
+        vendorName: parsedUrl.searchParams.get("vendorName"),
+        destinationRelated: parsedUrl.searchParams.get("destinationRelated"),
+        destinationRelatedId: parsedUrl.searchParams.get("destinationRelatedId"),
+      });
+
+      sendJson(res, 200, { ok: true, data });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to list products",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "GET" && path === "/crm/cart") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    const tripId = String(parsedUrl.searchParams.get("tripId") || "").trim();
+
+    if (!tripId) {
+      sendJson(res, 400, { ok: false, error: "tripId is required" });
+      return true;
+    }
+
+    try {
+      const cart = await getCart(app, session.email, tripId);
+      sendJson(res, 200, { ok: true, data: cart });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to load cart",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "GET" && path === "/crm/checkout/status") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    const tripId = String(parsedUrl.searchParams.get("tripId") || "").trim();
+
+    if (!tripId) {
+      sendJson(res, 400, { ok: false, error: "tripId is required" });
+      return true;
+    }
+
+    try {
+      const status = await getCheckoutStatusByTrip(app, tripId);
+      sendJson(res, 200, { ok: true, data: status });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to load checkout status",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "DELETE" && path === "/crm/cart") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    const tripId = String(parsedUrl.searchParams.get("tripId") || "").trim();
+
+    if (!tripId) {
+      sendJson(res, 400, { ok: false, error: "tripId is required" });
+      return true;
+    }
+
+    try {
+      const cart = await clearCart(app, session.email, tripId);
+      sendJson(res, 200, { ok: true, data: cart });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to clear cart",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "POST" && path === "/crm/cart/items") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const body = await getRequestBody(req);
+      const tripId = String(body?.tripId || "").trim();
+
+      if (!tripId) {
+        sendJson(res, 400, { ok: false, error: "tripId is required" });
+        return true;
+      }
+
+      const trustedItem = await buildTrustedCartItem(body?.item?.productId, body?.item || {});
+      const cart = await addCartItem(app, session.email, tripId, trustedItem, body?.quantity);
+      sendJson(res, 200, { ok: true, data: cart });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error?.message || String(error) || "Failed to add cart item",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "POST" && path === "/crm/checkout/session") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const body = await getRequestBody(req);
+      const tripId = String(body?.tripId || "").trim();
+
+      if (!tripId) {
+        sendJson(res, 400, { ok: false, error: "tripId is required" });
+        return true;
+      }
+
+      const cart = await getCart(app, session.email, tripId);
+
+      if (!cart?.items?.length) {
+        sendJson(res, 400, { ok: false, error: "Cart is empty" });
+        return true;
+      }
+
+      const trustedItems = await buildTrustedCartItems(cart.items);
+      const trustedCart = await replaceCart(app, session.email, tripId, trustedItems);
+
+      const origin =
+        String(req.headers.origin || "").trim() ||
+        `${req.headers["x-forwarded-proto"] || "http"}://${req.headers["x-forwarded-host"] || req.headers.host}`;
+
+      const checkoutSession = await createCheckoutSession({
+        cart: trustedCart,
+        tripId,
+        customerEmail: session.email,
+        origin,
+      });
+
+      await setCheckoutStatus(app, {
+        tripId,
+        status: "pending",
+        checkoutSessionId: checkoutSession.id || null,
+        paymentStatus: "unpaid",
+        stripeEventId: null,
+        amountTotal: trustedCart.subtotal,
+        currency: "usd",
+        customerEmail: session.email,
+      });
+
+      sendJson(res, 200, {
+        ok: true,
+        data: {
+          id: checkoutSession.id || null,
+          url: checkoutSession.url || null,
+        },
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error?.message || "Failed to create checkout session",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "POST" && path === "/crm/checkout/finalize") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const body = await getRequestBody(req);
+      const tripId = String(body?.tripId || "").trim();
+      const sessionId = String(body?.sessionId || "").trim();
+
+      if (!tripId) {
+        sendJson(res, 400, { ok: false, error: "tripId is required" });
+        return true;
+      }
+
+      let checkoutStatus = await getCheckoutStatusByTrip(app, tripId);
+      let isPaid =
+        checkoutStatus?.status === "paid" || checkoutStatus?.paymentStatus === "paid";
+
+      if (!isPaid && sessionId) {
+        const stripeSession = await getCheckoutSession(sessionId);
+        const stripeTripId = String(
+          stripeSession?.metadata?.tripId || stripeSession?.client_reference_id || ""
+        ).trim();
+
+        if (stripeTripId && stripeTripId !== tripId) {
+          sendJson(res, 409, {
+            ok: false,
+            error: "Stripe session does not match this trip",
+          });
+          return true;
+        }
+
+        if (stripeSession?.payment_status === "paid") {
+          checkoutStatus = await setCheckoutStatus(app, {
+            tripId,
+            status: "paid",
+            checkoutSessionId: stripeSession?.id || checkoutStatus.checkoutSessionId || null,
+            paymentStatus: stripeSession?.payment_status || null,
+            stripeEventId: checkoutStatus.stripeEventId || null,
+            amountTotal:
+              typeof stripeSession?.amount_total === "number" && Number.isFinite(stripeSession.amount_total)
+                ? stripeSession.amount_total / 100
+                : checkoutStatus.amountTotal ?? null,
+            currency: stripeSession?.currency || checkoutStatus.currency || null,
+            customerEmail:
+              stripeSession?.customer_details?.email ||
+              stripeSession?.customer_email ||
+              checkoutStatus.customerEmail ||
+              null,
+          });
+          isPaid = true;
+        }
+      }
+
+      if (!isPaid) {
+        sendJson(res, 409, {
+          ok: false,
+          error: "Checkout is not confirmed as paid yet",
+        });
+        return true;
+      }
+
+      const finalizedSummary = {
+        tripId,
+        checkoutSessionId: checkoutStatus.checkoutSessionId || null,
+        paymentStatus: checkoutStatus.paymentStatus || null,
+        amountTotal: checkoutStatus.amountTotal ?? null,
+        currency: checkoutStatus.currency || null,
+        customerEmail: checkoutStatus.customerEmail || null,
+        stripeEventId: checkoutStatus.stripeEventId || null,
+        finalizedAt: checkoutStatus.finalizedAt || new Date().toISOString(),
+      };
+
+      await clearCart(app, session.email, tripId);
+      await setCheckoutStatus(app, {
+        ...checkoutStatus,
+        tripId,
+        status: "paid_finalized",
+        finalizedAt: finalizedSummary.finalizedAt,
+      });
+
+      sendJson(res, 200, {
+        ok: true,
+        data: finalizedSummary,
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error?.message || "Failed to finalize checkout",
+      });
+    }
+
+    return true;
+  }
+
+  const cartItemMatch = path.match(/^\/crm\/cart\/items\/([^/]+)$/);
+
+  if (method === "PATCH" && cartItemMatch) {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const body = await getRequestBody(req);
+      const tripId = String(body?.tripId || "").trim();
+      const productId = decodeURIComponent(cartItemMatch[1] || "");
+
+      if (!tripId) {
+        sendJson(res, 400, { ok: false, error: "tripId is required" });
+        return true;
+      }
+
+      const cart = await setCartItemQuantity(
+        app,
+        session.email,
+        tripId,
+        productId,
+        body?.quantity
+      );
+      sendJson(res, 200, { ok: true, data: cart });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Failed to update cart item",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "DELETE" && cartItemMatch) {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    const tripId = String(parsedUrl.searchParams.get("tripId") || "").trim();
+    const productId = decodeURIComponent(cartItemMatch[1] || "");
+
+    if (!tripId) {
+      sendJson(res, 400, { ok: false, error: "tripId is required" });
+      return true;
+    }
+
+    try {
+      const cart = await removeCartItem(app, session.email, tripId, productId);
+      sendJson(res, 200, { ok: true, data: cart });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to remove cart item",
+      });
+    }
+
+    return true;
+  }
+
   const debugMatch = path.match(/^\/crm\/debug-deals$/);
   if (method === "GET" && debugMatch) {
     const { zohoGetRecord, zohoListRecords } = require("../services/zoho");
@@ -137,7 +589,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     }
 
     try {
-      if (zModule === "Accounts" && zRecord) {
+      if ((zModule === "Accounts" && zRecord) || (zAttach === "photo" && zRecord)) {
         await streamZohoRecordPhoto(zModule, zRecord, res);
       } else {
         await streamZohoFile(zModule, zRecord, zAttach, res);
@@ -145,6 +597,44 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     } catch (e) {
       sendJson(res, 500, { ok: false, error: e.message || "Failed to download file" });
     }
+    return true;
+  }
+
+  const productDetailMatch = path.match(/^\/crm\/products\/([^/]+)$/);
+
+  if (method === "GET" && productDetailMatch) {
+    const productId = productDetailMatch[1];
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const product = await getProductById(productId, {
+        layout: parsedUrl.searchParams.get("layout"),
+      });
+
+      if (!product) {
+        sendJson(res, 404, { ok: false, error: "Product not found" });
+        return true;
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        data: {
+          product,
+        },
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to load product",
+      });
+    }
+
     return true;
   }
 
