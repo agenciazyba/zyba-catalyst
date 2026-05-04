@@ -1,13 +1,12 @@
 "use client";
 
 import AppTopBar from "@/components/AppTopBar";
-import TripBackLink from "@/components/TripBackLink";
+import LottieFilePlayer from "@/components/LottieFilePlayer";
 import { getSessionToken } from "@/lib/auth";
 import {
   finalizeCheckout,
   getCheckoutStatus,
   getTraveler,
-  type FinalizeCheckoutResponse,
 } from "@/lib/api";
 import { clearShopCartSnapshot } from "@/lib/shop-cart";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -16,14 +15,6 @@ import { useEffect, useEffectEvent, useMemo, useState } from "react";
 type Traveler = {
   travelerName?: string | null;
 };
-
-function formatCurrency(value?: number | null, currency = "USD") {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: String(currency || "USD").toUpperCase(),
-  }).format(Number(value));
-}
 
 export default function ShopGearsSuccessPage() {
   const params = useParams();
@@ -37,10 +28,19 @@ export default function ShopGearsSuccessPage() {
   }, [params]);
 
   const [traveler, setTraveler] = useState<Traveler | null>(null);
-  const [message, setMessage] = useState("We are confirming your payment with Stripe.");
   const [status, setStatus] = useState<"pending" | "success" | "error">("pending");
-  const [summary, setSummary] = useState<FinalizeCheckoutResponse | null>(null);
   const stripeSessionId = searchParams?.get("session_id") || "";
+  const previewMode = String(searchParams?.get("preview") || "").trim().toLowerCase();
+  const isPendingPreview = previewMode === "pending" || previewMode === "processing";
+  const isSuccessPreview = previewMode === "success";
+  const isErrorPreview = previewMode === "error" || previewMode === "failed";
+  const effectiveStatus = isPendingPreview
+    ? "pending"
+    : isSuccessPreview
+      ? "success"
+      : isErrorPreview
+        ? "error"
+        : status;
 
   const completeIfPaid = useEffectEvent(async (token: string) => {
     if (!tripId) return false;
@@ -51,7 +51,6 @@ export default function ShopGearsSuccessPage() {
         const checkoutStatusResult = await getCheckoutStatus(token, tripId);
         if (!checkoutStatusResult.ok) {
           setStatus("error");
-          setMessage(checkoutStatusResult.error || checkoutStatusResult.message || "Failed to confirm payment status.");
           return true;
         }
 
@@ -59,18 +58,19 @@ export default function ShopGearsSuccessPage() {
       }
 
       setStatus("error");
-      setMessage(finalizeResult.error || finalizeResult.message || "Failed to finalize your checkout.");
       return true;
     }
 
     clearShopCartSnapshot(tripId);
-    setSummary(finalizeResult.data);
     setStatus("success");
-    setMessage("Payment confirmed. Your order has been recorded successfully.");
     return true;
   });
 
   useEffect(() => {
+    if (isPendingPreview || isSuccessPreview || isErrorPreview) {
+      return;
+    }
+
     const token = getSessionToken();
     if (!token) {
       router.replace("/login");
@@ -109,53 +109,43 @@ export default function ShopGearsSuccessPage() {
         cleanup();
       }
     };
-  }, [router, tripId]);
+  }, [isErrorPreview, isPendingPreview, isSuccessPreview, router, tripId]);
 
   return (
     <main className="trip-details-page">
       <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} cartCount={0} />
 
-      <section className="trip-details-body">
-        <div className="shop-gears-shell">
-          <section className="shop-gears-section">
-            <div className="shop-gears-success-card">
-              <span className="shop-gears-kicker">SHOP GEARS</span>
-              <h5 className="trip-details-section-title">Payment Success</h5>
-              <p className="shop-gears-api-purpose">{message}</p>
-
-              {status === "success" && summary ? (
-                <div className="shop-gears-success-grid">
-                  <div className="shop-gears-detail-row">
-                    <span className="shop-gears-detail-label">Status</span>
-                    <p className="shop-gears-detail-value">Paid</p>
-                  </div>
-                  <div className="shop-gears-detail-row">
-                    <span className="shop-gears-detail-label">Amount</span>
-                    <p className="shop-gears-detail-value">
-                      {formatCurrency(summary.amountTotal, summary.currency || "USD")}
-                    </p>
-                  </div>
-                  {summary.checkoutSessionId ? (
-                    <div className="shop-gears-detail-row">
-                      <span className="shop-gears-detail-label">Stripe Session</span>
-                      <p className="shop-gears-detail-value">{summary.checkoutSessionId}</p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {status === "pending" ? (
-                <p className="shop-gears-summary">
-                  Session: {searchParams?.get("session_id") || "Waiting for Stripe confirmation"}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="trip-back-action">
-              <TripBackLink href={`/trips/${tripId}/shop-gears`} />
-            </div>
+      <section
+        className={
+          effectiveStatus === "pending"
+            ? "trip-details-body shop-gears-success-body"
+            : "trip-details-body"
+        }
+      >
+        {effectiveStatus === "pending" ? (
+          <section className="shop-gears-success-pending-stage">
+            <LottieFilePlayer
+              src="/lotties-processing-payment.json"
+              className="shop-gears-lottie"
+            />
           </section>
-        </div>
+        ) : effectiveStatus === "error" ? (
+          <section className="shop-gears-success-pending-stage">
+            <LottieFilePlayer
+              src="/lotties-payment-error.json"
+              className="shop-gears-lottie"
+              loop={false}
+            />
+          </section>
+        ) : (
+          <section className="shop-gears-success-pending-stage">
+            <LottieFilePlayer
+              src="/lotties-stripe-transfer-success.json"
+              className="shop-gears-lottie"
+              loop={false}
+            />
+          </section>
+        )}
       </section>
     </main>
   );

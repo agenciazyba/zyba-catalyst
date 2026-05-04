@@ -157,6 +157,7 @@ Ainda pendente:
 13. página de sucesso tenta confirmar o `session_id` diretamente com a Stripe
 14. frontend chama `POST /api/crm/checkout/finalize`
 15. backend limpa carrinho e marca checkout como `paid_finalized`
+16. ao abrir a mesma trip novamente, `GET /api/crm/checkout/status` limpa o estado `paid_finalized`, liberando um novo pedido
 
 ### Endpoints
 
@@ -443,6 +444,30 @@ Solução:
 Arquivos:
 
 - `functions/Zoho_api/services/cart.js`
+
+---
+
+### 10. Carrinho bloqueado ao voltar para a mesma trip após pagamento concluído
+
+Data:
+
+- 2026-05-01
+
+Causa:
+
+- o status de checkout era persistido por `tripId`
+- após o pagamento concluído, o backend preservava `paid_finalized` para a futura etapa de `Sales Order`
+- ao voltar para a mesma trip, a UI tratava esse status antigo como checkout ainda bloqueante
+
+Solução:
+
+- o endpoint `GET /api/crm/checkout/status` agora limpa `paid_finalized` antes de devolver o status
+- `POST /api/crm/cart/items` também faz limpeza defensiva desse estado antes de iniciar um novo carrinho
+- isso libera um novo ciclo de compra na mesma trip sem manter o lock visual do checkout anterior
+
+Arquivos:
+
+- `functions/Zoho_api/routes/crm.js`
 
 ---
 

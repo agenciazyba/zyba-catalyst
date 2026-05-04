@@ -23,7 +23,11 @@ const {
   replaceCart,
 } = require("../services/cart");
 const { createCheckoutSession, getCheckoutSession } = require("../services/stripe");
-const { getCheckoutStatusByTrip, setCheckoutStatus } = require("../services/checkout-state");
+const {
+  getCheckoutStatusByTrip,
+  setCheckoutStatus,
+  clearCheckoutStatus,
+} = require("../services/checkout-state");
 
 async function buildTrustedCartItem(productId, fallbackItem = {}) {
   const safeProductId = String(productId || "").trim();
@@ -234,7 +238,14 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     }
 
     try {
-      const status = await getCheckoutStatusByTrip(app, tripId);
+      let status = await getCheckoutStatusByTrip(app, tripId);
+
+      // `paid_finalized` represents a completed prior checkout and should not
+      // keep blocking a future order cycle for the same trip.
+      if (status?.status === "paid_finalized") {
+        status = await clearCheckoutStatus(app, tripId, status.checkoutSessionId || "");
+      }
+
       sendJson(res, 200, { ok: true, data: status });
     } catch (error) {
       sendJson(res, 500, {
@@ -291,6 +302,11 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       if (!tripId) {
         sendJson(res, 400, { ok: false, error: "tripId is required" });
         return true;
+      }
+
+      const checkoutStatus = await getCheckoutStatusByTrip(app, tripId);
+      if (checkoutStatus?.status === "paid_finalized") {
+        await clearCheckoutStatus(app, tripId, checkoutStatus.checkoutSessionId || "");
       }
 
       const trustedItem = await buildTrustedCartItem(body?.item?.productId, body?.item || {});

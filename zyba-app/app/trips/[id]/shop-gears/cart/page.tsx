@@ -1,7 +1,6 @@
 "use client";
 
 import AppTopBar from "@/components/AppTopBar";
-import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
 import {
   createCheckoutSession,
@@ -336,6 +335,11 @@ export default function ShopCartPage() {
                   <span className="shop-gears-detail-value">Your tackle box is locked for order processing.</span>
                 </div>
               )}
+
+              <div className="shop-gears-powered-by" aria-label="Powered by Stripe">
+                <span className="shop-gears-powered-by-prefix">Powered by</span>
+                <span className="shop-gears-powered-by-brand">Stripe</span>
+              </div>
             </div>
           </section>
 
@@ -345,9 +349,6 @@ export default function ShopCartPage() {
             </p>
           ) : null}
 
-          <div className="trip-back-action">
-            <TripBackLink href={`/trips/${tripId}/shop-gears`} />
-          </div>
         </div>
       </section>
     </main>
