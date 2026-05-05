@@ -138,7 +138,7 @@ export default function HotelInformationPage() {
       <section className="trip-details-body">
         <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
         <div className="hotel-page-stack">
-          <div className="hotel-page-summary">
+          <div className="hotel-page-summary trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
             {hotelConfirmationCode ? (
               <div className="hotel-page-heading">
                 <div className="hotel-page-kicker">Confirmation: {hotelConfirmationCode}</div>
@@ -172,7 +172,7 @@ export default function HotelInformationPage() {
           ) : (
             <>
               {(status || mapHref || hotelAddress) ? (
-                <div className="hotel-hero-card">
+                <div className="hotel-hero-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "140ms" }}>
                   {status ? <div className="hotel-hero-badge">{status}</div> : null}
                   {mapHref ? (
                     <a
@@ -193,7 +193,7 @@ export default function HotelInformationPage() {
               ) : null}
 
               {(checkInDate || checkOutDate) ? (
-                <div className="hotel-stay-grid">
+                <div className="hotel-stay-grid trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "240ms" }}>
                   {checkInDate ? (
                     <article className="hotel-stay-card">
                       <span className="hotel-stay-label">Check-in</span>
@@ -213,7 +213,7 @@ export default function HotelInformationPage() {
               ) : null}
 
               {hotelInformation ? (
-                <section className="hotel-booking-card">
+                <section className="hotel-booking-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "340ms" }}>
                   <h2 className="trip-content-card-title">Hotel Details</h2>
                   <div className="trip-content-card-copy">
                     {hotelInfoLines.length > 1 ? (

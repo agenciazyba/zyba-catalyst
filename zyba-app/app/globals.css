@@ -115,6 +115,10 @@
   text-align: center;
 }
 
+.app-topbar-cart-badge.is-pulsing {
+  animation: shopGearsCartBadgePulse 680ms ease-out;
+}
+
 :root {
   --color-cream: #f4e9d3;
   --color-blue: #72b5dd;
@@ -806,7 +810,7 @@ h5 {
 
 .trips-body {
   background: #ffffff;
-  padding: 24px 0 30px var(--screen-padding);
+  padding: 24px 0 56px var(--screen-padding);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -823,9 +827,12 @@ h5 {
 
 .trips-carousel-view {
   margin-top: 25px;
+  padding-top: 14px;
+  padding-bottom: 26px;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scroll-snap-type: x proximity;
 }
 
 .trips-carousel-view::-webkit-scrollbar {
@@ -841,11 +848,40 @@ h5 {
 
 .trip-card-link {
   display: block;
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  transform: scale(0.965);
+  transform-origin: center center;
+  opacity: 0.9;
+  transition:
+    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 220ms ease,
+    filter 220ms ease;
+  filter: saturate(0.9);
+}
+
+@keyframes tripsCardFocusBounce {
+  0% {
+    transform: scale(0.965);
+  }
+  55% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1.01);
+  }
+}
+
+.trip-card-link.is-active {
+  transform: scale(1.01);
+  opacity: 1;
+  filter: saturate(1);
+  animation: tripsCardFocusBounce 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .trip-card-modern {
   width: 294px;
-  height: min(478px, calc(100dvh - var(--mobile-header-total-height) - var(--nav-total-height) - 148px));
+  height: min(466px, calc(100dvh - var(--mobile-header-total-height) - var(--nav-total-height) - 176px));
   padding: 30px;
   border-radius: 16px;
   background-size: cover;
@@ -855,6 +891,18 @@ h5 {
   flex-direction: column;
   justify-content: space-between;
   color: var(--color-cream);
+  transition:
+    box-shadow 260ms ease,
+    transform 260ms ease,
+    filter 260ms ease;
+}
+
+.trip-card-link.is-active .trip-card-modern {
+  box-shadow: 0 10px 20px rgba(28, 28, 28, 0.12);
+}
+
+.trip-card-link:not(.is-active) .trip-card-modern {
+  box-shadow: 0 6px 12px rgba(28, 28, 28, 0.1);
 }
 
 .trip-date-badge {
@@ -1071,31 +1119,26 @@ h5 {
   font-weight: 400;
 }
 
-.trip-details-status-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  justify-self: flex-start;
+@keyframes tripDetailsReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.trip-details-status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: #116033;
-  flex: 0 0 auto;
-}
-
-.trip-details-status-text {
-  color: #116033;
-  font-family: "BL Melody", sans-serif;
-  font-size: 12px;
-  line-height: 1.25;
-  font-weight: 400;
+.trip-details-reveal {
+  opacity: 0;
+  animation: tripDetailsReveal 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--trip-reveal-delay, 0ms);
+  will-change: opacity, transform;
 }
 
 .trip-details-gap-lg {
-  height: 45px;
+  height: 28px;
 }
 
 .trip-sales-order-btn {
@@ -1122,7 +1165,6 @@ h5 {
 }
 
 .trip-details-cards-row {
-  margin-top: 20px;
   display: flex;
   gap: 25px;
 }
@@ -1156,6 +1198,9 @@ h5 {
 
 .trip-details-card-icon {
   display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .trip-details-card-label {
@@ -1205,15 +1250,15 @@ h5 {
 
 .trip-details-link-icon {
   display: block;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
 .trip-details-link-text {
   font-family: "BL Melody", sans-serif;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 400;
   line-height: 1.2;
 }
 
@@ -2099,6 +2144,21 @@ h5 {
   }
 }
 
+@keyframes shopGearsCartBadgePulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(17, 96, 51, 0.32);
+  }
+  45% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 8px rgba(17, 96, 51, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(17, 96, 51, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hotel-page-transition-shell,
   .hotel-page-transition-shell.is-entering,
@@ -2835,6 +2895,70 @@ h5 {
   line-height: 1.35;
 }
 
+@keyframes shopGearsFeedbackFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.992);
+  }
+}
+
+.shop-gears-feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: min(100%, 520px);
+  margin-top: 2px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 96, 51, 0.16);
+  background: rgba(17, 96, 51, 0.06);
+  color: #116033;
+  animation: shopGearsFeedbackFade 2s ease forwards;
+}
+
+.shop-gears-feedback.is-removed {
+  border-color: rgba(221, 126, 56, 0.26);
+  background: rgba(221, 126, 56, 0.1);
+  color: #dd7e38;
+}
+
+.shop-gears-feedback-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: currentColor;
+  color: #ffffff;
+  flex: 0 0 auto;
+}
+
+.shop-gears-feedback-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.shop-gears-feedback-text {
+  min-width: 0;
+  color: currentColor;
+  font-family: "BL Melody", sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .shop-gears-product-line-card {
   display: grid;
   gap: 12px;
@@ -2879,7 +3003,8 @@ h5 {
   width: 72px;
   height: 72px;
   border-radius: 14px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   display: block;
   background: #f3ecde;
 }
@@ -3021,6 +3146,13 @@ h5 {
   outline-offset: 2px;
 }
 
+.shop-gears-add-btn.is-added {
+  background: #116033;
+  color: #ffffff;
+  border-color: #116033;
+  box-shadow: 0 10px 22px rgba(17, 96, 51, 0.18);
+}
+
 .shop-gears-detail-card {
   display: grid;
   gap: 16px;
@@ -3046,7 +3178,7 @@ h5 {
   border-radius: 18px;
   object-fit: contain;
   display: block;
-  background: #f3ecde;
+  background: #ffffff;
 }
 
 .shop-gears-carousel-nav {
@@ -3193,6 +3325,11 @@ h5 {
   box-shadow: 0 10px 22px rgba(28, 28, 28, 0.05);
 }
 
+.shop-gears-checkout-card.is-processing {
+  border-color: rgba(17, 96, 51, 0.22);
+  box-shadow: 0 12px 24px rgba(17, 96, 51, 0.08);
+}
+
 .shop-gears-checkout-row {
   display: flex;
   align-items: center;
@@ -3232,6 +3369,20 @@ h5 {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.shop-gears-pay-btn.is-loading {
+  letter-spacing: 0.04em;
+}
+
+.shop-gears-checkout-note {
+  margin: -2px 0 0;
+  color: #626d50;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  animation: shopGearsLoadingPulse 1.9s ease-in-out infinite;
 }
 
 .shop-gears-api-card.is-success {

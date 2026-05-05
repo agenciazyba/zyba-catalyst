@@ -4,7 +4,7 @@ import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
 import { getTraveler, getTripDetails } from "@/lib/api";
-import { addItemToShopCart, useShopCart } from "@/lib/shop-cart";
+import { addItemToShopCart, useShopCart, useShopCartAddPulse } from "@/lib/shop-cart";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -80,7 +80,10 @@ export default function ShopGearsPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
+  const [addedProductId, setAddedProductId] = useState("");
+  const [feedback, setFeedback] = useState<{ id: number; kind: "added"; productName: string } | null>(null);
   const { subtotal, totalItems } = useShopCart(tripId);
+  const cartPulseNonce = useShopCartAddPulse(tripId);
 
   useEffect(() => {
     async function loadData() {
@@ -224,7 +227,20 @@ export default function ShopGearsPage() {
         quantity
       );
 
-      setMessage(`${product.productName} added to cart.`);
+      setMessage("");
+      setAddedProductId(product.id);
+      const feedbackId = Date.now();
+      setFeedback({
+        id: feedbackId,
+        kind: "added",
+        productName: product.productName,
+      });
+      window.setTimeout(() => {
+        setAddedProductId((current) => (current === product.id ? "" : current));
+      }, 1400);
+      window.setTimeout(() => {
+        setFeedback((current) => (current?.id === feedbackId ? null : current));
+      }, 2000);
       setQuantities((current) => ({
         ...current,
         [product.id]: 0,
@@ -243,6 +259,7 @@ export default function ShopGearsPage() {
         firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"}
         cartHref={`/trips/${tripId}/shop-gears/cart`}
         cartCount={totalItems}
+        cartPulseNonce={cartPulseNonce}
       />
 
       <section className="trip-details-body">
@@ -270,7 +287,6 @@ export default function ShopGearsPage() {
 
             <div className="shop-gears-section-head">
               <h6 className="shop-gears-section-title">Product list</h6>
-              <span className="shop-gears-section-chip">{products.length} items</span>
             </div>
 
             {loading ? (
@@ -340,11 +356,11 @@ export default function ShopGearsPage() {
 
                         <button
                           type="button"
-                          className="shop-gears-add-btn"
-                          disabled={(quantities[product.id] ?? 0) <= 0}
+                          className={`shop-gears-add-btn${addedProductId === product.id ? " is-added" : ""}`}
+                          disabled={(quantities[product.id] ?? 0) <= 0 || addedProductId === product.id}
                           onClick={() => void handleAddToCart(product)}
                         >
-                          ADD TO CART
+                          {addedProductId === product.id ? "ADDED" : "ADD TO CART"}
                         </button>
                       </div>
                     </div>
@@ -357,6 +373,23 @@ export default function ShopGearsPage() {
               </div>
             )}
           </section>
+
+          {feedback ? (
+            <div className={`shop-gears-feedback is-${feedback.kind}`} role="status" aria-live="polite">
+              <span className="shop-gears-feedback-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M4.5 10.25 8.1 13.85 15.5 6.45"
+                    stroke="currentColor"
+                    strokeWidth="2.1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="shop-gears-feedback-text">{feedback.productName} added to cart</span>
+            </div>
+          ) : null}
 
           {message ? (
             <p className="shop-gears-message" role="status">

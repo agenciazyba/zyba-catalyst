@@ -122,6 +122,72 @@ Objetivo:
 
 ---
 
+## UI e microinteractions
+
+### Atualizações recentes
+
+Data:
+
+- 2026-05-04
+
+Melhorias aplicadas:
+
+- feedback visual temporário ao adicionar item no carrinho com:
+  - nome do produto
+  - ícone de check
+  - card verde
+  - fade in / fade out em `2s`
+- feedback visual temporário ao remover item do carrinho com:
+  - nome do produto
+  - ícone de lixeira
+  - card laranja
+  - fade in / fade out
+- botão `ADD TO CART` entra em estado `ADDED` e fica desabilitado até voltar ao estado inicial
+- badge do `tackle box` no topo pulsa quando um item é adicionado
+- `PAY NOW` ganhou estado de processamento mais claro antes do redirecionamento para Stripe
+- página `Gears Details` foi simplificada para começar direto no conteúdo do produto
+- miniaturas de produto na lista e no carrinho passaram a usar `object-fit: contain`
+- card da imagem na página de detalhe do produto passou a usar fundo branco
+
+Arquivos principais:
+
+- `zyba-app/app/trips/[id]/shop-gears/page.tsx`
+- `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx`
+- `zyba-app/app/trips/[id]/shop-gears/cart/page.tsx`
+- `zyba-app/components/AppTopBar.tsx`
+- `zyba-app/lib/shop-cart.ts`
+- `zyba-app/app/globals.css`
+
+### Navegação e descoberta do Shop Gears
+
+Data:
+
+- 2026-05-04
+
+Melhorias aplicadas na área de trips:
+
+- remoção de títulos redundantes em `Trip Details`
+- atualização dos ícones do menu da trip para versão ilustrada
+- ícone de `Shop Gears` com fundo transparente e traços brancos para uso no card laranja
+- microinteração no carrossel de `My Trips` com card em foco levemente ampliado
+- animação de entrada em cascata nas páginas:
+  - `Trip Details`
+  - `Transfer`
+  - `Hotel`
+  - `Full Itinerary`
+
+Arquivos principais:
+
+- `zyba-app/app/trips/page.tsx`
+- `zyba-app/app/trips/[id]/page.tsx`
+- `zyba-app/app/trips/[id]/transfer-information/page.tsx`
+- `zyba-app/app/trips/[id]/hotel-information/page.tsx`
+- `zyba-app/app/trips/[id]/full-itinerary/page.tsx`
+- `zyba-app/app/globals.css`
+- `zyba-app/public/icons/trip-*.png`
+
+---
+
 ## Stripe Integration Docs
 
 ### Status atual

@@ -61,37 +61,6 @@ function cleanLabelPart(value: string | null | undefined) {
   return text;
 }
 
-function formatTripStatusLabel(value: string | null | undefined) {
-  const text = String(value || "").trim();
-  if (!text) return "-";
-
-  const normalized = text.toLowerCase();
-  if (normalized === "approved") return "Ready to Travel";
-  if (normalized === "rescheduled") return "Trip Updated";
-  return text;
-}
-
-function getCountryFlag(value: string | null | undefined) {
-  const text = String(value || "").trim().toLowerCase();
-  if (!text) return "";
-
-  const flags: Record<string, string> = {
-    brazil: "🇧🇷",
-    brasil: "🇧🇷",
-    italy: "🇮🇹",
-    italia: "🇮🇹",
-    argentina: "🇦🇷",
-    colombia: "🇨🇴",
-    peru: "🇵🇪",
-    usa: "🇺🇸",
-    "united states": "🇺🇸",
-    canada: "🇨🇦",
-    mexico: "🇲🇽",
-  };
-
-  return flags[text] || "";
-}
-
 export default function TripIndexPage() {
   const params = useParams();
   const router = useRouter();
@@ -139,21 +108,10 @@ export default function TripIndexPage() {
   const destinationVendor = cleanLabelPart(
     data?.trip?.vendorName || data?.deal?.vendorName || data?.trip?.deal?.name
   );
-  const destinationCountry = cleanLabelPart(
-    data?.trip?.destinationCountry || data?.deal?.destinationCountry || data?.trip?.destination
-  );
-  const destinationFlag = getCountryFlag(destinationCountry);
   const arrivalDate =
     data?.trip?.arrivalDate ||
     data?.deal?.arrivalDate ||
     null;
-  const tripStatus =
-    data?.trip?.tripStatus ||
-    data?.trip?.status ||
-    data?.deal?.status ||
-    "-";
-  const tripHeadingCountry = destinationCountry || "your destination";
-
   async function handleDownloadSalesOrder() {
     if (!sessionToken || !tripId || downloadingPdf) return;
 
@@ -208,19 +166,6 @@ export default function TripIndexPage() {
       <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
-        <div className="trip-page-heading">
-          <h5 className="trip-details-section-title">
-            {`Your trip to ${tripHeadingCountry}`}
-            {destinationFlag ? <span className="trip-page-heading-flag" aria-hidden="true"> {destinationFlag}</span> : null}
-          </h5>
-          {!loading ? (
-            <span className="trip-details-status-row">
-              <span className="trip-details-status-dot" aria-hidden="true" />
-              <strong className="trip-details-status-text">{formatTripStatusLabel(tripStatus)}</strong>
-            </span>
-          ) : null}
-        </div>
-
         {loading ? (
           <>
             <div className="trip-details-info">
@@ -235,7 +180,7 @@ export default function TripIndexPage() {
           </>
         ) : (
           <>
-            <div className="trip-details-info-card">
+            <div className="trip-details-info-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
               <div className="trip-details-info-grid">
                 <div className="trip-details-info-block">
                   <span className="trip-details-info-label">Destination</span>
@@ -266,8 +211,6 @@ export default function TripIndexPage() {
 
         <div className="trip-details-gap-lg" />
 
-        <h5 className="trip-details-section-title">Trip Details</h5>
-
         {loading ? (
           <div className="trip-details-cards-row">
             {[0, 1, 2].map((i) => (
@@ -276,18 +219,30 @@ export default function TripIndexPage() {
           </div>
         ) : (
           <div className="trip-details-cards-row">
-            <Link href={`/trips/${tripId}/flight-information`} className="trip-details-card-btn">
-              <Image src="/icons/Icon_flight.svg" alt="" width={24} height={24} className="trip-details-card-icon" />
+            <Link
+              href={`/trips/${tripId}/flight-information`}
+              className="trip-details-card-btn trip-details-reveal"
+              style={{ ["--trip-reveal-delay" as string]: "140ms" }}
+            >
+              <Image src="/icons/trip-flights.png" alt="" width={28} height={28} className="trip-details-card-icon" />
               <span className="trip-details-card-label">Flight Info</span>
             </Link>
 
-            <Link href={`/trips/${tripId}/documents`} className="trip-details-card-btn">
-              <Image src="/icons/Icon_Document.svg" alt="" width={24} height={24} className="trip-details-card-icon" />
+            <Link
+              href={`/trips/${tripId}/documents`}
+              className="trip-details-card-btn trip-details-reveal"
+              style={{ ["--trip-reveal-delay" as string]: "220ms" }}
+            >
+              <Image src="/icons/trip-documents.png" alt="" width={28} height={28} className="trip-details-card-icon" />
               <span className="trip-details-card-label">Documents</span>
             </Link>
 
-            <Link href={`/trips/${tripId}/shop-gears`} className="trip-details-card-btn is-shop">
-              <Image src="/icons/Icon_shop.svg" alt="" width={24} height={24} className="trip-details-card-icon" />
+            <Link
+              href={`/trips/${tripId}/shop-gears`}
+              className="trip-details-card-btn is-shop trip-details-reveal"
+              style={{ ["--trip-reveal-delay" as string]: "300ms" }}
+            >
+              <Image src="/icons/trip-shopgear.png" alt="" width={28} height={28} className="trip-details-card-icon" />
               <span className="trip-details-card-label">Shop gears</span>
             </Link>
           </div>
@@ -306,15 +261,20 @@ export default function TripIndexPage() {
                   <span className="skeleton-block" style={{ width: 12, height: 12, borderRadius: 4 }} />
                 </div>
               ))
-            : links.map((item) => (
-                <Link key={item.label} href={`/trips/${tripId}/${item.slug}`} className="trip-details-link-row">
+            : links.map((item, index) => (
+                <Link
+                  key={item.label}
+                  href={`/trips/${tripId}/${item.slug}`}
+                  className="trip-details-link-row trip-details-reveal"
+                  style={{ ["--trip-reveal-delay" as string]: `${380 + index * 90}ms` }}
+                >
                   <span className="trip-details-link-left">
                     {item.icon === "hotel" ? (
-                      <Image src="/icons/Icon_Hotel.svg" alt="" width={28} height={28} className="trip-details-link-icon" />
+                      <Image src="/icons/trip-hotels.png" alt="" width={30} height={30} className="trip-details-link-icon" />
                     ) : item.icon === "transfer" ? (
-                      <Image src="/icons/Icon_TRansfer.svg" alt="" width={28} height={28} className="trip-details-link-icon" />
+                      <Image src="/icons/trip-transfer.png" alt="" width={30} height={30} className="trip-details-link-icon" />
                     ) : (
-                      <Image src="/icons/Icon_Itinerary.svg" alt="" width={28} height={28} className="trip-details-link-icon" />
+                      <Image src="/icons/trip-itinerary.png" alt="" width={30} height={30} className="trip-details-link-icon" />
                     )}
                     <span className="trip-details-link-text">{item.label}</span>
                   </span>

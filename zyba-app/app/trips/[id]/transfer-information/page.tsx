@@ -120,7 +120,7 @@ export default function TransferInformationPage() {
       <section className="trip-details-body">
         <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
         <div className="transfer-page-stack">
-          <div className="transfer-page-heading">
+          <div className="transfer-page-heading trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
             <h1 className="transfer-page-title">Transfer Details</h1>
           </div>
 
@@ -132,7 +132,7 @@ export default function TransferInformationPage() {
           ) : (
             <>
               {(hasText(data?.trip?.driverName) || hasText(data?.trip?.driverPhone)) ? (
-                <section className="transfer-panel">
+                <section className="transfer-panel trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "140ms" }}>
                   <h2 className="transfer-panel-title">Your Driver</h2>
 
                   {hasText(data?.trip?.driverName) ? (
@@ -150,7 +150,7 @@ export default function TransferInformationPage() {
               ) : null}
 
               {(carPhotos.length > 0 || hasText(data?.trip?.licensePlate) || hasText(data?.trip?.driverInformation)) ? (
-                <section className="transfer-panel">
+                <section className="transfer-panel trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "260ms" }}>
                   <div className="transfer-panel-header">
                     <h2 className="transfer-panel-title">Vehicle</h2>
                     {hasText(data?.trip?.licensePlate) ? (

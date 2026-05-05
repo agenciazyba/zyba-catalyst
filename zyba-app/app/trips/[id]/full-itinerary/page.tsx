@@ -131,9 +131,18 @@ export default function FullItineraryPage() {
 
       <section className="trip-details-body">
         <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
-        <h5 className="trip-details-section-title">Full Itinerary</h5>
+        <h5 className="trip-details-section-title trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
+          Full Itinerary
+        </h5>
 
-        {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
+        {message ? (
+          <p
+            className="page-subtitle trip-details-reveal"
+            style={{ color: "var(--color-orange)", marginTop: 12, ["--trip-reveal-delay" as string]: "100ms" }}
+          >
+            {message}
+          </p>
+        ) : null}
 
         {loading ? (
           <div className="itinerary-page-stack">
@@ -147,7 +156,7 @@ export default function FullItineraryPage() {
             ))}
           </div>
         ) : itinerary.length === 0 ? (
-          <div className="itinerary-empty-card">
+          <div className="itinerary-empty-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "140ms" }}>
             <h2 className="trip-content-card-title">Itinerary</h2>
             <div className="trip-content-card-copy">
               <p className="trip-content-card-line">No itinerary found.</p>
@@ -161,7 +170,11 @@ export default function FullItineraryPage() {
                 const dayHeading =
                   renderText(item.dayType) !== "-" ? renderText(item.dayType) : renderText(item.dayTitle) || "Scheduled Plan";
                 return (
-                  <article className="itinerary-day-card" key={item.id || index}>
+                  <article
+                    className="itinerary-day-card trip-details-reveal"
+                    key={item.id || index}
+                    style={{ ["--trip-reveal-delay" as string]: `${140 + index * 90}ms` }}
+                  >
                     <div className="itinerary-day-index">
                       <span className="itinerary-day-index-label">Day</span>
                       <strong className="itinerary-day-index-value">{index + 1}</strong>

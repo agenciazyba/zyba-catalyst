@@ -8,9 +8,15 @@ type AppTopBarProps = {
   firstName?: string | null;
   cartHref?: string | null;
   cartCount?: number;
+  cartPulseNonce?: number;
 };
 
-export default function AppTopBar({ firstName, cartHref, cartCount = 0 }: AppTopBarProps) {
+export default function AppTopBar({
+  firstName,
+  cartHref,
+  cartCount = 0,
+  cartPulseNonce = 0,
+}: AppTopBarProps) {
   return (
     <header className="app-topbar">
       <div className="app-topbar-row">
@@ -40,7 +46,14 @@ export default function AppTopBar({ firstName, cartHref, cartCount = 0 }: AppTop
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 12.5h2v2h-2z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 15.5h2.5M13.5 15.5H16" />
               </svg>
-              {cartCount > 0 ? <span className="app-topbar-cart-badge">{cartCount}</span> : null}
+              {cartCount > 0 ? (
+                <span
+                  key={cartPulseNonce || cartCount}
+                  className={`app-topbar-cart-badge${cartPulseNonce > 0 ? " is-pulsing" : ""}`}
+                >
+                  {cartCount}
+                </span>
+              ) : null}
             </Link>
           ) : null}
           <NotificationsBell />

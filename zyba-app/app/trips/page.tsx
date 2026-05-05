@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getTrips, getTraveler, type Trip } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,9 @@ export default function TripsPage() {
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTripId, setActiveTripId] = useState("");
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const tripLinkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
 
   useEffect(() => {
     async function loadData() {
@@ -67,6 +70,60 @@ export default function TripsPage() {
     void loadData();
   }, [router]);
 
+  useEffect(() => {
+    if (!trips.length) return;
+
+    const carousel = carouselRef.current;
+    let frameId = 0;
+
+    const updateActiveCard = () => {
+      frameId = 0;
+      if (!carousel) {
+        const fallbackTripId = trips[0]?.id || "";
+        setActiveTripId((current) => (current === fallbackTripId ? current : fallbackTripId));
+        return;
+      }
+      const carouselRect = carousel.getBoundingClientRect();
+      const viewportCenter = carouselRect.left + carouselRect.width / 2;
+
+      let nextActiveTripId = trips[0]?.id || "";
+      let shortestDistance = Number.POSITIVE_INFINITY;
+
+      for (const trip of trips) {
+        const link = tripLinkRefs.current[trip.id];
+        if (!link) continue;
+
+        const linkRect = link.getBoundingClientRect();
+        const linkCenter = linkRect.left + linkRect.width / 2;
+        const distance = Math.abs(linkCenter - viewportCenter);
+
+        if (distance < shortestDistance) {
+          shortestDistance = distance;
+          nextActiveTripId = trip.id;
+        }
+      }
+
+      setActiveTripId((current) => (current === nextActiveTripId ? current : nextActiveTripId));
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(updateActiveCard);
+    };
+
+    scheduleUpdate();
+    carousel?.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      carousel?.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [trips]);
+
   const token = getSessionToken() || "";
 
   function getBgUrl(trip: Trip) {
@@ -100,10 +157,17 @@ export default function TripsPage() {
         ) : trips.length === 0 ? (
           <p className="text-h5" style={{ marginTop: 25, color: "var(--color-black)" }}>No trips available.</p>
         ) : (
-          <div className="trips-carousel-view">
+          <div className="trips-carousel-view" ref={carouselRef}>
             <div className="trips-carousel-track">
               {trips.map((trip) => (
-                <Link key={trip.id} href={`/trips/${trip.id}`} className="trip-card-link">
+                <Link
+                  key={trip.id}
+                  href={`/trips/${trip.id}`}
+                  className={`trip-card-link${activeTripId === trip.id ? " is-active" : ""}`}
+                  ref={(node) => {
+                    tripLinkRefs.current[trip.id] = node;
+                  }}
+                >
                   <article
                     className="trip-card-modern"
                     style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(0,0,0,0.9) 100%), url('${getBgUrl(trip)}')` }}

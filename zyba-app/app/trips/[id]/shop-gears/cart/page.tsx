@@ -53,6 +53,7 @@ export default function ShopCartPage() {
   const [message, setMessage] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus | null>(null);
+  const [feedback, setFeedback] = useState<{ id: number; kind: "removed"; productName: string } | null>(null);
   const { items, subtotal, totalItems } = useShopCart(tripId);
   const discounts = 0;
   const shipping = 0;
@@ -65,6 +66,7 @@ export default function ShopCartPage() {
     checkoutStatus?.status === "pending" ||
     checkoutStatus?.paymentStatus === "processing" ||
     checkoutStatus?.paymentStatus === "unpaid";
+  const isCheckoutProcessing = checkoutLoading || isCheckoutPending;
 
   const refreshCheckoutStatus = useEffectEvent(async (token: string, options?: { silent?: boolean }) => {
     if (!tripId) return;
@@ -146,7 +148,16 @@ export default function ShopCartPage() {
   async function handleRemove(productId: string, productName: string) {
     try {
       await removeShopCartItem(tripId, productId);
-      setMessage(`${productName} removed from cart.`);
+      setMessage("");
+      const feedbackId = Date.now();
+      setFeedback({
+        id: feedbackId,
+        kind: "removed",
+        productName,
+      });
+      window.setTimeout(() => {
+        setFeedback((current) => (current?.id === feedbackId ? null : current));
+      }, 4000);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to remove item.");
     }
@@ -201,20 +212,6 @@ export default function ShopCartPage() {
           <section className="shop-gears-section">
             <div className="shop-gears-section-head">
               <h5 className="trip-details-section-title">Your Tackle Box</h5>
-              <span className="shop-gears-section-chip">{totalItems} items</span>
-            </div>
-
-            <div className="shop-gears-cart-summary">
-              <div className="shop-gears-cart-summary-copy">
-                <span className="shop-gears-detail-label">Subtotal</span>
-                <p className="shop-gears-detail-value">{formatCurrency(subtotal)}</p>
-              </div>
-
-              {!isCheckoutPaid ? (
-                <button type="button" className="shop-gears-cart-clear-btn" onClick={() => void handleClearCart()}>
-                  CLEAR CART
-                </button>
-              ) : null}
             </div>
 
             {checkoutStatus?.status && checkoutStatus.status !== "idle" ? (
@@ -302,7 +299,7 @@ export default function ShopCartPage() {
               </div>
             )}
 
-            <div className="shop-gears-checkout-card">
+            <div className={`shop-gears-checkout-card${isCheckoutProcessing ? " is-processing" : ""}`}>
               <div className="shop-gears-checkout-row">
                 <span className="shop-gears-detail-label">Subtotal</span>
                 <span className="shop-gears-detail-value">{formatCurrency(subtotal)}</span>
@@ -321,14 +318,31 @@ export default function ShopCartPage() {
               </div>
 
               {!isCheckoutPaid ? (
-                <button
-                  type="button"
-                  className="shop-gears-pay-btn"
-                  disabled={items.length === 0 || checkoutLoading}
-                  onClick={() => void handlePayNow()}
-                >
-                  {checkoutLoading ? "OPENING CHECKOUT..." : "PAY NOW"}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="shop-gears-cart-clear-btn"
+                    onClick={() => void handleClearCart()}
+                    disabled={items.length === 0}
+                  >
+                    CLEAR CART
+                  </button>
+                  <button
+                    type="button"
+                    className={`shop-gears-pay-btn${checkoutLoading ? " is-loading" : ""}`}
+                    disabled={items.length === 0 || checkoutLoading}
+                    onClick={() => void handlePayNow()}
+                  >
+                    {checkoutLoading ? "OPENING CHECKOUT..." : "PAY NOW"}
+                  </button>
+                  {isCheckoutProcessing ? (
+                    <p className="shop-gears-checkout-note" role="status">
+                      {checkoutLoading
+                        ? "Redirecting to secure Stripe checkout..."
+                        : "Waiting for secure payment confirmation..."}
+                    </p>
+                  ) : null}
+                </>
               ) : (
                 <div className="shop-gears-paid-note">
                   <span className="shop-gears-detail-label">Payment confirmed</span>
@@ -343,12 +357,35 @@ export default function ShopCartPage() {
             </div>
           </section>
 
+          {feedback ? (
+            <div className={`shop-gears-feedback is-${feedback.kind}`} role="status" aria-live="polite">
+              <span className="shop-gears-feedback-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M7.1 7.4V6.55c0-.88.7-1.6 1.58-1.6h2.64c.87 0 1.58.72 1.58 1.6v.85"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M5.4 7.4h9.2m-8.25 0 .52 7.02c.05.67.6 1.18 1.27 1.18h3.72c.67 0 1.22-.51 1.27-1.18l.52-7.02M8.8 9.55v3.85m2.4-3.85v3.85"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="shop-gears-feedback-text">{feedback.productName} removed from cart</span>
+            </div>
+          ) : null}
+
           {message ? (
             <p className="shop-gears-message" role="status">
               {message}
             </p>
           ) : null}
-
         </div>
       </section>
     </main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { getSessionToken } from "@/lib/auth";
 import { getApiBase } from "@/lib/api";
 
@@ -48,16 +48,19 @@ type ShopCartApiResult =
       error: string;
     };
 
+type ShopCartUpdateKind = "sync" | "add" | "update" | "remove" | "clear";
+
 function getCartKey(tripId: string) {
   return `zyba_shop_cart:${String(tripId || "").trim()}`;
 }
 
-function emitCartUpdate(tripId: string) {
+function emitCartUpdate(tripId: string, kind: ShopCartUpdateKind = "sync") {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
     new CustomEvent(SHOP_CART_EVENT, {
       detail: {
         tripId,
+        kind,
       },
     })
   );
@@ -139,17 +142,17 @@ export function readShopCart(tripId: string): ShopCartItem[] {
   }
 }
 
-function writeShopCart(tripId: string, items: ShopCartItem[]) {
+function writeShopCart(tripId: string, items: ShopCartItem[], kind: ShopCartUpdateKind = "sync") {
   if (typeof window === "undefined") return;
   localStorage.setItem(getCartKey(tripId), JSON.stringify(normalizeCartItems(items)));
-  emitCartUpdate(tripId);
+  emitCartUpdate(tripId, kind);
 }
 
-function clearShopCartStorage(tripId: string) {
+function clearShopCartStorage(tripId: string, kind: ShopCartUpdateKind = "clear") {
   if (typeof window === "undefined") return;
   cartSnapshotCache.delete(getCartKey(tripId));
   localStorage.removeItem(getCartKey(tripId));
-  emitCartUpdate(tripId);
+  emitCartUpdate(tripId, kind);
 }
 
 export function clearShopCartSnapshot(tripId: string) {
@@ -186,12 +189,12 @@ async function parseCartResponse(response: Response): Promise<ShopCartApiResult>
   }
 }
 
-function applyBackendCart(tripId: string, cart?: ShopCartResponse) {
+function applyBackendCart(tripId: string, cart?: ShopCartResponse, kind: ShopCartUpdateKind = "sync") {
   const items = normalizeCartItems(cart?.items || []);
   if (items.length > 0) {
-    writeShopCart(tripId, items);
+    writeShopCart(tripId, items, kind);
   } else {
-    clearShopCartStorage(tripId);
+    clearShopCartStorage(tripId, kind);
   }
 
   return {
@@ -272,7 +275,7 @@ export async function syncShopCart(tripId: string) {
       throw new Error(result.error);
     }
 
-    return applyBackendCart(safeTripId, result.data);
+    return applyBackendCart(safeTripId, result.data, "sync");
   })();
 
   cartSyncInFlight.set(safeTripId, syncPromise);
@@ -315,7 +318,7 @@ export async function addItemToShopCart(
       throw new Error(result.error);
     }
 
-    return applyBackendCart(safeTripId, result.data);
+    return applyBackendCart(safeTripId, result.data, "add");
   });
 }
 
@@ -339,7 +342,7 @@ export async function setShopCartItemQuantity(tripId: string, productId: string,
       throw new Error(result.error);
     }
 
-    return applyBackendCart(safeTripId, result.data);
+    return applyBackendCart(safeTripId, result.data, "update");
   });
 }
 
@@ -358,7 +361,7 @@ export async function removeShopCartItem(tripId: string, productId: string) {
       throw new Error(result.error);
     }
 
-    return applyBackendCart(safeTripId, result.data);
+    return applyBackendCart(safeTripId, result.data, "remove");
   });
 }
 
@@ -373,7 +376,7 @@ export async function clearShopCart(tripId: string) {
       throw new Error(result.error);
     }
 
-    return applyBackendCart(safeTripId, result.data);
+    return applyBackendCart(safeTripId, result.data, "clear");
   });
 }
 
@@ -434,4 +437,27 @@ export function useShopCart(tripId: string) {
     subtotal,
     totalItems,
   };
+}
+
+export function useShopCartAddPulse(tripId: string) {
+  const [pulseNonce, setPulseNonce] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !tripId) return;
+
+    function handleCartUpdate(event: Event) {
+      const customEvent = event as CustomEvent<{ tripId?: string; kind?: ShopCartUpdateKind }>;
+      if (customEvent.detail?.tripId && customEvent.detail.tripId !== tripId) return;
+      if (customEvent.detail?.kind !== "add") return;
+      setPulseNonce((current) => current + 1);
+    }
+
+    window.addEventListener(SHOP_CART_EVENT, handleCartUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener(SHOP_CART_EVENT, handleCartUpdate as EventListener);
+    };
+  }, [tripId]);
+
+  return pulseNonce;
 }

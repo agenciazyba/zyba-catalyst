@@ -4,9 +4,8 @@ import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
 import { getTraveler } from "@/lib/api";
-import { addItemToShopCart, useShopCart } from "@/lib/shop-cart";
+import { addItemToShopCart, useShopCart, useShopCartAddPulse } from "@/lib/shop-cart";
 import Image from "next/image";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -66,7 +65,10 @@ export default function GearsDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
-  const { subtotal, totalItems } = useShopCart(tripId);
+  const [isAdded, setIsAdded] = useState(false);
+  const [feedback, setFeedback] = useState<{ id: number; kind: "added"; productName: string } | null>(null);
+  const { totalItems } = useShopCart(tripId);
+  const cartPulseNonce = useShopCartAddPulse(tripId);
 
   useEffect(() => {
     async function loadData() {
@@ -161,7 +163,20 @@ export default function GearsDetailsPage() {
         quantity
       );
 
-      setMessage(`${product.productName || "Product"} added to cart.`);
+      setMessage("");
+      setIsAdded(true);
+      const feedbackId = Date.now();
+      setFeedback({
+        id: feedbackId,
+        kind: "added",
+        productName: product.productName || "Product",
+      });
+      window.setTimeout(() => {
+        setIsAdded(false);
+      }, 1400);
+      window.setTimeout(() => {
+        setFeedback((current) => (current?.id === feedbackId ? null : current));
+      }, 2000);
       setQuantity(0);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to add item to cart.");
@@ -188,6 +203,7 @@ export default function GearsDetailsPage() {
         firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"}
         cartHref={`/trips/${tripId}/shop-gears/cart`}
         cartCount={totalItems}
+        cartPulseNonce={cartPulseNonce}
       />
 
       <section className="trip-details-body">
@@ -198,19 +214,6 @@ export default function GearsDetailsPage() {
             </div>
           ) : product ? (
             <>
-              <section className="shop-gears-cart-summary">
-                <div className="shop-gears-cart-summary-copy">
-                  <span className="shop-gears-detail-label">Your Tackle Box</span>
-                  <p className="shop-gears-detail-value">
-                    {totalItems} items · {formatCurrency(subtotal)}
-                  </p>
-                </div>
-
-                <Link href={`/trips/${tripId}/shop-gears/cart`} className="shop-gears-cart-link">
-                  VIEW CART
-                </Link>
-              </section>
-
               <section className="shop-gears-detail-card">
                 <div className="shop-gears-carousel">
                   <div className="shop-gears-carousel-stage">
@@ -309,11 +312,11 @@ export default function GearsDetailsPage() {
 
                 <button
                   type="button"
-                  className="shop-gears-add-btn"
-                  disabled={quantity <= 0}
+                  className={`shop-gears-add-btn${isAdded ? " is-added" : ""}`}
+                  disabled={quantity <= 0 || isAdded}
                   onClick={() => void handleAddToCart()}
                 >
-                  ADD TO CART
+                  {isAdded ? "ADDED" : "ADD TO CART"}
                 </button>
               </section>
             </>
@@ -322,6 +325,23 @@ export default function GearsDetailsPage() {
               <p className="shop-gears-api-purpose">Product not found.</p>
             </div>
           )}
+
+          {feedback ? (
+            <div className={`shop-gears-feedback is-${feedback.kind}`} role="status" aria-live="polite">
+              <span className="shop-gears-feedback-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M4.5 10.25 8.1 13.85 15.5 6.45"
+                    stroke="currentColor"
+                    strokeWidth="2.1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="shop-gears-feedback-text">{feedback.productName} added to cart</span>
+            </div>
+          ) : null}
 
           {message ? (
             <p className="shop-gears-message" role="status">
