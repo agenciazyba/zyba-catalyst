@@ -1,5 +1,6 @@
 "use client";
 
+import AddTackleButton, { type AddTackleButtonState } from "@/components/AddTackleButton";
 import AppTopBar from "@/components/AppTopBar";
 import { getSessionToken } from "@/lib/auth";
 import { getTraveler, getTripDetails } from "@/lib/api";
@@ -12,7 +13,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 
 type Traveler = {
   travelerName?: string | null;
@@ -41,6 +42,7 @@ type ProductListResponse = {
       name?: string | null;
     } | null;
     category?: string | null;
+    description?: string | null;
     unitPrice?: number | null;
     productImageCatalog?: Array<{
       downloadKey?: string | null;
@@ -54,12 +56,26 @@ type ProductListResponse = {
   count?: number;
 };
 
+type ProductCategoryOptionsResponse = {
+  options?: Array<{
+    id?: string | null;
+    displayValue?: string | null;
+    actualValue?: string | null;
+  }>;
+};
+
+type CategoryFilterOption = {
+  label: string;
+  value: string;
+};
+
 type ShopProduct = {
   id: string;
   productName: string;
   productCode: string;
   vendorName: string;
   category: string;
+  description: string;
   unitPrice: number | null;
   imageDownloadKey: string;
   imageAlt: string;
@@ -81,6 +97,17 @@ function isRecommendedValue(value: unknown) {
   return ["true", "yes", "1", "recommended", "essential", "highly recommended"].includes(normalized);
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function isVisibleCategoryOption(value?: string | null) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return Boolean(normalized) && normalized !== "-none-" && normalized !== "none";
+}
+
 export default function ShopGearsPage() {
   const params = useParams();
   const router = useRouter();
@@ -94,15 +121,19 @@ export default function ShopGearsPage() {
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [tripDetails, setTripDetails] = useState<TripDetailsResponse | null>(null);
   const [products, setProducts] = useState<ShopProduct[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryFilterOption[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
+  const [sheetDragY, setSheetDragY] = useState(0);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
-  const [addedProductId, setAddedProductId] = useState("");
+  const [addButtonStates, setAddButtonStates] = useState<Record<string, AddTackleButtonState>>({});
   const [feedback, setFeedback] = useState<{ id: number; kind: "added"; productName: string } | null>(null);
   const { items: cartItems, subtotal, totalItems } = useShopCart(tripId);
   const cartPulseNonce = useShopCartAddPulse(tripId);
+  const detailDragStartY = useRef<number | null>(null);
   const cartQuantityByProduct = useMemo(() => {
     return cartItems.reduce<Record<string, number>>((acc, item) => {
       acc[item.productId] = item.quantity;
@@ -110,11 +141,17 @@ export default function ShopGearsPage() {
     }, {});
   }, [cartItems]);
   const categories = useMemo(() => {
-    const unique = Array.from(
-      new Set(products.map((product) => product.category).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b));
-    return ["All", ...unique];
-  }, [products]);
+    const productCategories = Array.from(
+      new Set(products.map((product) => product.category).filter(isVisibleCategoryOption))
+    )
+      .sort((a, b) => a.localeCompare(b))
+      .map((category) => ({
+        label: category,
+        value: category,
+      }));
+    const sourceCategories = categoryOptions.length > 0 ? categoryOptions : productCategories;
+    return [{ label: "All", value: "All" }, ...sourceCategories];
+  }, [categoryOptions, products]);
   const filteredProducts = useMemo(() => {
     if (selectedCategory === "All") return products;
     return products.filter((product) => product.category === selectedCategory);
@@ -131,6 +168,7 @@ export default function ShopGearsPage() {
 
       setLoading(true);
       setMessage("");
+      setSelectedCategory("All");
 
       const [travelerResult, tripResult] = await Promise.all([
         getTraveler(token),
@@ -159,16 +197,52 @@ export default function ShopGearsPage() {
         return;
       }
 
-      const response = await fetch(
-        `/api/crm/products?destinationRelatedId=${encodeURIComponent(destinationVendorId)}&perPage=200&productActive=true`,
-        {
+      const [response, categoryResponse] = await Promise.all([
+        fetch(
+          `/api/crm/products?destinationRelatedId=${encodeURIComponent(destinationVendorId)}&perPage=200&productActive=true`,
+          {
+            cache: "no-store",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "X-Session-Token": token,
+            },
+          }
+        ),
+        fetch("/api/crm/products/categories", {
           cache: "no-store",
           headers: {
             Authorization: `Bearer ${token}`,
             "X-Session-Token": token,
           },
+        }).catch(() => null),
+      ]);
+
+      if (categoryResponse?.ok) {
+        const categoryBody = (await categoryResponse.json()) as {
+          ok: boolean;
+          data?: ProductCategoryOptionsResponse;
+        };
+
+        if (categoryBody.ok && Array.isArray(categoryBody.data?.options)) {
+          setCategoryOptions(
+            categoryBody.data.options
+              .map((option) => {
+                const label = String(option?.displayValue || option?.actualValue || "").trim();
+                const value = String(option?.actualValue || option?.displayValue || "").trim();
+                return { label, value };
+              })
+              .filter((option) => isVisibleCategoryOption(option.label) && isVisibleCategoryOption(option.value))
+              .filter(
+                (option, index, options) =>
+                  options.findIndex((current) => current.value.toLowerCase() === option.value.toLowerCase()) === index
+              )
+          );
+        } else {
+          setCategoryOptions([]);
         }
-      );
+      } else {
+        setCategoryOptions([]);
+      }
 
       const body = (await response.json()) as {
         ok: boolean;
@@ -193,6 +267,7 @@ export default function ShopGearsPage() {
             productCode: String(item?.productCode || "").trim(),
             vendorName: String(item?.vendorName?.name || "").trim(),
             category: String(item?.category || "").trim(),
+            description: String(item?.description || "").trim(),
             unitPrice:
               typeof item?.unitPrice === "number" ? item.unitPrice : Number(item?.unitPrice ?? null),
             imageDownloadKey: String(item?.productImageCatalog?.[0]?.downloadKey || "").trim(),
@@ -228,6 +303,26 @@ export default function ShopGearsPage() {
     }
   }, [router, tripId]);
 
+  useEffect(() => {
+    if (!selectedProduct) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedProduct(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedProduct]);
+
   function changeQuantity(productId: string, delta: number) {
     setQuantities((current) => {
       const nextValue = Math.max(1, (current[productId] || 1) + delta);
@@ -245,24 +340,39 @@ export default function ShopGearsPage() {
       return;
     }
 
+    if (addButtonStates[product.id] && addButtonStates[product.id] !== "idle") {
+      return;
+    }
+
+    setAddButtonStates((current) => ({
+      ...current,
+      [product.id]: "adding",
+    }));
+
     try {
-      await addItemToShopCart(
-        tripId,
-        {
-          productId: product.id,
-          productName: product.productName,
-          productCode: product.productCode || null,
-          category: product.category || null,
-          unitPrice: product.unitPrice,
-          imageDownloadKey: product.imageDownloadKey || null,
-          imageAlt: product.imageAlt || null,
-          vendorName: product.vendorName || null,
-        },
-        quantity
-      );
+      await Promise.all([
+        addItemToShopCart(
+          tripId,
+          {
+            productId: product.id,
+            productName: product.productName,
+            productCode: product.productCode || null,
+            category: product.category || null,
+            unitPrice: product.unitPrice,
+            imageDownloadKey: product.imageDownloadKey || null,
+            imageAlt: product.imageAlt || null,
+            vendorName: product.vendorName || null,
+          },
+          quantity
+        ),
+        wait(950),
+      ]);
 
       setMessage("");
-      setAddedProductId(product.id);
+      setAddButtonStates((current) => ({
+        ...current,
+        [product.id]: "added",
+      }));
       const feedbackId = Date.now();
       setFeedback({
         id: feedbackId,
@@ -270,8 +380,14 @@ export default function ShopGearsPage() {
         productName: product.productName,
       });
       window.setTimeout(() => {
-        setAddedProductId((current) => (current === product.id ? "" : current));
-      }, 1400);
+        setAddButtonStates((current) => {
+          if (current[product.id] !== "added") return current;
+          return {
+            ...current,
+            [product.id]: "idle",
+          };
+        });
+      }, 1200);
       window.setTimeout(() => {
         setFeedback((current) => (current?.id === feedbackId ? null : current));
       }, 2000);
@@ -281,7 +397,20 @@ export default function ShopGearsPage() {
       }));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to add item to cart.");
+      setAddButtonStates((current) => ({
+        ...current,
+        [product.id]: "idle",
+      }));
+      throw error;
     }
+  }
+
+  function handleAddFromDetail(product: ShopProduct) {
+    void handleAddToCart(product).then(() => {
+      window.setTimeout(() => {
+        setSelectedProduct((current) => (current?.id === product.id ? null : current));
+      }, 900);
+    });
   }
 
   async function handleRemoveFromCart(product: ShopProduct) {
@@ -291,6 +420,39 @@ export default function ShopGearsPage() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to remove item from cart.");
     }
+  }
+
+  function closeProductDetail() {
+    setSheetDragY(0);
+    setSelectedProduct(null);
+  }
+
+  function openProductDetail(product: ShopProduct) {
+    setSheetDragY(0);
+    setSelectedProduct(product);
+  }
+
+  function handleDetailDragStart(event: PointerEvent<HTMLDivElement>) {
+    detailDragStartY.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleDetailDragMove(event: PointerEvent<HTMLDivElement>) {
+    if (detailDragStartY.current === null) return;
+    setSheetDragY(Math.max(0, event.clientY - detailDragStartY.current));
+  }
+
+  function handleDetailDragEnd(event: PointerEvent<HTMLDivElement>) {
+    if (detailDragStartY.current === null) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    detailDragStartY.current = null;
+
+    if (sheetDragY > 105) {
+      closeProductDetail();
+      return;
+    }
+
+    setSheetDragY(0);
   }
 
   const vendorName = tripDetails?.deal?.vendorName || tripDetails?.deal?.destination?.name || "Vendor";
@@ -303,6 +465,9 @@ export default function ShopGearsPage() {
   ]
     .filter(Boolean)
     .join(" ");
+  const selectedProductDescription =
+    selectedProduct?.description ||
+    "No description available.";
 
   return (
     <main className="trip-details-page">
@@ -328,12 +493,12 @@ export default function ShopGearsPage() {
               <div className="shop-gears-category-filter" aria-label="Filter by category">
                 {categories.map((category) => (
                   <button
-                    key={category}
+                    key={category.value}
                     type="button"
-                    className={`shop-gears-category-chip${selectedCategory === category ? " is-active" : ""}`}
-                    onClick={() => setSelectedCategory(category)}
+                    className={`shop-gears-category-chip${selectedCategory === category.value ? " is-active" : ""}`}
+                    onClick={() => setSelectedCategory(category.value)}
                   >
-                    {category}
+                    {category.label}
                   </button>
                 ))}
               </div>
@@ -347,23 +512,31 @@ export default function ShopGearsPage() {
               <div className="shop-gears-catalog-grid">
                 {filteredProducts.map((product) => {
                   const cartQuantity = cartQuantityByProduct[product.id] || 0;
+                  const addButtonState = addButtonStates[product.id] || "idle";
                   return (
                     <article key={product.id} className="shop-gears-catalog-card">
                       <div className="shop-gears-catalog-media">
-                        {product.imageDownloadKey && sessionToken ? (
-                          <Image
-                            src={`/api/crm/files/${encodeURIComponent(product.imageDownloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`}
-                            alt={product.imageAlt}
-                            width={320}
-                            height={210}
-                            className="shop-gears-catalog-image"
-                            unoptimized
-                          />
-                        ) : (
-                          <div className="shop-gears-catalog-image shop-gears-product-image-placeholder">
-                            <span className="shop-gears-product-image-placeholder-text">No image</span>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          className="shop-gears-catalog-image-btn"
+                          onClick={() => openProductDetail(product)}
+                          aria-label={`Open details for ${product.productName}`}
+                        >
+                          {product.imageDownloadKey && sessionToken ? (
+                            <Image
+                              src={`/api/crm/files/${encodeURIComponent(product.imageDownloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`}
+                              alt={product.imageAlt}
+                              width={320}
+                              height={210}
+                              className="shop-gears-catalog-image"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="shop-gears-catalog-image shop-gears-product-image-placeholder">
+                              <span className="shop-gears-product-image-placeholder-text">No image</span>
+                            </div>
+                          )}
+                        </button>
 
                         {product.isRecommended ? (
                           <span className="shop-gears-recommended-badge">Essential</span>
@@ -373,7 +546,7 @@ export default function ShopGearsPage() {
                           type="button"
                           className="shop-gears-info-btn"
                           aria-label={`View details for ${product.productName}`}
-                          onClick={() => router.push(`/trips/${tripId}/shop-gears/${product.id}`)}
+                          onClick={() => openProductDetail(product)}
                         >
                           i
                         </button>
@@ -381,7 +554,12 @@ export default function ShopGearsPage() {
 
                       <div className="shop-gears-catalog-copy">
                         <p className="shop-gears-product-sku">SKU: {product.productCode || "-"}</p>
-                        <p className="shop-gears-product-name">{product.productName}</p>
+                        <Link
+                          href={`/trips/${tripId}/shop-gears/${product.id}`}
+                          className="shop-gears-product-name shop-gears-product-name-link"
+                        >
+                          {product.productName}
+                        </Link>
                         <p className="shop-gears-product-price">{formatCurrency(product.unitPrice)}</p>
                       </div>
 
@@ -417,14 +595,11 @@ export default function ShopGearsPage() {
                             </button>
                           ) : null}
 
-                          <button
-                            type="button"
-                            className={`shop-gears-add-btn${addedProductId === product.id ? " is-added" : ""}`}
-                            disabled={addedProductId === product.id}
+                          <AddTackleButton
+                            state={addButtonState}
+                            className="shop-gears-add-btn"
                             onClick={() => void handleAddToCart(product)}
-                          >
-                            {addedProductId === product.id ? "ADDED" : "ADD TO CART"}
-                          </button>
+                          />
                         </div>
                       </div>
                     </article>
@@ -481,6 +656,113 @@ export default function ShopGearsPage() {
               <span className="shop-gears-floating-cart-arrow" aria-hidden="true">→</span>
             </span>
           </Link>
+        ) : null}
+
+        {selectedProduct ? (
+          <div className="shop-gears-detail-modal" role="dialog" aria-modal="true" aria-labelledby="shop-gears-detail-title">
+            <button
+              type="button"
+              className="shop-gears-detail-backdrop"
+              aria-label="Close product details"
+              onClick={closeProductDetail}
+            />
+
+            <section
+              className="shop-gears-detail-sheet"
+              style={{ transform: `translateY(${sheetDragY}px)` }}
+            >
+              <div
+                className="shop-gears-detail-sheet-drag"
+                onPointerDown={handleDetailDragStart}
+                onPointerMove={handleDetailDragMove}
+                onPointerUp={handleDetailDragEnd}
+                onPointerCancel={handleDetailDragEnd}
+              >
+                <span className="shop-gears-detail-sheet-handle" aria-hidden="true" />
+              </div>
+
+              <button
+                type="button"
+                className="shop-gears-detail-close-btn"
+                aria-label="Close product details"
+                onClick={closeProductDetail}
+              >
+                ×
+              </button>
+
+              <div className="shop-gears-detail-sheet-body">
+                <div className="shop-gears-detail-sheet-media">
+                  {selectedProduct.imageDownloadKey && sessionToken ? (
+                    <Image
+                      src={`/api/crm/files/${encodeURIComponent(selectedProduct.imageDownloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`}
+                      alt={selectedProduct.imageAlt}
+                      width={420}
+                      height={260}
+                      className="shop-gears-detail-sheet-image"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="shop-gears-detail-sheet-image shop-gears-product-image-placeholder">
+                      <span className="shop-gears-product-image-placeholder-text">No image</span>
+                    </div>
+                  )}
+
+                  {selectedProduct.isRecommended ? (
+                    <span className="shop-gears-detail-sheet-badge">Top rated</span>
+                  ) : null}
+                </div>
+
+                <div className="shop-gears-detail-sheet-head">
+                  <h2 id="shop-gears-detail-title" className="shop-gears-detail-sheet-title">
+                    {selectedProduct.productName}
+                  </h2>
+                  <p className="shop-gears-detail-sheet-price">{formatCurrency(selectedProduct.unitPrice)}</p>
+                </div>
+
+                <p className="shop-gears-detail-sheet-meta">
+                  SKU: {selectedProduct.productCode || "-"} · Brand: {selectedProduct.vendorName || "-"}
+                </p>
+
+                <div className="shop-gears-detail-sheet-description">
+                  <h3>Description</h3>
+                  <p>{selectedProductDescription}</p>
+                </div>
+
+                <div className="shop-gears-detail-sheet-divider" />
+
+                <div className="shop-gears-detail-sheet-actions">
+                  <div className="shop-gears-detail-sheet-qty-block">
+                    <span className="shop-gears-detail-sheet-qty-label">Quantity</span>
+                    <div className="shop-gears-qty-picker" aria-label="Quantity selector">
+                      <button
+                        type="button"
+                        className="shop-gears-qty-btn"
+                        onClick={() => changeQuantity(selectedProduct.id, -1)}
+                        aria-label={`Decrease quantity for ${selectedProduct.productName}`}
+                      >
+                        -
+                      </button>
+                      <span className="shop-gears-qty-value">{quantities[selectedProduct.id] ?? 1}</span>
+                      <button
+                        type="button"
+                        className="shop-gears-qty-btn"
+                        onClick={() => changeQuantity(selectedProduct.id, 1)}
+                        aria-label={`Increase quantity for ${selectedProduct.productName}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <AddTackleButton
+                    state={addButtonStates[selectedProduct.id] || "idle"}
+                    className="shop-gears-detail-sheet-add-btn"
+                    onClick={() => handleAddFromDetail(selectedProduct)}
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
         ) : null}
       </section>
     </main>

@@ -1,5 +1,6 @@
 "use client";
 
+import AddTackleButton, { type AddTackleButtonState } from "@/components/AddTackleButton";
 import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
@@ -43,6 +44,12 @@ function formatCurrency(value?: number | null) {
   }).format(Number(value));
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export default function GearsDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -66,7 +73,7 @@ export default function GearsDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
-  const [isAdded, setIsAdded] = useState(false);
+  const [addButtonState, setAddButtonState] = useState<AddTackleButtonState>("idle");
   const [feedback, setFeedback] = useState<{ id: number; kind: "added"; productName: string } | null>(null);
   const { totalItems } = useShopCart(tripId);
   const cartPulseNonce = useShopCartAddPulse(tripId);
@@ -148,25 +155,31 @@ export default function GearsDetailsPage() {
       setMessage("Select a quantity before adding to cart.");
       return;
     }
+    if (addButtonState !== "idle") return;
+
+    setAddButtonState("adding");
 
     try {
-      await addItemToShopCart(
-        tripId,
-        {
-          productId: product.id,
-          productName: product.productName || "Product",
-          productCode: product.productCode || null,
-          category: product.category || null,
-          unitPrice: typeof product.unitPrice === "number" ? product.unitPrice : null,
-          imageDownloadKey: product.productImageCatalog?.[0]?.downloadKey || product.productImageReal?.[0]?.downloadKey || null,
-          imageAlt: product.productImageCatalog?.[0]?.fileName || product.productImageReal?.[0]?.fileName || product.productName || null,
-          vendorName: product.vendorName?.name || null,
-        },
-        quantity
-      );
+      await Promise.all([
+        addItemToShopCart(
+          tripId,
+          {
+            productId: product.id,
+            productName: product.productName || "Product",
+            productCode: product.productCode || null,
+            category: product.category || null,
+            unitPrice: typeof product.unitPrice === "number" ? product.unitPrice : null,
+            imageDownloadKey: product.productImageCatalog?.[0]?.downloadKey || product.productImageReal?.[0]?.downloadKey || null,
+            imageAlt: product.productImageCatalog?.[0]?.fileName || product.productImageReal?.[0]?.fileName || product.productName || null,
+            vendorName: product.vendorName?.name || null,
+          },
+          quantity
+        ),
+        wait(950),
+      ]);
 
       setMessage("");
-      setIsAdded(true);
+      setAddButtonState("added");
       const feedbackId = Date.now();
       setFeedback({
         id: feedbackId,
@@ -174,14 +187,15 @@ export default function GearsDetailsPage() {
         productName: product.productName || "Product",
       });
       window.setTimeout(() => {
-        setIsAdded(false);
-      }, 1400);
+        setAddButtonState("idle");
+      }, 1200);
       window.setTimeout(() => {
         setFeedback((current) => (current?.id === feedbackId ? null : current));
       }, 2000);
       setQuantity(0);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to add item to cart.");
+      setAddButtonState("idle");
     }
   }
 
@@ -316,14 +330,12 @@ export default function GearsDetailsPage() {
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  className={`shop-gears-add-btn${isAdded ? " is-added" : ""}`}
-                  disabled={quantity <= 0 || isAdded}
+                <AddTackleButton
+                  state={addButtonState}
+                  className="shop-gears-add-btn"
+                  disabled={quantity <= 0}
                   onClick={() => void handleAddToCart()}
-                >
-                  {isAdded ? "ADDED" : "ADD TO CART"}
-                </button>
+                />
               </section>
             </>
           ) : (

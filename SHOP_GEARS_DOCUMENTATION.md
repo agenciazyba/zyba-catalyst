@@ -29,6 +29,7 @@ Arquivos principais:
 
 - `functions/Zoho_api/services/zoho.js`
 - `functions/Zoho_api/routes/crm.js`
+- `zyba-app/components/AddTackleButton.tsx`
 - `zyba-app/lib/shop-cart.ts`
 - `zyba-app/app/trips/[id]/shop-gears/page.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx`
@@ -166,6 +167,11 @@ Melhorias aplicadas:
   - selo `Essential` quando `Product_Recommended` vier marcado no CRM
   - imagem do card usando preenchimento do frame
   - botão flutuante `Tackle box` alinhado à direita, com total e contador de itens
+- componente reutilizável `AddTackleButton` para ações de adicionar produto:
+  - estado inicial laranja `ADD TO TACKLE BOX`
+  - estado `ADDING` com barra de progresso laranja escura
+  - estado final verde `ADDED`
+  - retorno automático ao estado inicial
 - feedback visual temporário ao adicionar item no carrinho com:
   - nome do produto
   - ícone de check
@@ -186,6 +192,7 @@ Melhorias aplicadas:
 
 Arquivos principais:
 
+- `zyba-app/components/AddTackleButton.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/page.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/cart/page.tsx`

@@ -541,6 +541,140 @@ async function zohoListRecords(moduleApiName, fields = [], page = 1, perPage = 2
   return response.data?.data || [];
 }
 
+async function zohoGetModuleFields(moduleApiName) {
+  const safeModule = normalizeOptionalString(moduleApiName);
+  if (!safeModule) return [];
+
+  const cacheKey = `fields:${safeModule}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const token = await getZohoAccessToken();
+  const url = new URL("/crm/v8/settings/fields", process.env.ZOHO_API_DOMAIN);
+  url.searchParams.set("module", safeModule);
+
+  const response = await httpsRequest({
+    hostname: url.hostname,
+    path: url.pathname + url.search,
+    method: "GET",
+    headers: {
+      Authorization: `Zoho-oauthtoken ${token.access_token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (response.statusCode >= 400) {
+    throw new Error(
+      typeof response.data === "string"
+        ? response.data
+        : response.data.message || `Failed to fetch fields from ${safeModule}`
+    );
+  }
+
+  const fields = Array.isArray(response.data?.fields) ? response.data.fields : [];
+  setDataCache(cacheKey, fields, TTL_PRODUCTS_MS);
+  return fields;
+}
+
+function mapPicklistOption(option) {
+  const displayValue = normalizeOptionalString(option?.display_value || option?.display_label || option?.actual_value);
+  const actualValue = normalizeOptionalString(option?.actual_value || option?.reference_value || displayValue);
+  if (!displayValue && !actualValue) return null;
+
+  return {
+    id: normalizeOptionalString(option?.id),
+    displayValue: displayValue || actualValue,
+    actualValue: actualValue || displayValue,
+    type: normalizeOptionalString(option?.type),
+    sequenceNumber: normalizeOptionalNumber(option?.sequence_number),
+    colorCode: normalizeOptionalString(option?.colour_code || option?.color_code),
+  };
+}
+
+async function getModulePicklistValues(moduleApiName, fieldApiName) {
+  const safeModule = normalizeOptionalString(moduleApiName);
+  const safeField = normalizeOptionalString(fieldApiName);
+  if (!safeModule || !safeField) {
+    return {
+      module: safeModule || null,
+      field: safeField || null,
+      options: [],
+    };
+  }
+
+  const cacheKey = `picklist:${safeModule}:${safeField}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const fields = await zohoGetModuleFields(safeModule);
+  const field = fields.find((entry) => {
+    const apiName = String(entry?.api_name || "").trim().toLowerCase();
+    const fieldLabel = String(entry?.field_label || "").trim().toLowerCase();
+    return apiName === safeField.toLowerCase() || fieldLabel === safeField.toLowerCase();
+  });
+
+  if (!field) {
+    const result = {
+      module: safeModule,
+      field: safeField,
+      options: [],
+    };
+    setDataCache(cacheKey, result, TTL_PRODUCTS_MS);
+    return result;
+  }
+
+  let rawOptions = [];
+
+  if (field.id) {
+    const token = await getZohoAccessToken();
+    const url = new URL(
+      `/crm/v8/settings/fields/${field.id}/pick_list_values`,
+      process.env.ZOHO_API_DOMAIN
+    );
+    url.searchParams.set("module", safeModule);
+
+    const response = await httpsRequest({
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method: "GET",
+      headers: {
+        Authorization: `Zoho-oauthtoken ${token.access_token}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (response.statusCode < 400) {
+      rawOptions = Array.isArray(response.data?.pick_list_values)
+        ? response.data.pick_list_values
+        : [];
+    }
+  }
+
+  if (rawOptions.length === 0 && Array.isArray(field.pick_list_values)) {
+    rawOptions = field.pick_list_values;
+  }
+
+  const options = rawOptions
+    .map(mapPicklistOption)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aOrder = Number.isFinite(a.sequenceNumber) ? a.sequenceNumber : Number.MAX_SAFE_INTEGER;
+      const bOrder = Number.isFinite(b.sequenceNumber) ? b.sequenceNumber : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return String(a.displayValue || "").localeCompare(String(b.displayValue || ""));
+    });
+
+  const result = {
+    module: safeModule,
+    field: safeField,
+    fieldId: normalizeOptionalString(field.id),
+    options,
+  };
+
+  setDataCache(cacheKey, result, TTL_PRODUCTS_MS);
+  return result;
+}
+
 async function getDealsByIds(dealIds) {
   const cleanIds = Array.from(
     new Set(
@@ -1694,5 +1828,6 @@ module.exports = {
   zohoListRecords,
   createFlightForLoggedUser,
   listProducts,
-  getProductById
+  getProductById,
+  getModulePicklistValues
 };

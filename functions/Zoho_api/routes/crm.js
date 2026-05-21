@@ -10,6 +10,7 @@ const {
   createFlightForLoggedUser,
   listProducts,
   getProductById,
+  getModulePicklistValues,
   streamZohoFile,
   streamZohoRecordPhoto,
   streamSalesOrderPdf
@@ -189,6 +190,28 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       sendJson(res, 500, {
         ok: false,
         error: error.message || "Failed to list products",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "GET" && path === "/crm/products/categories") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const data = await getModulePicklistValues("Products", "Category");
+      sendJson(res, 200, { ok: true, data });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to list product categories",
       });
     }
 
