@@ -10,12 +10,12 @@ import {
   type CheckoutStatusResponse,
 } from "@/lib/api";
 import {
-  clearShopCart,
   removeShopCartItem,
   setShopCartItemQuantity,
   useShopCart,
 } from "@/lib/shop-cart";
 import Image from "next/image";
+import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 
@@ -163,15 +163,6 @@ export default function ShopCartPage() {
     }
   }
 
-  async function handleClearCart() {
-    try {
-      await clearShopCart(tripId);
-      setMessage("Cart cleared.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to clear cart.");
-    }
-  }
-
   async function handlePayNow() {
     if (!tripId || !sessionToken || items.length === 0 || checkoutLoading) return;
 
@@ -209,10 +200,8 @@ export default function ShopCartPage() {
 
       <section className="trip-details-body">
         <div className="shop-gears-shell">
-          <section className="shop-gears-section">
-            <div className="shop-gears-section-head">
-              <h5 className="trip-details-section-title">Your Tackle Box</h5>
-            </div>
+          <section className="shop-gears-section shop-gears-cart-page">
+            <h1 className="shop-gears-cart-page-title">My Tackle Box</h1>
 
             {checkoutStatus?.status && checkoutStatus.status !== "idle" ? (
               <div className={`shop-gears-api-card${isCheckoutPaid ? " is-success" : ""}`}>
@@ -224,7 +213,7 @@ export default function ShopCartPage() {
             ) : null}
 
             {items.length > 0 ? (
-              <div className="shop-gears-api-group">
+              <div className="shop-gears-cart-items-card">
                 {items.map((item) => {
                   const imageSrc =
                     item.imageDownloadKey && sessionToken
@@ -253,9 +242,9 @@ export default function ShopCartPage() {
                       <div className="shop-gears-cart-item-content">
                         <div className="shop-gears-product-line-copy">
                           <p className="shop-gears-product-name">{item.productName}</p>
-                          {item.category ? (
-                            <p className="shop-gears-product-type">{item.category}</p>
-                          ) : null}
+                          <p className="shop-gears-product-type">
+                            {item.productCode ? `SKU: ${item.productCode}` : item.category || "Product"}
+                          </p>
                           <p className="shop-gears-product-price">{formatCurrency(item.unitPrice)}</p>
                         </div>
 
@@ -288,6 +277,23 @@ export default function ShopCartPage() {
                             disabled={isCheckoutPaid}
                             onClick={() => void handleRemove(item.productId, item.productName)}
                           >
+                            <span className="shop-gears-cart-remove-icon" aria-hidden="true">
+                              <svg viewBox="0 0 18 18" fill="none">
+                                <path
+                                  d="M6.1 6.6v6.1M9 6.6v6.1M11.9 6.6v6.1"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M4.2 4.5h9.6M7.1 4.5V3.35h3.8V4.5M5.05 4.5l.55 10.15h6.8l.55-10.15"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </span>
                             REMOVE
                           </button>
                         </div>
@@ -298,7 +304,7 @@ export default function ShopCartPage() {
               </div>
             ) : (
               <div className="shop-gears-api-card">
-                <p className="shop-gears-api-purpose">Your cart is empty.</p>
+                <p className="shop-gears-api-purpose">Your tackle box is empty.</p>
               </div>
             )}
 
@@ -308,12 +314,12 @@ export default function ShopCartPage() {
                 <span className="shop-gears-detail-value">{formatCurrency(subtotal)}</span>
               </div>
               <div className="shop-gears-checkout-row">
-                <span className="shop-gears-detail-label">Discounts</span>
+                <span className="shop-gears-detail-label">Discount</span>
                 <span className="shop-gears-detail-value">{formatCurrency(discounts)}</span>
               </div>
               <div className="shop-gears-checkout-row">
                 <span className="shop-gears-detail-label">Shipping</span>
-                <span className="shop-gears-detail-value">{formatCurrency(shipping)}</span>
+                <span className="shop-gears-detail-value is-free">{shipping === 0 ? "FREE" : formatCurrency(shipping)}</span>
               </div>
               <div className="shop-gears-checkout-row is-total">
                 <span className="shop-gears-detail-label">Total</span>
@@ -324,20 +330,31 @@ export default function ShopCartPage() {
                 <>
                   <button
                     type="button"
-                    className="shop-gears-cart-clear-btn"
-                    onClick={() => void handleClearCart()}
-                    disabled={items.length === 0}
-                  >
-                    CLEAR CART
-                  </button>
-                  <button
-                    type="button"
                     className={`shop-gears-pay-btn${checkoutLoading ? " is-loading" : ""}`}
                     disabled={items.length === 0 || checkoutLoading}
                     onClick={() => void handlePayNow()}
                   >
+                    <span className="shop-gears-pay-lock" aria-hidden="true">
+                      <svg viewBox="0 0 18 18" fill="none">
+                        <path
+                          d="M5.25 7.6V5.95C5.25 3.88 6.9 2.25 9 2.25s3.75 1.63 3.75 3.7V7.6"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M4.2 7.6h9.6v7.15H4.2V7.6Z"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
                     {checkoutLoading ? "OPENING CHECKOUT..." : "PAY NOW"}
                   </button>
+                  <Link href={`/trips/${tripId}/shop-gears`} className="shop-gears-continue-shopping-btn">
+                    CONTINUE SHOPPING
+                  </Link>
                   {isCheckoutProcessing ? (
                     <p className="shop-gears-checkout-note" role="status">
                       {checkoutLoading

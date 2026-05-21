@@ -554,12 +554,15 @@ export default function ShopGearsPage() {
 
                       <div className="shop-gears-catalog-copy">
                         <p className="shop-gears-product-sku">SKU: {product.productCode || "-"}</p>
-                        <Link
-                          href={`/trips/${tripId}/shop-gears/${product.id}`}
+                        <button
+                          type="button"
                           className="shop-gears-product-name shop-gears-product-name-link"
+                          onClick={() => openProductDetail(product)}
+                          aria-haspopup="dialog"
+                          aria-label={`Open details for ${product.productName}`}
                         >
                           {product.productName}
-                        </Link>
+                        </button>
                         <p className="shop-gears-product-price">{formatCurrency(product.unitPrice)}</p>
                       </div>
 

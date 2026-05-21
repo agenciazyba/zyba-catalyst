@@ -18,9 +18,10 @@ Fluxo atual implementado:
 
 - listagem de `Products` do Zoho CRM na página `Shop Gears`
 - filtro por `Destination_Related` usando o destino/vendor vinculado ao `Deal` da trip
-- filtro horizontal por `Category` na UI
+- filtro horizontal por `Category` na UI, usando as opções do Pick List `Category` do módulo `Products`
+- exibição somente de produtos com `Product_Active` marcado
 - card de produto com imagem, SKU, nome, preço, quantidade, add/remove e atalho para detalhes
-- página de detalhe `Gears Details`
+- detalhe de produto exibido apenas em modal/bottom sheet sobre a lista
 - carrinho persistido no backend por `session + tripId`
 - cache local do carrinho no app por `tripId`
 - botão flutuante `Tackle box` com total, contador de itens e navegação para `Cart`
@@ -32,7 +33,6 @@ Arquivos principais:
 - `zyba-app/components/AddTackleButton.tsx`
 - `zyba-app/lib/shop-cart.ts`
 - `zyba-app/app/trips/[id]/shop-gears/page.tsx`
-- `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/cart/page.tsx`
 - `zyba-app/components/AppTopBar.tsx`
 - `zyba-app/app/globals.css`
@@ -46,6 +46,7 @@ Arquivos principais:
 Rotas principais:
 
 - `GET /api/crm/products`
+- `GET /api/crm/products/categories`
 - `GET /api/crm/products/:productId`
 - `GET /api/crm/cart`
 - `POST /api/crm/cart/items`
@@ -57,6 +58,8 @@ Origem dos dados:
 
 - módulo Zoho: `Products`
 - produtos separados pelo campo `Category`
+- categorias do menu horizontal vêm do Pick List `Category`
+- opções vazias, `None` e `-None-` não devem aparecer no menu
 
 Campos usados:
 
@@ -81,26 +84,36 @@ Páginas:
 
 - `Shop Gears`:
   - lista de produtos
-  - menu horizontal de `Category`
+  - menu horizontal de `Category` carregado do Pick List do CRM
   - destaque visual para produto recomendado via `Product_Recommended`
   - imagem principal do produto preenchendo o frame do card
   - quantidade
-  - `ADD TO CART`
+  - `ADD TO TACKLE BOX`
   - `REMOVE` quando produto já existe no carrinho
   - botão flutuante `Tackle box`
-- `Gears Details`:
-  - carrossel de imagens
-  - nome
-  - código
-  - brand
-  - preço
-  - quantidade
-  - `ADD TO CART`
+- `Product Details Modal`:
+  - abre ao clicar na imagem, ícone de informação ou nome do produto
+  - bottom sheet com 90% da altura da tela
+  - backdrop preto com transparência
+  - imagem, preço, nome, SKU, brand, description, quantidade e `ADD TO TACKLE BOX`
+  - fechamento por botão `X`, backdrop, tecla `Escape` ou arraste para baixo
 - `Cart`:
+  - título `My Tackle Box`
   - itens adicionados
   - ajuste de quantidade
-  - remoção
+  - remoção por item com botão `REMOVE`
   - subtotal
+  - discount
+  - shipping
+  - total
+  - botão `PAY NOW`
+  - botão secundário `CONTINUE SHOPPING`
+
+Observações:
+
+- a opção de limpar carrinho completo foi removida da UI
+- o campo `Order notes` foi removido e não é enviado para Stripe
+- o antigo arquivo de rota `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx` foi removido; detalhes devem abrir por modal
 
 Persistência atual:
 
@@ -126,6 +139,8 @@ Cache backend aplicado em `functions/Zoho_api/services/zoho.js`:
 - `TTL_PRODUCTS_MS`
 - cache da lista de products por combinação de filtros
 - cache do detalhe por `productId + layout + category`
+- cache dos campos do módulo `Products`
+- cache das opções de Pick List usadas pelo menu de categorias
 
 Objetivo:
 
@@ -156,6 +171,7 @@ Isso evita que um carrinho antigo de outro login, outro browser ou outro ciclo d
 Data:
 
 - 2026-05-20
+- 2026-05-21
 
 Melhorias aplicadas:
 
@@ -185,16 +201,32 @@ Melhorias aplicadas:
 - botão `ADD TO CART` entra em estado `ADDED` e fica desabilitado até voltar ao estado inicial
 - badge do `tackle box` no topo pulsa quando um item é adicionado
 - `PAY NOW` ganhou estado de processamento mais claro antes do redirecionamento para Stripe
-- página `Gears Details` foi simplificada para começar direto no conteúdo do produto
+- detalhe do produto passou a abrir apenas como modal na lista de `Shop Gears`
 - miniaturas de produto na lista e no carrinho passaram a usar `object-fit: contain`
-- card da imagem na página de detalhe do produto passou a usar fundo branco
+- card da imagem no modal de detalhe do produto passou a usar fundo branco
 - botão `Back to my trips` removido da página principal de `Shop Gears`
+- menu horizontal de categorias passou a usar o Pick List `Category` do módulo `Products`
+- opções vazias, `None` e `-None-` são filtradas fora do menu de categorias
+- lista de produtos segue carregando apenas itens com `Product_Active=true`
+- nome do produto no card deixou de navegar para página antiga e passou a abrir o modal de detalhes
+- rota antiga de detalhe individual foi removida para evitar duas experiências concorrentes
+- modal de detalhe passou a ocupar 90% da tela e justificar o texto de `Description`
+- fallback de descrição do modal é `No description available.`
+- página do carrinho foi redesenhada como `My Tackle Box`
+- card do carrinho passou a agrupar produtos com imagem, SKU/category, preço, quantidade e `REMOVE`
+- botão `REMOVE` do carrinho ganhou ícone de lixeira
+- seletor de quantidade do carrinho usa o mesmo padrão visual da página de produtos
+- resumo do carrinho exibe `Subtotal`, `Discount`, `Shipping` e `Total`
+- `Shipping` aparece como `FREE` quando o valor for zero
+- botão `PAY NOW` ganhou ícone de cadeado e carregamento com barra laranja escura
+- botão secundário `CONTINUE SHOPPING` retorna para a página de produtos
+- opção de limpar carrinho completo foi removida
+- campo `Order notes` foi removido da UI e do payload de checkout
 
 Arquivos principais:
 
 - `zyba-app/components/AddTackleButton.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/page.tsx`
-- `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/cart/page.tsx`
 - `zyba-app/components/AppTopBar.tsx`
 - `zyba-app/lib/shop-cart.ts`
@@ -253,7 +285,7 @@ Ainda pendente:
 
 1. usuário monta o carrinho em `Shop Gears`
 2. carrinho persistido no backend por chave opaca de sessão + `tripId`
-3. usuário abre `Your Tackle Box`
+3. usuário abre `My Tackle Box`
 4. ao clicar em `PAY NOW`, o app chama `POST /api/crm/checkout/session`
 5. backend busca o carrinho persistido
 6. backend recalcula e monta `line_items`
@@ -335,7 +367,7 @@ Variáveis de ambiente necessárias:
 
 Frontend:
 
-- abrir `Your Tackle Box`
+- abrir `My Tackle Box`
 - clicar `PAY NOW`
 - se o webhook for recebido, o status do checkout passa para `paid`
 - aguardar redirecionamento para Stripe Checkout
@@ -541,7 +573,7 @@ Causa:
 
 - quando a persistência principal do carrinho falhava no `cache segment`, o backend gravava no fallback em memória
 - porém a leitura seguinte podia consultar o `cache segment`, receber vazio sem erro e retornar carrinho vazio
-- isso fazia o item aparecer logo após `ADD TO CART`, mas sumir ao abrir `Your Tackle Box`
+- isso fazia o item aparecer logo após `ADD TO CART`, mas sumir ao abrir o carrinho
 
 Solução:
 
@@ -614,11 +646,116 @@ Arquivos:
 
 ---
 
+### 12. Página antiga de detalhe concorria com o novo modal
+
+Data:
+
+- 2026-05-21
+
+Causa:
+
+- o nome do produto no card navegava para `/trips/[id]/shop-gears/[productId]`
+- a nova experiência definida para detalhes passou a ser um bottom sheet/modal sobre a lista
+- manter rota antiga e modal criava duas experiências diferentes para a mesma ação
+
+Solução:
+
+- nome do produto passou a ser botão que abre o mesmo modal da imagem e do ícone de informação
+- removida a página `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx`
+- documentação atualizada para tratar detalhes apenas como modal
+
+Arquivos:
+
+- `zyba-app/app/trips/[id]/shop-gears/page.tsx`
+- `zyba-app/app/trips/[id]/shop-gears/[productId]/page.tsx`
+- `zyba-app/app/globals.css`
+
+Ponto de atenção:
+
+- URLs antigas de detalhe individual passam a retornar 404. Caso seja necessário preservar compatibilidade com bookmarks ou histórico, criar uma estratégia explícita de redirect para a lista ou implementar deep link que abra o modal por query string.
+
+---
+
+### 13. Menu de categorias precisava refletir o Pick List do CRM
+
+Data:
+
+- 2026-05-21
+
+Causa:
+
+- categorias eram derivadas apenas dos produtos carregados
+- isso escondia categorias válidas sem produto naquele destino e podia mostrar valores vazios do CRM
+- o campo `Category` do módulo `Products` é Pick List e deve ser a fonte do menu
+
+Solução:
+
+- criado endpoint `GET /api/crm/products/categories`
+- backend lê metadata de fields do módulo `Products` e normaliza `displayValue` e `actualValue`
+- frontend mostra `displayValue` e filtra usando `actualValue`
+- opções vazias, `None` e `-None-` são removidas
+- se o metadata do CRM falhar, a UI faz fallback para categorias presentes nos produtos carregados
+
+Arquivos:
+
+- `functions/Zoho_api/services/zoho.js`
+- `functions/Zoho_api/routes/crm.js`
+- `zyba-app/app/trips/[id]/shop-gears/page.tsx`
+
+Ponto de atenção:
+
+- se o label exibido no Pick List mudar mas o `actual_value` permanecer antigo, o filtro continua usando `actualValue`. Antes de mudar valores no CRM, conferir se os produtos existentes usam o mesmo valor real salvo no campo.
+
+---
+
+### 14. Carrinho redesenhado como `My Tackle Box`
+
+Data:
+
+- 2026-05-21
+
+Causa:
+
+- a tela antiga era funcional, mas não seguia o layout desejado de checkout mobile
+- havia opção de limpar carrinho completo, removida por decisão de produto
+- o campo `Order notes` foi testado e depois removido do fluxo
+
+Solução:
+
+- página do carrinho redesenhada com:
+  - título `My Tackle Box`
+  - card de produtos
+  - subtotal, discount, shipping e total
+  - botão `PAY NOW` com cadeado
+  - botão secundário `CONTINUE SHOPPING`
+  - botão `REMOVE` por item com ícone de lixeira
+  - seletor de quantidade no mesmo estilo da página de produtos
+- removido `Clear cart` da UI
+- removido `Order notes` da UI, do payload de checkout e da metadata Stripe
+- `PAY NOW` usa o mesmo padrão visual de loading do `AddTackleButton`, preenchendo com laranja mais escuro
+
+Arquivos:
+
+- `zyba-app/app/trips/[id]/shop-gears/cart/page.tsx`
+- `zyba-app/app/globals.css`
+- `zyba-app/lib/api.ts`
+- `functions/Zoho_api/routes/crm.js`
+- `functions/Zoho_api/services/stripe.js`
+
+Ponto de atenção:
+
+- `Discount` e `Shipping` hoje são valores fixos na UI (`0` e `FREE`). Se forem virar regra real de negócio, esses valores devem vir do backend/Stripe e não ser calculados apenas no frontend.
+
+---
+
 ## Próximas etapas recomendadas
 
 1. criar `Sales Order` no Zoho somente após aprovação/finalização do pagamento
 2. decidir regra de expiração/limpeza administrativa para carrinhos órfãos antigos
 3. criar mecanismo explícito de refresh de catálogo caso seja necessário ignorar temporariamente o cache de `Products`
+4. decidir compatibilidade para URLs antigas de detalhe de produto, caso usuários tenham links salvos
+5. se novas informações entrarem no modal de detalhes, garantir que elas estejam no payload da lista de produtos ou criar carregamento sob demanda no modal
+6. mover `Discount` e `Shipping` para cálculo backend quando deixarem de ser valores fixos
 
 ---
 

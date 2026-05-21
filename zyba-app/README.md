@@ -12,10 +12,15 @@ Important project documentation:
 ### Shop Gears Current Behavior
 
 - Products come from the Zoho CRM `Products` module.
-- Product separation/filtering is driven by `Category`.
+- Product separation/filtering is driven by the `Category` Pick List from the CRM.
+- Product listing only shows records with `Product_Active=true`.
+- Product detail opens as an in-page bottom sheet/modal; the old product detail route was removed.
 - The cart is isolated by session + trip, not by email alone.
+- The cart page is `My Tackle Box`, with item quantity controls, item-level remove, payment summary, `PAY NOW`, and `CONTINUE SHOPPING`.
+- There is no full-cart clear button in the current UI.
 - Local cart snapshots are cleared on logout and before a new login session is stored.
 - After logout + new login, Shop Gears should start with a clean cart.
+- Future attention: `Discount` and `Shipping` are currently fixed display values in the cart UI. If they become business rules, calculate them server-side before checkout.
 
 ## Getting Started
 
