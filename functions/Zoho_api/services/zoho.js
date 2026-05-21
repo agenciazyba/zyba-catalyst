@@ -322,6 +322,34 @@ function normalizeOptionalNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeOptionalBoolean(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "boolean") return value;
+  const text = String(value).trim().toLowerCase();
+  if (["true", "yes", "1"].includes(text)) return true;
+  if (["false", "no", "0"].includes(text)) return false;
+  return null;
+}
+
+function normalizeMultiSelect(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        normalizeOptionalString(
+          item && typeof item === "object"
+            ? item.name || item.display_value || item.value || item.id
+            : item
+        )
+      )
+      .filter(Boolean);
+  }
+  return String(value)
+    .split(";")
+    .map(normalizeOptionalString)
+    .filter(Boolean);
+}
+
 function normalizeOptionalIsoDate(value) {
   const text = normalizeOptionalString(value);
   if (!text) return null;
@@ -1395,25 +1423,64 @@ async function createFlightForLoggedUser(email, payload = {}) {
 function mapProductRecord(record) {
   if (!record) return null;
 
+  const connectedTo = Array.isArray(record.Connected_To__s)
+    ? record.Connected_To__s.map((item) => mapLookup(item?.Connected_To__s || item)).filter(
+        (item) => item && (item.id || item.name)
+      )
+    : [];
+
   return {
     id: record.id || null,
+    category: normalizeOptionalString(record.Category),
     color: normalizeOptionalString(record.Color),
+    commissionRate: normalizeOptionalNumber(record.Commission_Rate),
+    connectedTo,
+    createdBy: normalizeOptionalString(record.Created_By),
     description: normalizeOptionalString(record.Description),
+    productCategory: normalizeOptionalString(record.Product_Category),
     recordImage: mapRecordPhoto("Products", record.id || null, record.Record_Image),
     destinationRelated: Array.isArray(record.Destination_Related)
       ? record.Destination_Related.map((item) => mapLookup(item?.Destination_Related || item)).filter(
           (item) => item && (item.id || item.name)
         )
       : [],
+    extraDay: normalizeOptionalString(record.Extra_Day),
+    handler: mapLookup(record.Handler),
     layout: mapLayout(record.Layout),
-    productActive:
-      record.Product_Active === true ||
-      String(record.Product_Active || "").trim().toLowerCase() === "true",
+    manufacturer: normalizeOptionalString(record.Manufacturer),
+    modifiedBy: normalizeOptionalString(record.Modified_By),
+    owner: mapLookup(record.Owner),
+    productActive: normalizeOptionalBoolean(record.Product_Active) === true,
     productCode: normalizeOptionalString(record.Product_Code),
-    lureImageCatalog: mapUploadedFiles("Products", record.id || null, record.Lure_Image_Catalog),
-    lureImageReal: mapUploadedFiles("Products", record.id || null, record.Lure_Image_Real),
+    productRecommended:
+      normalizeOptionalBoolean(
+        pickFirstValue(record.Product_Recommended, record.Highly_Recommended, record.Recommended)
+      ) === true,
+    productImageCatalog: mapUploadedFiles(
+      "Products",
+      record.id || null,
+      record.Product_Image_Catalog
+    ),
+    productImageReal: mapUploadedFiles(
+      "Products",
+      record.id || null,
+      record.Product_Image_Real
+    ),
     productName: normalizeOptionalString(record.Product_Name),
-    unitPrice: normalizeOptionalNumber(record.Unit_Price),
+    qtyOrdered: normalizeOptionalNumber(record.Qty_Ordered),
+    qtyInDemand: normalizeOptionalNumber(record.Qty_in_Demand),
+    qtyInStock: normalizeOptionalNumber(record.Qty_in_Stock),
+    reorderLevel: normalizeOptionalNumber(record.Reorder_Level),
+    salesEndDate: normalizeOptionalIsoDate(record.Sales_End_Date),
+    salesStartDate: normalizeOptionalIsoDate(record.Sales_Start_Date),
+    singlePrice: normalizeOptionalNumber(record.Single_Price),
+    supportExpiryDate: normalizeOptionalIsoDate(record.Support_Expiry_Date),
+    supportStartDate: normalizeOptionalIsoDate(record.Support_Start_Date),
+    tag: normalizeOptionalString(record.Tag),
+    tax: normalizeMultiSelect(record.Tax),
+    taxable: normalizeOptionalBoolean(record.Taxable),
+    unitPrice: normalizeOptionalNumber(pickFirstValue(record.Unit_Price, record.Single_Price)),
+    usageUnit: normalizeOptionalString(record.Usage_Unit),
     vendorName: mapLookup(record.Vendor_Name),
   };
 }
@@ -1421,7 +1488,8 @@ function mapProductRecord(record) {
 async function listProducts(payload = {}) {
   const page = Math.max(1, Number(payload.page) || 1);
   const perPage = Math.min(200, Math.max(1, Number(payload.perPage) || 50));
-  const layout = normalizeOptionalString(payload.layout) || "Lures and Flies";
+  const layout = normalizeOptionalString(payload.layout);
+  const category = normalizeOptionalString(payload.category);
   const productActive =
     payload.productActive === undefined || payload.productActive === null || payload.productActive === ""
       ? true
@@ -1434,6 +1502,7 @@ async function listProducts(payload = {}) {
     page,
     perPage,
     layout,
+    category,
     productActive,
     search,
     vendorName,
@@ -1447,24 +1516,48 @@ async function listProducts(payload = {}) {
   const records = await zohoListRecords(
     "Products",
     [
+      "Category",
       "Color",
+      "Commission_Rate",
+      "Connected_To__s",
+      "Created_By",
       "Description",
+      "Product_Category",
       "Record_Image",
       "Destination_Related",
+      "Extra_Day",
+      "Handler",
       "Layout",
+      "Manufacturer",
+      "Modified_By",
+      "Owner",
       "Product_Active",
       "Product_Code",
-      "Lure_Image_Catalog",
-      "Lure_Image_Real",
+      "Product_Image_Catalog",
+      "Product_Image_Real",
       "Product_Name",
+      "Qty_Ordered",
+      "Qty_in_Demand",
+      "Qty_in_Stock",
+      "Reorder_Level",
+      "Sales_End_Date",
+      "Sales_Start_Date",
+      "Single_Price",
+      "Support_Expiry_Date",
+      "Support_Start_Date",
+      "Tag",
+      "Tax",
+      "Taxable",
       "Unit_Price",
+      "Usage_Unit",
       "Vendor_Name",
     ],
     1,
     200
   );
 
-  const normalizedLayout = layout.trim().toLowerCase();
+  const normalizedLayout = layout ? layout.trim().toLowerCase() : null;
+  const normalizedCategory = category ? category.trim().toLowerCase() : null;
   const normalizedSearch = search ? search.toLowerCase() : null;
   const normalizedVendor = vendorName ? vendorName.toLowerCase() : null;
   const normalizedDestination = destinationRelated ? destinationRelated.toLowerCase() : null;
@@ -1494,6 +1587,12 @@ async function listProducts(payload = {}) {
         .trim()
         .toLowerCase();
       if (normalizedLayout && layoutName !== normalizedLayout) return false;
+      if (
+        normalizedCategory &&
+        String(item.category || "").trim().toLowerCase() !== normalizedCategory
+      ) {
+        return false;
+      }
       if (productActive && item.productActive !== true) return false;
       if (
         normalizedSearch &&
@@ -1537,6 +1636,7 @@ async function listProducts(payload = {}) {
     count: filteredItems.length,
     filters: {
       layout,
+      category,
       productActive,
       search,
       vendorName,
@@ -1550,8 +1650,9 @@ async function listProducts(payload = {}) {
 }
 
 async function getProductById(productId, payload = {}) {
-  const layout = normalizeOptionalString(payload.layout) || "Lures and Flies";
-  const cacheKey = `products:detail:${productId}:${layout}`;
+  const layout = normalizeOptionalString(payload.layout);
+  const category = normalizeOptionalString(payload.category);
+  const cacheKey = `products:detail:${productId}:${layout || ""}:${category || ""}`;
   const cached = getDataCache(cacheKey);
   if (cached) return cached;
 
@@ -1563,7 +1664,14 @@ async function getProductById(productId, payload = {}) {
     .trim()
     .toLowerCase();
 
-  if (layoutName && layoutName !== layout.trim().toLowerCase()) {
+  if (layout && layoutName && layoutName !== layout.trim().toLowerCase()) {
+    return null;
+  }
+
+  if (
+    category &&
+    String(product.category || "").trim().toLowerCase() !== category.trim().toLowerCase()
+  ) {
     return null;
   }
 

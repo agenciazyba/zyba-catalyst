@@ -134,7 +134,7 @@ function toUnitAmount(value) {
   return Math.round(parsed * 100);
 }
 
-async function createCheckoutSession({ cart, tripId, customerEmail, origin }) {
+async function createCheckoutSession({ cart, tripId, customerEmail, cartOwnerKey, origin }) {
   const safeOrigin = String(origin || "").trim();
   const safeTripId = String(tripId || "").trim();
 
@@ -172,6 +172,7 @@ async function createCheckoutSession({ cart, tripId, customerEmail, origin }) {
     "metadata[tripId]": safeTripId,
     "metadata[source]": "shop-gears",
     "metadata[itemCount]": String(cart.totalItems || 0),
+    "metadata[cartOwnerKey]": cartOwnerKey || "",
   };
 
   cart.items.forEach((item, index) => {

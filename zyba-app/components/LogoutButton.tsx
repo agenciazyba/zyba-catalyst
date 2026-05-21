@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { clearSessionToken } from "@/lib/auth";
+import { logoutSession } from "@/lib/api";
+import { clearSessionToken, getSessionToken } from "@/lib/auth";
+import { clearAllShopCartSnapshots } from "@/lib/shop-cart";
 
 type LogoutButtonProps = {
   className?: string;
@@ -10,13 +12,22 @@ type LogoutButtonProps = {
 export default function LogoutButton({ className = "" }: LogoutButtonProps) {
   const router = useRouter();
 
-  function handleLogout() {
+  async function handleLogout() {
+    const sessionToken = getSessionToken();
+    clearAllShopCartSnapshots();
     clearSessionToken();
+
+    if (sessionToken) {
+      await logoutSession(sessionToken).catch(() => {
+        // Local logout should still complete if backend session invalidation fails.
+      });
+    }
+
     router.push("/login");
   }
 
   return (
-    <button type="button" onClick={handleLogout} className={className}>
+    <button type="button" onClick={() => void handleLogout()} className={className}>
       Logout
     </button>
   );

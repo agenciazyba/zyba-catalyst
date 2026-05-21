@@ -1,5 +1,22 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Zyba App Notes
+
+This app contains the authenticated traveler experience for Zyba Outdoors.
+
+Important project documentation:
+
+- `../SHOP_GEARS_DOCUMENTATION.md`: Shop Gears architecture, Products API mapping, cart/session rules, Stripe checkout flow, UI updates, and fixed issues.
+- `AGENTS.md`: local agent rule requiring the bundled Next.js docs to be checked before code changes.
+
+### Shop Gears Current Behavior
+
+- Products come from the Zoho CRM `Products` module.
+- Product separation/filtering is driven by `Category`.
+- The cart is isolated by session + trip, not by email alone.
+- Local cart snapshots are cleared on logout and before a new login session is stored.
+- After logout + new login, Shop Gears should start with a clean cart.
+
 ## Getting Started
 
 First, run the development server:

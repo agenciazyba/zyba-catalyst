@@ -61,8 +61,12 @@ async function handleStripeRoutes(app, req, res, parsedUrl) {
         });
 
         if (isSuccess) {
+          const cartOwnerKey = String(session?.metadata?.cartOwnerKey || "").trim();
           const customerEmail =
             session?.customer_details?.email || session?.customer_email || null;
+          if (cartOwnerKey) {
+            await clearCart(app, cartOwnerKey, tripId);
+          }
           if (customerEmail) {
             await clearCart(app, customerEmail, tripId);
           }

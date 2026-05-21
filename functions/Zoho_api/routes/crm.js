@@ -15,6 +15,7 @@ const {
   streamSalesOrderPdf
 } = require("../services/zoho");
 const {
+  buildSessionCartOwnerKey,
   getCart,
   addCartItem,
   setCartItemQuantity,
@@ -52,19 +53,20 @@ async function buildTrustedCartItem(productId, fallbackItem = {}) {
     unitPrice: product.unitPrice,
     imageDownloadKey:
       String(
-        product?.lureImageCatalog?.[0]?.downloadKey ||
-          product?.lureImageReal?.[0]?.downloadKey ||
+        product?.productImageCatalog?.[0]?.downloadKey ||
+          product?.productImageReal?.[0]?.downloadKey ||
           fallbackItem.imageDownloadKey ||
           ""
       ).trim() || null,
     imageAlt:
       String(
-        product?.lureImageCatalog?.[0]?.fileName ||
-          product?.lureImageReal?.[0]?.fileName ||
+        product?.productImageCatalog?.[0]?.fileName ||
+          product?.productImageReal?.[0]?.fileName ||
           fallbackItem.imageAlt ||
           product.productName ||
           ""
       ).trim() || null,
+    category: String(product?.category || fallbackItem.category || "").trim() || null,
     vendorName: String(product?.vendorName?.name || fallbackItem.vendorName || "").trim() || null,
   };
 }
@@ -174,6 +176,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         page: parsedUrl.searchParams.get("page"),
         perPage: parsedUrl.searchParams.get("perPage"),
         layout: parsedUrl.searchParams.get("layout"),
+        category: parsedUrl.searchParams.get("category"),
         productActive: parsedUrl.searchParams.get("productActive"),
         search: parsedUrl.searchParams.get("search"),
         vendorName: parsedUrl.searchParams.get("vendorName"),
@@ -209,7 +212,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     }
 
     try {
-      const cart = await getCart(app, session.email, tripId);
+      const cart = await getCart(app, buildSessionCartOwnerKey(token), tripId);
       sendJson(res, 200, { ok: true, data: cart });
     } catch (error) {
       sendJson(res, 500, {
@@ -274,7 +277,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     }
 
     try {
-      const cart = await clearCart(app, session.email, tripId);
+      const cart = await clearCart(app, buildSessionCartOwnerKey(token), tripId);
       sendJson(res, 200, { ok: true, data: cart });
     } catch (error) {
       sendJson(res, 500, {
@@ -310,7 +313,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       }
 
       const trustedItem = await buildTrustedCartItem(body?.item?.productId, body?.item || {});
-      const cart = await addCartItem(app, session.email, tripId, trustedItem, body?.quantity);
+      const cart = await addCartItem(app, buildSessionCartOwnerKey(token), tripId, trustedItem, body?.quantity);
       sendJson(res, 200, { ok: true, data: cart });
     } catch (error) {
       sendJson(res, 400, {
@@ -340,7 +343,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         return true;
       }
 
-      const cart = await getCart(app, session.email, tripId);
+      const cart = await getCart(app, buildSessionCartOwnerKey(token), tripId);
 
       if (!cart?.items?.length) {
         sendJson(res, 400, { ok: false, error: "Cart is empty" });
@@ -348,7 +351,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       }
 
       const trustedItems = await buildTrustedCartItems(cart.items);
-      const trustedCart = await replaceCart(app, session.email, tripId, trustedItems);
+      const trustedCart = await replaceCart(app, buildSessionCartOwnerKey(token), tripId, trustedItems);
 
       const origin =
         String(req.headers.origin || "").trim() ||
@@ -358,6 +361,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         cart: trustedCart,
         tripId,
         customerEmail: session.email,
+        cartOwnerKey: buildSessionCartOwnerKey(token),
         origin,
       });
 
@@ -467,7 +471,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         finalizedAt: checkoutStatus.finalizedAt || new Date().toISOString(),
       };
 
-      await clearCart(app, session.email, tripId);
+      await clearCart(app, buildSessionCartOwnerKey(token), tripId);
       await setCheckoutStatus(app, {
         ...checkoutStatus,
         tripId,
@@ -512,7 +516,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
 
       const cart = await setCartItemQuantity(
         app,
-        session.email,
+        buildSessionCartOwnerKey(token),
         tripId,
         productId,
         body?.quantity
@@ -546,7 +550,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     }
 
     try {
-      const cart = await removeCartItem(app, session.email, tripId, productId);
+      const cart = await removeCartItem(app, buildSessionCartOwnerKey(token), tripId, productId);
       sendJson(res, 200, { ok: true, data: cart });
     } catch (error) {
       sendJson(res, 500, {
@@ -631,6 +635,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     try {
       const product = await getProductById(productId, {
         layout: parsedUrl.searchParams.get("layout"),
+        category: parsedUrl.searchParams.get("category"),
       });
 
       if (!product) {

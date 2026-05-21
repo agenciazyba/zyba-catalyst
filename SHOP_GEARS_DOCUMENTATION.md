@@ -18,10 +18,12 @@ Fluxo atual implementado:
 
 - listagem de `Products` do Zoho CRM na página `Shop Gears`
 - filtro por `Destination_Related` usando o destino/vendor vinculado ao `Deal` da trip
+- filtro horizontal por `Category` na UI
+- card de produto com imagem, SKU, nome, preço, quantidade, add/remove e atalho para detalhes
 - página de detalhe `Gears Details`
 - carrinho persistido no backend por `session + tripId`
 - cache local do carrinho no app por `tripId`
-- resumo de carrinho no topo e navegação para `Cart`
+- botão flutuante `Tackle box` com total, contador de itens e navegação para `Cart`
 
 Arquivos principais:
 
@@ -53,19 +55,21 @@ Rotas principais:
 Origem dos dados:
 
 - módulo Zoho: `Products`
-- layout validado: `Lures and Flies`
+- produtos separados pelo campo `Category`
 
 Campos usados:
 
 - `Color`
+- `Category`
 - `Description`
 - `Record_Image`
 - `Destination_Related`
 - `Layout`
 - `Product_Active`
 - `Product_Code`
-- `Lure_Image_Catalog`
-- `Lure_Image_Real`
+- `Product_Recommended` (Boolean, opcional para destacar produto como recomendado/essential)
+- `Product_Image_Catalog`
+- `Product_Image_Real`
 - `Product_Name`
 - `Unit_Price`
 - `Vendor_Name`
@@ -76,8 +80,13 @@ Páginas:
 
 - `Shop Gears`:
   - lista de produtos
+  - menu horizontal de `Category`
+  - destaque visual para produto recomendado via `Product_Recommended`
+  - imagem principal do produto preenchendo o frame do card
   - quantidade
   - `ADD TO CART`
+  - `REMOVE` quando produto já existe no carrinho
+  - botão flutuante `Tackle box`
 - `Gears Details`:
   - carrossel de imagens
   - nome
@@ -95,9 +104,11 @@ Páginas:
 Persistência atual:
 
 - fonte de verdade do carrinho no backend da função `Zoho_api`
-- persistência em cache segmentado da função por `session + tripId`
+- persistência em cache segmentado da função por chave opaca de sessão + `tripId`
 - `localStorage` mantido no frontend apenas como snapshot/cache de render
 - sincronização automática do carrinho ao abrir as páginas de `Shop Gears`
+- snapshots locais `zyba_shop_cart:*` são removidos em novo login e logout
+- carrinhos de sessões antigas não são reaproveitados após logout/login
 
 ---
 
@@ -113,12 +124,27 @@ Cache backend aplicado em `functions/Zoho_api/services/zoho.js`:
 
 - `TTL_PRODUCTS_MS`
 - cache da lista de products por combinação de filtros
-- cache do detalhe por `productId + layout`
+- cache do detalhe por `productId + layout + category`
 
 Objetivo:
 
 - reduzir chamadas repetidas ao Zoho
 - manter o mesmo padrão das demais áreas do app
+
+### Carrinho e sessão
+
+O carrinho não deve sobreviver a um ciclo de logout + novo login.
+
+Regras atuais:
+
+- frontend limpa snapshots locais `zyba_shop_cart:*` ao fazer logout
+- frontend limpa snapshots locais antes de salvar um novo `sessionToken`
+- backend usa uma chave de dono derivada do token de sessão, não o email puro do usuário
+- a chave persistida do carrinho é isolada por `session + tripId`
+- o logout chama `/auth/logout` como best-effort para invalidar a sessão no backend
+- o webhook Stripe recebe `cartOwnerKey` no metadata para limpar o carrinho da sessão correta após pagamento
+
+Isso evita que um carrinho antigo de outro login, outro browser ou outro ciclo de sessão apareça novamente em `Shop Gears`.
 
 ---
 
@@ -128,10 +154,18 @@ Objetivo:
 
 Data:
 
-- 2026-05-04
+- 2026-05-20
 
 Melhorias aplicadas:
 
+- redesign da página `Shop Gears` seguindo layout mobile de catálogo:
+  - título com destino da trip em destaque
+  - menu horizontal por `Category`
+  - cards maiores com foto, SKU, nome, preço e controles de quantidade
+  - ícone de detalhes no card do produto
+  - selo `Essential` quando `Product_Recommended` vier marcado no CRM
+  - imagem do card usando preenchimento do frame
+  - botão flutuante `Tackle box` alinhado à direita, com total e contador de itens
 - feedback visual temporário ao adicionar item no carrinho com:
   - nome do produto
   - ícone de check
@@ -148,6 +182,7 @@ Melhorias aplicadas:
 - página `Gears Details` foi simplificada para começar direto no conteúdo do produto
 - miniaturas de produto na lista e no carrinho passaram a usar `object-fit: contain`
 - card da imagem na página de detalhe do produto passou a usar fundo branco
+- botão `Back to my trips` removido da página principal de `Shop Gears`
 
 Arquivos principais:
 
@@ -200,6 +235,7 @@ Implementado nesta etapa:
 - persistência do status de checkout por `tripId`
 - página de sucesso do app após retorno da Stripe
 - limpeza do carrinho após pagamento confirmado
+- metadata `cartOwnerKey` na sessão Stripe para limpar o carrinho da sessão correta
 - preservação do status final do checkout para a futura etapa de `Sales Order`
 
 Ainda pendente:
@@ -209,7 +245,7 @@ Ainda pendente:
 ### Fluxo do checkout
 
 1. usuário monta o carrinho em `Shop Gears`
-2. carrinho persistido no backend por `session + tripId`
+2. carrinho persistido no backend por chave opaca de sessão + `tripId`
 3. usuário abre `Your Tackle Box`
 4. ao clicar em `PAY NOW`, o app chama `POST /api/crm/checkout/session`
 5. backend busca o carrinho persistido
@@ -218,7 +254,7 @@ Ainda pendente:
 8. frontend redireciona para a `url` retornada pela Stripe
 9. Stripe envia evento para `POST /api/stripe/webhook`
 10. backend valida assinatura usando `STRIPE_WEBHOOK_SECRET`
-11. backend marca o checkout como `paid` ou `failed`
+11. backend marca o checkout como `paid` ou `failed` e limpa o carrinho da sessão quando aplicável
 12. Stripe retorna para `/shop-gears/success`
 13. página de sucesso tenta confirmar o `session_id` diretamente com a Stripe
 14. frontend chama `POST /api/crm/checkout/finalize`
@@ -309,15 +345,14 @@ Data:
 
 Causa:
 
-- o layout foi inicialmente tratado como `Lure and Flies`
-- no Zoho o nome real validado é `Lures and Flies`
+- o layout anterior foi tratado com um nome divergente do Zoho
 - além disso, o campo `Layout` volta como objeto, não como string simples
 
 Solução:
 
-- corrigido o nome padrão do layout para `Lures and Flies`
+- removido o filtro padrão fixo por layout
 - criado `mapLayout(...)` para normalizar o campo
-- removida a dependência de filtro COQL inválido por `Layout`
+- produtos passaram a ser separados por `Category`
 
 Arquivos:
 
@@ -537,12 +572,46 @@ Arquivos:
 
 ---
 
+### 11. Carrinho antigo reaparecia após logout e novo login
+
+Data:
+
+- 2026-05-20
+
+Causa:
+
+- o logout removia apenas `zyba_session_token` do `localStorage`
+- snapshots locais `zyba_shop_cart:*` continuavam salvos no browser
+- o backend persistia carrinho por `email + tripId` com TTL longo
+- ao entrar em `Shop Gears` depois de novo login, o app podia sincronizar um carrinho antigo do backend ou renderizar um snapshot local antigo
+
+Solução:
+
+- criado `clearAllShopCartSnapshots()` para remover todos os snapshots locais de carrinho
+- novo login limpa snapshots locais antes de salvar o novo token de sessão
+- logout limpa snapshots locais e chama `/auth/logout` como best-effort
+- backend passou a persistir carrinho por chave opaca de sessão + `tripId`
+- checkout/Stripe passou a carregar `cartOwnerKey` no metadata para limpar a sessão correta no webhook
+- carrinhos antigos por email ficam órfãos até expirar e não são mais lidos por novas sessões
+
+Arquivos:
+
+- `zyba-app/lib/shop-cart.ts`
+- `zyba-app/lib/api.ts`
+- `zyba-app/app/login/page.tsx`
+- `zyba-app/components/LogoutButton.tsx`
+- `functions/Zoho_api/services/cart.js`
+- `functions/Zoho_api/routes/crm.js`
+- `functions/Zoho_api/services/stripe.js`
+- `functions/Zoho_api/routes/stripe.js`
+
+---
+
 ## Próximas etapas recomendadas
 
-1. criar `POST /api/crm/checkout/session`
-2. redirecionar `PAY NOW` para Stripe Checkout
-3. criar `POST /api/stripe/webhook`
-4. criar `Sales Order` no Zoho somente após aprovação no webhook do Stripe
+1. criar `Sales Order` no Zoho somente após aprovação/finalização do pagamento
+2. decidir regra de expiração/limpeza administrativa para carrinhos órfãos antigos
+3. criar mecanismo explícito de refresh de catálogo caso seja necessário ignorar temporariamente o cache de `Products`
 
 ---
 

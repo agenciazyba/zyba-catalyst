@@ -23,11 +23,12 @@ type ProductDetailResponse = {
       id?: string | null;
       name?: string | null;
     } | null;
-    lureImageCatalog?: Array<{
+    category?: string | null;
+    productImageCatalog?: Array<{
       downloadKey?: string | null;
       fileName?: string | null;
     }> | null;
-    lureImageReal?: Array<{
+    productImageReal?: Array<{
       downloadKey?: string | null;
       fileName?: string | null;
     }> | null;
@@ -121,8 +122,8 @@ export default function GearsDetailsPage() {
   }, [router, productId]);
 
   const images = [
-    ...(Array.isArray(product?.lureImageCatalog) ? product.lureImageCatalog : []),
-    ...(Array.isArray(product?.lureImageReal) ? product.lureImageReal : []),
+    ...(Array.isArray(product?.productImageCatalog) ? product.productImageCatalog : []),
+    ...(Array.isArray(product?.productImageReal) ? product.productImageReal : []),
   ]
     .map((image, index) => {
       const downloadKey = String(image?.downloadKey || "").trim();
@@ -155,9 +156,10 @@ export default function GearsDetailsPage() {
           productId: product.id,
           productName: product.productName || "Product",
           productCode: product.productCode || null,
+          category: product.category || null,
           unitPrice: typeof product.unitPrice === "number" ? product.unitPrice : null,
-          imageDownloadKey: product.lureImageCatalog?.[0]?.downloadKey || product.lureImageReal?.[0]?.downloadKey || null,
-          imageAlt: product.lureImageCatalog?.[0]?.fileName || product.lureImageReal?.[0]?.fileName || product.productName || null,
+          imageDownloadKey: product.productImageCatalog?.[0]?.downloadKey || product.productImageReal?.[0]?.downloadKey || null,
+          imageAlt: product.productImageCatalog?.[0]?.fileName || product.productImageReal?.[0]?.fileName || product.productName || null,
           vendorName: product.vendorName?.name || null,
         },
         quantity
@@ -281,6 +283,10 @@ export default function GearsDetailsPage() {
                   <div className="shop-gears-detail-row">
                     <span className="shop-gears-detail-label">Brand</span>
                     <p className="shop-gears-detail-value">{product.vendorName?.name || "-"}</p>
+                  </div>
+                  <div className="shop-gears-detail-row">
+                    <span className="shop-gears-detail-label">Category</span>
+                    <p className="shop-gears-detail-value">{product.category || "-"}</p>
                   </div>
                   <div className="shop-gears-detail-row">
                     <span className="shop-gears-detail-label">Price</span>

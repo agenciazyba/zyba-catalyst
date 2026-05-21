@@ -126,6 +126,17 @@ export default function TripsPage() {
 
   const token = getSessionToken() || "";
 
+  function scrollToTrip(tripId: string) {
+    const link = tripLinkRefs.current[tripId];
+    if (!link) return;
+    setActiveTripId(tripId);
+    link.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }
+
   function getBgUrl(trip: Trip) {
     return trip.coverId
       ? `/api/crm/files/${trip.coverId}?sessionToken=${token}`
@@ -137,49 +148,71 @@ export default function TripsPage() {
       <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trips-body">
-        <h4 className="trips-section-title">Your Trips</h4>
+        <div className="trips-heading">
+          <h4 className="trips-section-title">Your Trips</h4>
+          <p className="trips-section-subtitle">Ready for your next journey ?</p>
+        </div>
 
         {loading ? (
-          <div className="trips-carousel-view">
-            <div className="trips-carousel-track">
-              {[0, 1].map((item) => (
-                <article key={item} className="trip-card-modern skeleton-block" style={{ backgroundImage: "none" }}>
-                  <span className="trip-date-badge skeleton-block" style={{ width: 104, height: 24, display: "block", background: "rgba(255,255,255,0.28)" }} />
-                  <div className="trip-card-bottom" style={{ gap: 8 }}>
-                    <span className="skeleton-block skeleton-line w-60" />
-                    <span className="skeleton-block skeleton-line w-100" />
-                    <span className="skeleton-block skeleton-line w-80" />
-                  </div>
-                </article>
-              ))}
+          <div className="trips-carousel-area">
+            <div className="trips-carousel-view">
+              <div className="trips-carousel-track">
+                {[0, 1].map((item) => (
+                  <article key={item} className="trip-card-modern skeleton-block" style={{ backgroundImage: "none" }}>
+                    <span className="trip-date-badge skeleton-block" style={{ width: 104, height: 24, display: "block", background: "rgba(255,255,255,0.28)" }} />
+                    <div className="trip-card-bottom" style={{ gap: 8 }}>
+                      <span className="skeleton-block skeleton-line w-60" />
+                      <span className="skeleton-block skeleton-line w-100" />
+                      <span className="skeleton-block skeleton-line w-80" />
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
         ) : trips.length === 0 ? (
           <p className="text-h5" style={{ marginTop: 25, color: "var(--color-black)" }}>No trips available.</p>
         ) : (
-          <div className="trips-carousel-view" ref={carouselRef}>
-            <div className="trips-carousel-track">
-              {trips.map((trip) => (
-                <Link
-                  key={trip.id}
-                  href={`/trips/${trip.id}`}
-                  className={`trip-card-link${activeTripId === trip.id ? " is-active" : ""}`}
-                  ref={(node) => {
-                    tripLinkRefs.current[trip.id] = node;
-                  }}
-                >
-                  <article
-                    className="trip-card-modern"
-                    style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(0,0,0,0.9) 100%), url('${getBgUrl(trip)}')` }}
+          <div className="trips-carousel-area">
+            <div className="trips-carousel-view" ref={carouselRef}>
+              <div className="trips-carousel-track">
+                {trips.map((trip) => (
+                  <Link
+                    key={trip.id}
+                    href={`/trips/${trip.id}`}
+                    className={`trip-card-link${activeTripId === trip.id ? " is-active" : ""}`}
+                    ref={(node) => {
+                      tripLinkRefs.current[trip.id] = node;
+                    }}
                   >
-                    <span className="trip-date-badge">{formatDateUs(trip.arrivalDate)}</span>
-                    <div className="trip-card-bottom">
-                      <h5 className="trip-card-title">Trip name</h5>
-                      <p className="trip-card-subtitle">{trip.dealName || "Lorem ipsum is simply dummy text of the printing and typesetting industry."}</p>
-                    </div>
-                  </article>
-                </Link>
-              ))}
+                    <article
+                      className="trip-card-modern"
+                      style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(0,0,0,0.9) 100%), url('${getBgUrl(trip)}')` }}
+                    >
+                      <span className="trip-date-badge">{formatDateUs(trip.arrivalDate)}</span>
+                      <div className="trip-card-bottom">
+                        <h5 className="trip-card-title">Trip name</h5>
+                        <p className="trip-card-subtitle">{trip.dealName || "Lorem ipsum is simply dummy text of the printing and typesetting industry."}</p>
+                      </div>
+                    </article>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="trips-carousel-dots" aria-label="Trips carousel position">
+              {trips.map((trip, index) => {
+                const isActive = activeTripId === trip.id || (!activeTripId && index === 0);
+                return (
+                  <button
+                    key={trip.id}
+                    type="button"
+                    className={`trips-carousel-dot${isActive ? " is-active" : ""}`}
+                    aria-label={`Go to trip ${index + 1} of ${trips.length}`}
+                    aria-current={isActive ? "true" : undefined}
+                    onClick={() => scrollToTrip(trip.id)}
+                  />
+                );
+              })}
             </div>
           </div>
         )}

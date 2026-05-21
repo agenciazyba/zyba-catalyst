@@ -120,6 +120,20 @@ export async function verifyOtp(email: string, otp: string) {
   return parseResponse(response);
 }
 
+export async function logoutSession(sessionToken: string) {
+  const response = await fetch(withSessionToken(`${getApiBase()}/auth/logout`, sessionToken), {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${sessionToken}`,
+      "X-Session-Token": sessionToken,
+    },
+  });
+
+  return parseResponse(response);
+}
+
 export async function getTraveler(sessionToken: string) {
   const response = await fetch(withSessionToken(`${getApiBase()}/crm/travelers`, sessionToken), {
     cache: "no-store",

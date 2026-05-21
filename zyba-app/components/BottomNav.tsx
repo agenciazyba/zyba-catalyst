@@ -7,6 +7,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const isProfileActive = pathname?.startsWith("/profile");
   const isTripsActive = pathname?.startsWith("/trips");
+  const isOrdersActive = pathname?.startsWith("/orders");
 
   return (
     <nav className="bottom-nav">
@@ -24,13 +25,13 @@ export default function BottomNav() {
         <span>My trips</span>
       </Link>
 
-      <a href="mailto:support@zyba.com" className="nav-item">
+      <Link href="/orders" className={`nav-item ${isOrdersActive ? "active" : ""}`}>
         <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="nav-icon">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.5h19.5v12H2.25v-12Z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="m3 8.25 9 6 9-6" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6.25 4.75h11.5v14.5l-1.85-1.05-1.9 1.05-2-1.05-2 1.05-1.9-1.05-1.85 1.05V4.75Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.75 8.25h6.5M8.75 11.5h6.5M8.75 14.75h4.25" />
         </svg>
-        <span>Chat us</span>
-      </a>
+        <span>My orders</span>
+      </Link>
     </nav>
   );
 }

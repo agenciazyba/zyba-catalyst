@@ -253,6 +253,9 @@ export default function ShopCartPage() {
                       <div className="shop-gears-cart-item-content">
                         <div className="shop-gears-product-line-copy">
                           <p className="shop-gears-product-name">{item.productName}</p>
+                          {item.category ? (
+                            <p className="shop-gears-product-type">{item.category}</p>
+                          ) : null}
                           <p className="shop-gears-product-price">{formatCurrency(item.unitPrice)}</p>
                         </div>
 

@@ -23,6 +23,7 @@ export type ShopCartItem = {
   productId: string;
   productName: string;
   productCode?: string | null;
+  category?: string | null;
   unitPrice: number | null;
   quantity: number;
   imageDownloadKey?: string | null;
@@ -97,6 +98,7 @@ function normalizeCartItems(items: unknown): ShopCartItem[] {
       productId: String((item as ShopCartItem | null | undefined)?.productId || "").trim(),
       productName: String((item as ShopCartItem | null | undefined)?.productName || "").trim(),
       productCode: normalizeOptionalString((item as ShopCartItem | null | undefined)?.productCode),
+      category: normalizeOptionalString((item as ShopCartItem | null | undefined)?.category),
       unitPrice: normalizeUnitPrice((item as ShopCartItem | null | undefined)?.unitPrice),
       quantity: normalizeQuantity((item as ShopCartItem | null | undefined)?.quantity || 0),
       imageDownloadKey: normalizeOptionalString((item as ShopCartItem | null | undefined)?.imageDownloadKey),
@@ -157,6 +159,25 @@ function clearShopCartStorage(tripId: string, kind: ShopCartUpdateKind = "clear"
 
 export function clearShopCartSnapshot(tripId: string) {
   clearShopCartStorage(tripId);
+}
+
+export function clearAllShopCartSnapshots() {
+  if (typeof window === "undefined") return;
+
+  const keysToRemove: string[] = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith("zyba_shop_cart:")) {
+      keysToRemove.push(key);
+    }
+  }
+
+  for (const key of keysToRemove) {
+    cartSnapshotCache.delete(key);
+    localStorage.removeItem(key);
+  }
+
+  window.dispatchEvent(new CustomEvent(SHOP_CART_EVENT, { detail: { kind: "clear" } }));
 }
 
 async function parseCartResponse(response: Response): Promise<ShopCartApiResult> {

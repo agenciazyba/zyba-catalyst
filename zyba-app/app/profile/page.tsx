@@ -83,7 +83,7 @@ function ProfileCard({
   return (
     <article className="profile-card">
       <div className="profile-card-head">
-        <h2 className="profile-card-label">{label}</h2>
+        <h3 className="profile-card-label">{label}</h3>
         <span className="profile-card-icon" aria-hidden="true">
           {icon}
         </span>
@@ -166,7 +166,6 @@ export default function ProfilePage() {
           </div>
 
           <h1 className="profile-hero-name">{loading ? "Loading..." : data?.travelerName || "Traveler"}</h1>
-          {!loading ? <p className="profile-hero-caption">Photo synced from your traveler record.</p> : null}
         </div>
 
         {message ? <p className="page-subtitle profile-error">{message}</p> : null}

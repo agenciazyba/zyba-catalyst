@@ -1,7 +1,7 @@
 "use strict";
 
 const { getCacheSegment } = require("./cache");
-const { hashKey, normalizeEmail } = require("../utils/helpers");
+const { hashKey } = require("../utils/helpers");
 
 const CART_CACHE_TTL_HOURS = Number(process.env.CART_CACHE_TTL_HOURS || 24 * 30);
 const memoryCartStore = new Map();
@@ -22,8 +22,17 @@ function normalizeUnitPrice(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function buildCartCacheKey(email, tripId) {
-  return `cart_${hashKey(normalizeEmail(email))}_${hashKey(String(tripId || "").trim())}`;
+function normalizeCartOwner(ownerKey) {
+  return String(ownerKey || "").trim();
+}
+
+function buildCartCacheKey(ownerKey, tripId) {
+  return `cart_${hashKey(normalizeCartOwner(ownerKey))}_${hashKey(String(tripId || "").trim())}`;
+}
+
+function buildSessionCartOwnerKey(sessionToken) {
+  const safeToken = String(sessionToken || "").trim();
+  return safeToken ? `session_${hashKey(safeToken)}` : "";
 }
 
 function normalizeCartItem(item) {
@@ -39,6 +48,7 @@ function normalizeCartItem(item) {
     productId,
     productName,
     productCode: normalizeOptionalString(item.productCode),
+    category: normalizeOptionalString(item.category),
     unitPrice: normalizeUnitPrice(item.unitPrice),
     quantity,
     imageDownloadKey: normalizeOptionalString(item.imageDownloadKey),
@@ -62,7 +72,7 @@ function calculateCartTotals(items) {
   };
 }
 
-async function readCart(app, email, tripId) {
+async function readCart(app, ownerKey, tripId) {
   const safeTripId = String(tripId || "").trim();
   if (!safeTripId) {
     return {
@@ -74,7 +84,7 @@ async function readCart(app, email, tripId) {
     };
   }
 
-  const key = buildCartCacheKey(email, safeTripId);
+  const key = buildCartCacheKey(ownerKey, safeTripId);
   let raw = null;
 
   try {
@@ -119,9 +129,9 @@ async function readCart(app, email, tripId) {
   }
 }
 
-async function writeCart(app, email, tripId, items) {
+async function writeCart(app, ownerKey, tripId, items) {
   const safeTripId = String(tripId || "").trim();
-  const key = buildCartCacheKey(email, safeTripId);
+  const key = buildCartCacheKey(ownerKey, safeTripId);
   const totals = calculateCartTotals(items);
   const payload = {
     tripId: safeTripId,
@@ -148,17 +158,17 @@ async function writeCart(app, email, tripId, items) {
   };
 }
 
-async function getCart(app, email, tripId) {
-  return readCart(app, email, tripId);
+async function getCart(app, ownerKey, tripId) {
+  return readCart(app, ownerKey, tripId);
 }
 
-async function addCartItem(app, email, tripId, item, quantity) {
+async function addCartItem(app, ownerKey, tripId, item, quantity) {
   const safeQuantity = normalizeQuantity(quantity);
   if (safeQuantity <= 0) {
-    return readCart(app, email, tripId);
+    return readCart(app, ownerKey, tripId);
   }
 
-  const current = await readCart(app, email, tripId);
+  const current = await readCart(app, ownerKey, tripId);
   const normalizedItem = normalizeCartItem({
     ...item,
     quantity: safeQuantity,
@@ -176,16 +186,16 @@ async function addCartItem(app, email, tripId, item, quantity) {
       ...next[existingIndex],
       quantity: next[existingIndex].quantity + safeQuantity,
     };
-    return writeCart(app, email, tripId, next);
+    return writeCart(app, ownerKey, tripId, next);
   }
 
-  return writeCart(app, email, tripId, [...current.items, normalizedItem]);
+  return writeCart(app, ownerKey, tripId, [...current.items, normalizedItem]);
 }
 
-async function setCartItemQuantity(app, email, tripId, productId, quantity) {
+async function setCartItemQuantity(app, ownerKey, tripId, productId, quantity) {
   const safeProductId = String(productId || "").trim();
   const safeQuantity = normalizeQuantity(quantity);
-  const current = await readCart(app, email, tripId);
+  const current = await readCart(app, ownerKey, tripId);
 
   const next = current.items
     .map((item) =>
@@ -198,25 +208,26 @@ async function setCartItemQuantity(app, email, tripId, productId, quantity) {
     )
     .filter((item) => item.quantity > 0);
 
-  return writeCart(app, email, tripId, next);
+  return writeCart(app, ownerKey, tripId, next);
 }
 
-async function removeCartItem(app, email, tripId, productId) {
+async function removeCartItem(app, ownerKey, tripId, productId) {
   const safeProductId = String(productId || "").trim();
-  const current = await readCart(app, email, tripId);
+  const current = await readCart(app, ownerKey, tripId);
   const next = current.items.filter((item) => item.productId !== safeProductId);
-  return writeCart(app, email, tripId, next);
+  return writeCart(app, ownerKey, tripId, next);
 }
 
-async function clearCart(app, email, tripId) {
-  return writeCart(app, email, tripId, []);
+async function clearCart(app, ownerKey, tripId) {
+  return writeCart(app, ownerKey, tripId, []);
 }
 
-async function replaceCart(app, email, tripId, items) {
-  return writeCart(app, email, tripId, items);
+async function replaceCart(app, ownerKey, tripId, items) {
+  return writeCart(app, ownerKey, tripId, items);
 }
 
 module.exports = {
+  buildSessionCartOwnerKey,
   getCart,
   addCartItem,
   setCartItemQuantity,
