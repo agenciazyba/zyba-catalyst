@@ -4,6 +4,7 @@ import AppTopBar from "@/components/AppTopBar";
 import LottieFilePlayer from "@/components/LottieFilePlayer";
 import { getSessionToken } from "@/lib/auth";
 import {
+  type FinalizeCheckoutResponse,
   finalizeCheckout,
   getCheckoutStatus,
   getTraveler,
@@ -15,6 +16,14 @@ import { useEffect, useEffectEvent, useMemo, useState } from "react";
 type Traveler = {
   travelerName?: string | null;
 };
+
+function formatCurrency(value?: number | null, currency = "usd") {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: String(currency || "usd").toUpperCase(),
+  }).format(Number(value));
+}
 
 export default function ShopGearsSuccessPage() {
   const params = useParams();
@@ -29,6 +38,7 @@ export default function ShopGearsSuccessPage() {
 
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [status, setStatus] = useState<"pending" | "success" | "error">("pending");
+  const [orderSummary, setOrderSummary] = useState<FinalizeCheckoutResponse | null>(null);
   const stripeSessionId = searchParams?.get("session_id") || "";
   const previewMode = String(searchParams?.get("preview") || "").trim().toLowerCase();
   const isPendingPreview = previewMode === "pending" || previewMode === "processing";
@@ -62,6 +72,7 @@ export default function ShopGearsSuccessPage() {
     }
 
     clearShopCartSnapshot(tripId);
+    setOrderSummary(finalizeResult.data);
     setStatus("success");
     return true;
   });
@@ -138,12 +149,41 @@ export default function ShopGearsSuccessPage() {
             />
           </section>
         ) : (
-          <section className="shop-gears-success-pending-stage">
+          <section className="shop-gears-success-pending-stage is-approved">
             <LottieFilePlayer
               src="/lotties-stripe-transfer-success.json"
               className="shop-gears-lottie"
               loop={false}
             />
+            {orderSummary?.salesOrder ? (
+              <article className="shop-gears-success-summary" aria-label="Order summary">
+                <p className="shop-gears-success-kicker">Order approved</p>
+                <h1>{orderSummary.salesOrder.subject || "Your tackle box order"}</h1>
+                <dl>
+                  <div>
+                    <dt>Order</dt>
+                    <dd>
+                      {orderSummary.salesOrder.salesOrderNumber ||
+                        orderSummary.salesOrder.salesOrderId ||
+                        "-"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Total</dt>
+                    <dd>
+                      {formatCurrency(
+                        orderSummary.salesOrder.amountTotal ?? orderSummary.amountTotal,
+                        orderSummary.salesOrder.currency || orderSummary.currency || "usd"
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>{orderSummary.salesOrder.status || "Completed"}</dd>
+                  </div>
+                </dl>
+              </article>
+            ) : null}
           </section>
         )}
       </section>

@@ -747,9 +747,17 @@ h5 {
   font-weight: 700;
 }
 
+.orders-subtitle {
+  max-width: 260px;
+  margin: 6px 0 0;
+  color: rgba(28, 28, 28, 0.72);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .orders-empty-card {
   margin-top: 24px;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid rgba(35, 35, 35, 0.1);
   background: #f7f2e8;
   padding: 20px;
@@ -769,6 +777,234 @@ h5 {
   font-family: "BL Melody", sans-serif;
   font-size: 14px;
   line-height: 1.45;
+}
+
+.orders-message {
+  margin: 12px 0 0;
+  color: var(--color-orange);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.orders-list {
+  margin-top: 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.orders-list-row {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  border: 1px solid rgba(35, 35, 35, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(35, 35, 35, 0.05);
+  overflow: hidden;
+}
+
+.orders-card-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: start;
+  gap: 8px;
+  padding: 12px 10px 12px 12px;
+}
+
+.orders-card-summary {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  text-align: left;
+}
+
+.orders-status-badge {
+  width: max-content;
+  max-width: 100%;
+  grid-column: 1;
+  border-radius: 4px;
+  padding: 4px 6px 3px;
+  background: rgba(237, 105, 70, 0.13);
+  color: #b65637;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.orders-status-completed,
+.orders-status-approved {
+  background: rgba(17, 96, 51, 0.12);
+  color: #116033;
+}
+
+.orders-order-number {
+  grid-column: 1;
+  margin-top: 3px;
+  color: rgba(28, 28, 28, 0.76);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.orders-destination {
+  grid-column: 1;
+  color: #1c1c1c;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.orders-payment-date {
+  grid-column: 1;
+  margin-top: 5px;
+  color: rgba(28, 28, 28, 0.66);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.orders-total {
+  margin-top: 2px;
+  color: var(--color-orange);
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.orders-details-toggle {
+  appearance: none;
+  width: max-content;
+  max-width: 100%;
+  margin-top: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: #1c1c1c;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  text-transform: uppercase;
+}
+
+.orders-details-toggle-icon {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 140ms ease;
+}
+
+.orders-details-toggle[aria-expanded="true"] .orders-details-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.orders-pdf-link {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(28, 28, 28, 0.48);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1c1c1c;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.orders-pdf-link:active {
+  transform: scale(0.9);
+}
+
+.orders-pdf-link:disabled {
+  opacity: 0.55;
+}
+
+.orders-pdf-link svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.orders-items-panel {
+  border-top: 1px solid rgba(35, 35, 35, 0.1);
+  padding: 12px;
+}
+
+.orders-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.orders-item-info {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.orders-item-name {
+  color: #1c1c1c;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.orders-item-qty {
+  color: rgba(28, 28, 28, 0.58);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.orders-item-total {
+  color: #1c1c1c;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.orders-items-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(35, 35, 35, 0.12);
+  color: #1c1c1c;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.orders-items-total strong {
+  font-family: "BL Melody", sans-serif;
+  font-size: 13px;
+}
+
+.orders-items-empty {
+  margin: 0;
+  color: rgba(28, 28, 28, 0.62);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .trips-page {
@@ -981,24 +1217,27 @@ h5 {
 
 .trip-date-badge {
   margin-left: auto;
+  max-width: 100%;
   border-radius: 999px;
   background: var(--color-black);
-  padding: 4px 8px;
+  padding: 5px 10px;
   font-family: "BL Melody", sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  line-height: 1.2;
+  text-align: right;
 }
 
 .trip-card-bottom {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .trip-card-title {
   margin: 0;
-  font-family: "BL Melody Mono", monospace;
+  font-family: "BL Melody", sans-serif;
   font-weight: 400;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
@@ -1008,6 +1247,15 @@ h5 {
   font-size: 12px;
   line-height: 1.25;
   opacity: 0.98;
+}
+
+.trip-card-country {
+  margin: 0;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  color: rgba(247, 242, 232, 0.82);
+  text-transform: uppercase;
 }
 
 .trips-carousel-dots {
@@ -1475,6 +1723,14 @@ h5 {
   gap: 12px;
 }
 
+.itinerary-day-content .trip-content-card-line {
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: none;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
 .itinerary-day-head {
   display: grid;
   gap: 8px;
@@ -1716,9 +1972,70 @@ h5 {
   gap: 16px;
 }
 
+.flight-page-subtitle {
+  margin: -6px 0 16px;
+  color: rgba(28, 28, 28, 0.66);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.flight-carousel-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.flight-carousel-view {
+  margin-inline: calc(var(--screen-padding) * -1);
+  width: calc(100% + (var(--screen-padding) * 2));
+  padding: 4px var(--screen-padding) 14px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-snap-type: x mandatory;
+}
+
+.flight-carousel-view::-webkit-scrollbar {
+  display: none;
+}
+
+.flight-carousel-track {
+  display: flex;
+  gap: 17px;
+  width: max-content;
+  min-width: max-content;
+  padding-right: var(--screen-padding);
+}
+
+.flight-card-slide,
+.flight-carousel-track > .flight-ticket {
+  width: min(334px, calc(100vw - 72px));
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  transform: scale(0.965);
+  transform-origin: center center;
+  opacity: 0.9;
+  transition:
+    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 220ms ease,
+    filter 220ms ease;
+  filter: saturate(0.92);
+}
+
+.flight-card-slide.is-active {
+  transform: scale(1);
+  opacity: 1;
+  filter: saturate(1);
+  animation: tripsCardFocusBounce 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .flight-ticket {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .flight-ticket-topmeta {
@@ -1753,10 +2070,43 @@ h5 {
 
 .flight-ticket-card {
   overflow: hidden;
-  border-radius: 16px;
-  border: 1px solid rgba(17, 96, 51, 0.12);
+  border-radius: 10px;
+  border: 1px solid rgba(35, 35, 35, 0.06);
   background: #ffffff;
-  box-shadow: 0 10px 24px rgba(28, 28, 28, 0.06);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+}
+
+.flight-ticket-download-btn {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #116033;
+  background: #ffffff;
+  color: #116033;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.flight-ticket-download-btn:active {
+  transform: scale(0.98);
+}
+
+.flight-ticket-download-btn:focus-visible {
+  outline: 2px solid rgba(17, 96, 51, 0.38);
+  outline-offset: 3px;
 }
 
 .flight-ticket-header {
@@ -1852,8 +2202,17 @@ h5 {
   line-height: 1.25;
 }
 
-.flight-leg-time {
+.flight-leg-date {
   margin-top: 8px;
+  color: rgba(28, 28, 28, 0.58);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.flight-leg-time {
+  margin-top: 4px;
   color: #1c1c1c;
   font-family: "BL Melody Mono", monospace;
   font-size: 16px;
@@ -1902,7 +2261,48 @@ h5 {
 
 .flight-connections-stack {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(17, 96, 51, 0.14);
+}
+
+.flight-connections-title {
+  margin: 0;
+  color: #1c1c1c;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.flight-connection-card {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(17, 96, 51, 0.12);
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.flight-connection-card > div {
+  display: grid;
+  gap: 3px;
+}
+
+.flight-connection-label {
+  color: rgba(28, 28, 28, 0.58);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 9px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.flight-connection-card strong {
+  color: #1c1c1c;
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .flight-connection-pill-row {
@@ -3478,7 +3878,7 @@ h5 {
   min-height: 24px;
   padding: 0 9px;
   border-radius: 999px;
-  background: #ff6f41;
+  background: #116033;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -3870,8 +4270,8 @@ h5 {
   min-height: 24px;
   padding: 0 10px;
   border-radius: 999px;
-  background: #314132;
-  color: #f4e9d3;
+  background: #116033;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4525,9 +4925,75 @@ h5 {
   padding: 16px;
 }
 
+.shop-gears-success-pending-stage.is-approved {
+  align-content: center;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .shop-gears-lottie {
   width: min(100%, 340px);
   max-height: min(52dvh, 340px);
+}
+
+.shop-gears-success-summary {
+  width: min(calc(100% - 32px), 360px);
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgba(17, 96, 51, 0.2);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.shop-gears-success-kicker {
+  margin: 0;
+  color: #116033;
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.shop-gears-success-summary h1 {
+  margin: 0;
+  color: #1c1c1c;
+  font-size: 20px;
+  line-height: 1.12;
+}
+
+.shop-gears-success-summary dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.shop-gears-success-summary dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(28, 28, 28, 0.08);
+}
+
+.shop-gears-success-summary dt,
+.shop-gears-success-summary dd {
+  margin: 0;
+}
+
+.shop-gears-success-summary dt {
+  color: rgba(28, 28, 28, 0.58);
+  font-family: "BL Melody Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.shop-gears-success-summary dd {
+  color: #1c1c1c;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
 }
 
 .shop-gears-powered-by {

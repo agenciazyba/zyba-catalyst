@@ -41,6 +41,7 @@ const links = [
   { label: "Hotel Information", slug: "hotel-information", icon: "hotel" as const },
   { label: "Transfer Information", slug: "transfer-information", icon: "transfer" as const },
   { label: "Full Itinerary", slug: "full-itinerary", icon: "itinerary" as const },
+  { label: "My orders", slug: "/orders", icon: "orders" as const },
 ];
 
 function formatDate(value: string | null | undefined) {
@@ -264,7 +265,7 @@ export default function TripIndexPage() {
             : links.map((item, index) => (
                 <Link
                   key={item.label}
-                  href={`/trips/${tripId}/${item.slug}`}
+                  href={item.slug.startsWith("/") ? item.slug : `/trips/${tripId}/${item.slug}`}
                   className="trip-details-link-row trip-details-reveal"
                   style={{ ["--trip-reveal-delay" as string]: `${380 + index * 90}ms` }}
                 >
@@ -273,8 +274,10 @@ export default function TripIndexPage() {
                       <Image src="/icons/trip-hotels.png" alt="" width={30} height={30} className="trip-details-link-icon" />
                     ) : item.icon === "transfer" ? (
                       <Image src="/icons/trip-transfer.png" alt="" width={30} height={30} className="trip-details-link-icon" />
-                    ) : (
+                    ) : item.icon === "itinerary" ? (
                       <Image src="/icons/trip-itinerary.png" alt="" width={30} height={30} className="trip-details-link-icon" />
+                    ) : (
+                      <Image src="/icons/trip-documents.png" alt="" width={30} height={30} className="trip-details-link-icon" />
                     )}
                     <span className="trip-details-link-text">{item.label}</span>
                   </span>

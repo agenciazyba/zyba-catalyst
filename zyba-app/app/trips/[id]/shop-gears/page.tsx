@@ -48,6 +48,7 @@ type ProductListResponse = {
       downloadKey?: string | null;
       fileName?: string | null;
     }> | null;
+    essential?: boolean | string | number | null;
     productRecommended?: boolean | string | number | null;
     productRecommendation?: boolean | string | number | null;
     highlyRecommended?: boolean | string | number | null;
@@ -79,7 +80,7 @@ type ShopProduct = {
   unitPrice: number | null;
   imageDownloadKey: string;
   imageAlt: string;
-  isRecommended: boolean;
+  isEssential: boolean;
 };
 
 function formatCurrency(value?: number | null) {
@@ -90,11 +91,11 @@ function formatCurrency(value?: number | null) {
   }).format(Number(value));
 }
 
-function isRecommendedValue(value: unknown) {
+function isEssentialValue(value: unknown) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value === 1;
   const normalized = String(value || "").trim().toLowerCase();
-  return ["true", "yes", "1", "recommended", "essential", "highly recommended"].includes(normalized);
+  return ["true", "yes", "1", "essential"].includes(normalized);
 }
 
 function wait(ms: number) {
@@ -272,11 +273,7 @@ export default function ShopGearsPage() {
               typeof item?.unitPrice === "number" ? item.unitPrice : Number(item?.unitPrice ?? null),
             imageDownloadKey: String(item?.productImageCatalog?.[0]?.downloadKey || "").trim(),
             imageAlt: String(item?.productImageCatalog?.[0]?.fileName || item?.productName || "Product image"),
-            isRecommended:
-              isRecommendedValue(item?.productRecommended) ||
-              isRecommendedValue(item?.productRecommendation) ||
-              isRecommendedValue(item?.highlyRecommended) ||
-              isRecommendedValue(item?.recommended),
+            isEssential: isEssentialValue(item?.essential),
           }))
           .filter((item) => item.id && item.productName)
           .map((item) => ({
@@ -538,8 +535,8 @@ export default function ShopGearsPage() {
                           )}
                         </button>
 
-                        {product.isRecommended ? (
-                          <span className="shop-gears-recommended-badge">Essential</span>
+                        {product.isEssential ? (
+                          <span className="shop-gears-recommended-badge">ESSENTIAL</span>
                         ) : null}
 
                         <button
@@ -710,8 +707,8 @@ export default function ShopGearsPage() {
                     </div>
                   )}
 
-                  {selectedProduct.isRecommended ? (
-                    <span className="shop-gears-detail-sheet-badge">Top rated</span>
+                  {selectedProduct.isEssential ? (
+                    <span className="shop-gears-detail-sheet-badge">ESSENTIAL</span>
                   ) : null}
                 </div>
 

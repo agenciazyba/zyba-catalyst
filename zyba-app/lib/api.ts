@@ -33,7 +33,29 @@ export type CheckoutStatusResponse = {
   amountTotal?: number | null;
   currency?: string | null;
   customerEmail?: string | null;
+  salesOrder?: SalesOrderSummary | null;
   updatedAt?: string | null;
+};
+
+export type SalesOrderSummary = {
+  id?: string | null;
+  salesOrderId?: string | null;
+  salesOrderNumber?: string | null;
+  subject?: string | null;
+  status?: string | null;
+  amountTotal?: number | null;
+  currency?: string | null;
+  appOrderStatus?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  createdAt?: string | null;
+  items?: Array<{
+    productId?: string | null;
+    productName?: string | null;
+    productCode?: string | null;
+    vendorName?: string | null;
+    quantity?: number | null;
+    unitPrice?: number | null;
+  }>;
 };
 
 export type FinalizeCheckoutResponse = {
@@ -44,21 +66,65 @@ export type FinalizeCheckoutResponse = {
   currency?: string | null;
   customerEmail?: string | null;
   stripeEventId?: string | null;
+  salesOrder?: SalesOrderSummary | null;
   finalizedAt?: string | null;
+};
+
+export type SalesOrderDryRunResponse = {
+  dryRun?: boolean;
+  createsZohoRecord?: boolean;
+  layout?: {
+    id?: string | null;
+    name?: string | null;
+  };
+  parentTrip?: {
+    id?: string | null;
+    subject?: string | null;
+    dealId?: string | null;
+    dealName?: string | null;
+    accountId?: string | null;
+    accountName?: string | null;
+  };
+  recordData?: Record<string, unknown>;
+  summary?: SalesOrderSummary | null;
 };
 
 export type Trip = {
   id: string;
+  tripName?: string | null;
   dealName: string | null;
+  destinationName?: string | null;
+  destinationCountry?: string | null;
   subject: string | null;
   status: string | null;
   totalAmount: number | null;
   documentsAcknowledged?: boolean;
   arrivalDate?: string | null;
+  departureDate?: string | null;
   coverId?: string | null;
   flights?: Array<{
     id: string | null;
     name: string | null;
+  }>;
+};
+
+export type ProductOrder = {
+  id: string;
+  subject: string | null;
+  salesOrderNumber: string | null;
+  destinationName?: string | null;
+  total: number | null;
+  status?: string | null;
+  currency?: string | null;
+  paymentDate?: string | null;
+  createdAt?: string | null;
+  items?: Array<{
+    id?: string | null;
+    name: string | null;
+    description?: string | null;
+    quantity?: number | null;
+    unitPrice?: number | null;
+    total?: number | null;
   }>;
 };
 
@@ -71,6 +137,7 @@ export type FlightConnectionInput = {
 };
 
 export type FlightInput = {
+  tripId: string;
   trackingNumber: string;
   airlineCompany?: string | null;
   airportDestination?: string | null;
@@ -156,6 +223,18 @@ export async function getTrips(sessionToken: string): Promise<ApiResponse<Trip[]
   });
 
   return parseResponse<Trip[]>(response);
+}
+
+export async function getOrders(sessionToken: string): Promise<ApiResponse<ProductOrder[]>> {
+  const response = await fetch(withSessionToken(`${getApiBase()}/crm/orders`, sessionToken), {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${sessionToken}`,
+      "X-Session-Token": sessionToken,
+    },
+  });
+
+  return parseResponse<ProductOrder[]>(response);
 }
 
 export async function getTripDetails(sessionToken: string, tripId: string) {
@@ -277,4 +356,22 @@ export async function finalizeCheckout(sessionToken: string, tripId: string, ses
   );
 
   return parseResponse<FinalizeCheckoutResponse>(response);
+}
+
+export async function dryRunSalesOrder(sessionToken: string, tripId: string) {
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/checkout/sales-order/dry-run`, sessionToken),
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+      body: JSON.stringify({ tripId }),
+    }
+  );
+
+  return parseResponse<SalesOrderDryRunResponse>(response);
 }

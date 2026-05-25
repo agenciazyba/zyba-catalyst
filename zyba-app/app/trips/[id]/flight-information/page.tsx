@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import TripBackLink from "@/components/TripBackLink";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
@@ -16,6 +15,12 @@ type FlightConnection = {
   time?: string | null;
 };
 
+type FlightUploadedFile = {
+  id?: string | null;
+  fileName?: string | null;
+  downloadKey?: string | null;
+};
+
 type FlightInfo = {
   id?: string | null;
   name?: string | null;
@@ -27,6 +32,7 @@ type FlightInfo = {
   departureAirport?: string | null;
   status?: string | null;
   connectionsInformation?: FlightConnection[];
+  ticketFile?: FlightUploadedFile[];
 };
 
 type TripDetailsResponse = {
@@ -43,13 +49,13 @@ function formatTime(value?: string | null) {
   const text = String(value || "").trim();
   if (!text) return "";
 
-  const parsed = new Date(text);
-  if (!Number.isNaN(parsed.getTime())) {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }).format(parsed);
+  const match = text.match(/T(\d{2}):(\d{2})/);
+  if (match) {
+    const hour = Number(match[1]);
+    const minute = match[2];
+    const period = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    return `${String(displayHour).padStart(2, "0")}:${minute} ${period}`;
   }
 
   return text;
@@ -59,16 +65,20 @@ function formatDate(value?: string | null) {
   const text = String(value || "").trim();
   if (!text) return "";
 
-  const parsed = new Date(text);
-  if (!Number.isNaN(parsed.getTime())) {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(parsed);
-  }
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return text;
 
-  return text;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 function extractAirportCode(value?: string | null) {
@@ -103,15 +113,10 @@ function getInitials(value?: string | null) {
     .join("");
 }
 
-function renderMetaPill(value?: string | null) {
-  const text = String(value || "").trim();
-  if (!text) return null;
-
-  return (
-    <div className="flight-meta-pill">
-      <strong>{text}</strong>
-    </div>
-  );
+function getFlightTicketFile(flight: FlightInfo) {
+  return Array.isArray(flight.ticketFile)
+    ? flight.ticketFile.find((file) => String(file?.downloadKey || "").trim())
+    : null;
 }
 
 function FlightLeg({
@@ -119,6 +124,8 @@ function FlightLeg({
   destination,
   departureTime,
   arrivalTime,
+  departureDate,
+  arrivalDate,
   duration,
   centerLabel,
   showDivider = false,
@@ -127,6 +134,8 @@ function FlightLeg({
   destination: string;
   departureTime?: string | null;
   arrivalTime?: string | null;
+  departureDate?: string | null;
+  arrivalDate?: string | null;
   duration?: string | null;
   centerLabel?: string | null;
   showDivider?: boolean;
@@ -136,6 +145,7 @@ function FlightLeg({
       <div className="flight-leg-side">
         <div className="flight-leg-code">{extractAirportCode(origin)}</div>
         {extractAirportLabel(origin) ? <div className="flight-leg-label">{extractAirportLabel(origin)}</div> : null}
+        {departureDate ? <div className="flight-leg-date">{departureDate}</div> : null}
         {departureTime ? <div className="flight-leg-time">{departureTime}</div> : null}
       </div>
 
@@ -152,6 +162,7 @@ function FlightLeg({
       <div className="flight-leg-side is-right">
         <div className="flight-leg-code">{extractAirportCode(destination)}</div>
         {extractAirportLabel(destination) ? <div className="flight-leg-label">{extractAirportLabel(destination)}</div> : null}
+        {arrivalDate ? <div className="flight-leg-date">{arrivalDate}</div> : null}
         {arrivalTime ? <div className="flight-leg-time">{arrivalTime}</div> : null}
       </div>
     </div>
@@ -161,6 +172,8 @@ function FlightLeg({
 export default function FlightInformationPage() {
   const params = useParams();
   const router = useRouter();
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const flightCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const tripId = useMemo(() => {
     const raw = params?.id;
@@ -172,6 +185,8 @@ export default function FlightInformationPage() {
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [activeFlightId, setActiveFlightId] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -182,6 +197,7 @@ export default function FlightInformationPage() {
         router.push("/login");
         return;
       }
+      setSessionToken(token);
 
       const [tripResult, travelerResult] = await Promise.all([
         getTripDetails(token, tripId),
@@ -204,7 +220,75 @@ export default function FlightInformationPage() {
     void loadData();
   }, [tripId, router]);
 
-  const flights = Array.isArray(data?.trip?.flights) ? data?.trip?.flights : [];
+  const flights = useMemo(
+    () => (Array.isArray(data?.trip?.flights) ? data.trip.flights : []),
+    [data]
+  );
+
+  useEffect(() => {
+    if (!flights.length) return;
+
+    const carousel = carouselRef.current;
+    let frameId = 0;
+
+    const updateActiveCard = () => {
+      frameId = 0;
+      if (!carousel) {
+        const fallbackFlightId = flights[0]?.id || "flight-0";
+        setActiveFlightId((current) => (current === fallbackFlightId ? current : fallbackFlightId));
+        return;
+      }
+
+      const viewportCenter = carousel.scrollLeft + carousel.clientWidth / 2;
+      let nextActiveFlightId = flights[0]?.id || "flight-0";
+      let shortestDistance = Number.POSITIVE_INFINITY;
+
+      flights.forEach((flight, index) => {
+        const flightId = flight.id || `flight-${index}`;
+        const card = flightCardRefs.current[flightId];
+        if (!card) return;
+
+        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+        const distance = Math.abs(cardCenter - viewportCenter);
+
+        if (distance < shortestDistance) {
+          shortestDistance = distance;
+          nextActiveFlightId = flightId;
+        }
+      });
+
+      setActiveFlightId((current) => (current === nextActiveFlightId ? current : nextActiveFlightId));
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(updateActiveCard);
+    };
+
+    scheduleUpdate();
+    carousel?.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      carousel?.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [flights]);
+
+  function scrollToFlight(flightId: string) {
+    const card = flightCardRefs.current[flightId];
+    const carousel = carouselRef.current;
+    if (!card || !carousel) return;
+
+    setActiveFlightId(flightId);
+    carousel.scrollTo({
+      left: card.offsetLeft - (carousel.clientWidth - card.offsetWidth) / 2,
+      behavior: "smooth",
+    });
+  }
 
   return (
     <main className="trip-details-page">
@@ -214,106 +298,172 @@ export default function FlightInformationPage() {
         <h5 className="trip-details-section-title" style={{ marginBottom: 16 }}>
           Flight Itinerary
         </h5>
+        <p className="flight-page-subtitle">
+          This is just a summary of your flight information. Before making your plans, please check the updated information on your boarding pass or contact our team.
+        </p>
 
         <div className="flight-itinerary-stack">
           {loading ? (
-            [0, 1].map((idx) => (
-              <div key={`flight-skeleton-${idx}`} className="flight-ticket skeleton-card">
-                <div className="flight-ticket-header">
-                  <span className="skeleton-block" style={{ width: 140, height: 20, borderRadius: 12 }} />
-                  <span className="skeleton-block" style={{ width: 96, height: 20, borderRadius: 12 }} />
-                </div>
-                <div className="flight-ticket-body">
-                  <span className="skeleton-block skeleton-line w-100" />
-                  <span className="skeleton-block skeleton-line w-80" />
-                  <span className="skeleton-block skeleton-line w-60" />
+            <div className="flight-carousel-area">
+              <div className="flight-carousel-view">
+                <div className="flight-carousel-track">
+                  {[0, 1].map((idx) => (
+                    <div key={`flight-skeleton-${idx}`} className="flight-ticket skeleton-card">
+                      <div className="flight-ticket-header">
+                        <span className="skeleton-block" style={{ width: 140, height: 20, borderRadius: 12 }} />
+                        <span className="skeleton-block" style={{ width: 96, height: 20, borderRadius: 12 }} />
+                      </div>
+                      <div className="flight-ticket-body">
+                        <span className="skeleton-block skeleton-line w-100" />
+                        <span className="skeleton-block skeleton-line w-80" />
+                        <span className="skeleton-block skeleton-line w-60" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))
+            </div>
           ) : flights.length === 0 ? (
             <div className="flight-empty-card">
               <p className="flight-empty-copy">No flights found.</p>
             </div>
           ) : (
-            flights.map((flight, index) => {
-              const pnr = flight.trackingNumber || flight.name || "";
-              const airline = flight.airlineCompany || "";
-              const departureAirport = flight.departureAirport || "";
-              const destinationAirport = flight.airportDestination || "";
-              const departureTime = formatTime(flight.departure);
-              const arrivalTime = formatTime(flight.arrival);
-              const connections = Array.isArray(flight.connectionsInformation)
-                ? flight.connectionsInformation.filter(
-                    (item) =>
-                      item.connectionAirport ||
-                      item.countryCity ||
-                      item.date ||
-                      item.duration !== null ||
-                      item.time
-                  )
-                : [];
+            <div className="flight-carousel-area">
+              <div className="flight-carousel-view" ref={carouselRef}>
+                <div className="flight-carousel-track">
+                  {flights.map((flight, index) => {
+                    const flightId = flight.id || `flight-${index}`;
+                    const isActive = activeFlightId === flightId || (!activeFlightId && index === 0);
+                    const pnr = flight.trackingNumber || flight.name || "";
+                    const airline = flight.airlineCompany || "";
+                    const departureAirport = flight.departureAirport || "";
+                    const destinationAirport = flight.airportDestination || "";
+                    const departureDate = formatDate(flight.departure);
+                    const arrivalDate = formatDate(flight.arrival);
+                    const departureTime = formatTime(flight.departure);
+                    const arrivalTime = formatTime(flight.arrival);
+                    const ticketFile = getFlightTicketFile(flight);
+                    const ticketDownloadUrl =
+                      ticketFile?.downloadKey && sessionToken
+                        ? `/api/crm/files/${encodeURIComponent(ticketFile.downloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`
+                        : "";
+                    const connections = Array.isArray(flight.connectionsInformation)
+                      ? flight.connectionsInformation.filter(
+                          (item) =>
+                            item.connectionAirport ||
+                            item.countryCity ||
+                            item.date ||
+                            item.duration !== null ||
+                            item.time
+                        )
+                      : [];
+                    const connectionLabel =
+                      connections.length === 0
+                        ? "Direct flight"
+                        : `${connections.length} ${connections.length === 1 ? "Connection" : "Connections"}`;
 
-              return (
-                <div key={flight.id || `flight-${index}`} className="flight-ticket">
-                  <div className="flight-ticket-card">
-                    <div className="flight-ticket-header">
-                      <div className="flight-brand">
-                        <div className="flight-brand-badge">{getInitials(airline || pnr)}</div>
-                        {airline ? <div className="flight-brand-name">{airline}</div> : null}
-                      </div>
+                    return (
+                      <div
+                        key={flightId}
+                        className={`flight-card-slide${isActive ? " is-active" : ""}`}
+                        ref={(node) => {
+                          flightCardRefs.current[flightId] = node;
+                        }}
+                      >
+                        <div className="flight-ticket">
+                          <div className="flight-ticket-card">
+                            <div className="flight-ticket-header">
+                              <div className="flight-brand">
+                                <div className="flight-brand-badge">{getInitials(airline || pnr)}</div>
+                                {airline ? <div className="flight-brand-name">{airline}</div> : null}
+                              </div>
 
-                      {pnr ? <div className="flight-number-chip">Flight {pnr}</div> : null}
-                    </div>
+                              {pnr ? <div className="flight-number-chip">Flight {pnr}</div> : null}
+                            </div>
 
-                    <div className="flight-ticket-body">
-                      {departureAirport || destinationAirport || departureTime || arrivalTime ? (
-                        <FlightLeg
-                          origin={departureAirport}
-                          destination={destinationAirport}
-                          departureTime={departureTime}
-                          arrivalTime={arrivalTime}
-                          duration={connections[0]?.time || ""}
-                        />
-                      ) : null}
-
-                      {connections.length > 0 ? (
-                        <div className="flight-connections-stack">
-                          {connections.map((connection, connectionIndex) => (
-                            <div key={connection.id || `connection-${connectionIndex}`}>
-                              {connection.date ? (
-                                <div className="flight-connection-pill-row">
-                                  {renderMetaPill(formatDate(connection.date))}
-                                </div>
-                              ) : null}
-
-                              {connection.connectionAirport && destinationAirport ? (
+                            <div className="flight-ticket-body">
+                              {departureAirport || destinationAirport || departureTime || arrivalTime ? (
                                 <FlightLeg
-                                  origin={connection.connectionAirport}
+                                  origin={departureAirport}
                                   destination={destinationAirport}
-                                  departureTime=""
+                                  departureTime={departureTime}
                                   arrivalTime={arrivalTime}
-                                  centerLabel="Connection"
-                                  showDivider
+                                  departureDate={departureDate}
+                                  arrivalDate={arrivalDate}
+                                  duration={connectionLabel}
                                 />
                               ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
 
-                  </div>
+                              {connections.length > 0 ? (
+                                <section className="flight-connections-stack" aria-label="Connection info">
+                                  <h2 className="flight-connections-title">Connection info</h2>
+                                  {connections.map((connection, connectionIndex) => {
+                                    const layover =
+                                      connection.time ||
+                                      (connection.duration !== null && connection.duration !== undefined
+                                        ? `${connection.duration}h`
+                                        : "");
+
+                                    return (
+                                      <article
+                                        key={connection.id || `connection-${connectionIndex}`}
+                                        className="flight-connection-card"
+                                      >
+                                        <div>
+                                          <span className="flight-connection-label">City</span>
+                                          <strong>{connection.countryCity || "-"}</strong>
+                                        </div>
+                                        <div>
+                                          <span className="flight-connection-label">Airport</span>
+                                          <strong>{connection.connectionAirport || "-"}</strong>
+                                        </div>
+                                        <div>
+                                          <span className="flight-connection-label">Layover</span>
+                                          <strong>{layover || "-"}</strong>
+                                        </div>
+                                      </article>
+                                    );
+                                  })}
+                                </section>
+                              ) : null}
+                            </div>
+                          </div>
+                          {ticketDownloadUrl ? (
+                            <a
+                              className="flight-ticket-download-btn"
+                              href={ticketDownloadUrl}
+                              download={ticketFile?.fileName || undefined}
+                            >
+                              <span>Download Flight ticket</span>
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })
+              </div>
+              <div className="trips-carousel-dots" aria-label="Flights carousel position">
+                {flights.map((flight, index) => {
+                  const flightId = flight.id || `flight-${index}`;
+                  const isActive = activeFlightId === flightId || (!activeFlightId && index === 0);
+                  return (
+                    <button
+                      key={flightId}
+                      type="button"
+                      className={`trips-carousel-dot${isActive ? " is-active" : ""}`}
+                      aria-label={`Go to flight ${index + 1} of ${flights.length}`}
+                      aria-current={isActive ? "true" : undefined}
+                      onClick={() => scrollToFlight(flightId)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
 
         {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)", marginTop: 12 }}>{message}</p> : null}
-
-        <div className="trip-back-action">
-          <TripBackLink href={`/trips/${tripId}`} />
-        </div>
       </section>
     </main>
   );

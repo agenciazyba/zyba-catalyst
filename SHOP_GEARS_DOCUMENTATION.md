@@ -69,9 +69,10 @@ Campos usados:
 - `Record_Image`
 - `Destination_Related`
 - `Layout`
+- `Essential`
 - `Product_Active`
 - `Product_Code`
-- `Product_Recommended` (Boolean, opcional para destacar produto como recomendado/essential)
+- `Product_Recommended` (campo legado ainda mapeado no backend, mas não controla o badge atual)
 - `Product_Image_Catalog`
 - `Product_Image_Real`
 - `Product_Name`
@@ -85,7 +86,7 @@ Páginas:
 - `Shop Gears`:
   - lista de produtos
   - menu horizontal de `Category` carregado do Pick List do CRM
-  - destaque visual para produto recomendado via `Product_Recommended`
+  - badge verde `ESSENTIAL` quando o campo booleano `Essential` vier marcado no CRM
   - imagem principal do produto preenchendo o frame do card
   - quantidade
   - `ADD TO TACKLE BOX`
@@ -180,7 +181,7 @@ Melhorias aplicadas:
   - menu horizontal por `Category`
   - cards maiores com foto, SKU, nome, preço e controles de quantidade
   - ícone de detalhes no card do produto
-  - selo `Essential` quando `Product_Recommended` vier marcado no CRM
+  - selo `ESSENTIAL` quando `Essential` vier marcado no CRM
   - imagem do card usando preenchimento do frame
   - botão flutuante `Tackle box` alinhado à direita, com total e contador de itens
 - componente reutilizável `AddTackleButton` para ações de adicionar produto:
@@ -279,7 +280,8 @@ Implementado nesta etapa:
 
 Ainda pendente:
 
-- criação do `Sales Order` no Zoho após pagamento confirmado
+- testes end-to-end com pagamento Stripe real em ambiente de desenvolvimento/staging
+- estratégia administrativa para reprocessar pedidos pagos caso o usuário não retorne para a página de sucesso
 
 ### Fluxo do checkout
 
@@ -297,12 +299,17 @@ Ainda pendente:
 12. Stripe retorna para `/shop-gears/success`
 13. página de sucesso tenta confirmar o `session_id` diretamente com a Stripe
 14. frontend chama `POST /api/crm/checkout/finalize`
-15. backend limpa carrinho e marca checkout como `paid_finalized`
-16. ao abrir a mesma trip novamente, `GET /api/crm/checkout/status` limpa o estado `paid_finalized`, liberando um novo pedido
+15. backend confirma o pagamento com Stripe antes de criar qualquer pedido no Zoho
+16. backend cria ou reutiliza o `Sales_Orders` de Shop Gears no Zoho usando o snapshot confiável do carrinho
+17. backend salva dados do pedido criado no status do checkout
+18. backend limpa carrinho e marca checkout como `paid_finalized`
+19. frontend troca o Lottie de `PROCESSING PAYMENT` para aprovado somente depois do pedido Zoho existir
+20. ao abrir a mesma trip novamente, `GET /api/crm/checkout/status` limpa o estado `paid_finalized`, liberando um novo pedido
 
 ### Endpoints
 
 - `POST /api/crm/checkout/session`
+- `POST /api/crm/checkout/sales-order/dry-run`
 - `GET /api/crm/checkout/status?tripId=...`
 - `POST /api/crm/checkout/finalize`
 - `POST /api/stripe/webhook`
@@ -343,6 +350,180 @@ Regras:
 - usar o corpo bruto da requisição
 - nunca confiar só no redirect do frontend
 - se o webhook ainda não tiver chegado, a página de sucesso pode confirmar o `session_id` no servidor usando a API da Stripe
+
+### Zoho Sales Order mapping
+
+Metadata verificada pela API do Zoho CRM em 2026-05-24:
+
+- `Sales_Orders` retornou status `200` e `44` campos
+- `Ordered_Items` retornou status `200` e `15` campos
+- layout `Product Orders` ativo com id `6623116000003296011`
+- campo `Stripe_Currency` confirmado como `text`
+- teste controlado de `POST /crm/v8/Sales_Orders` com payload vazio retornou `MANDATORY_NOT_FOUND` para `Ordered_Items`, confirmando acesso de criação sem gravar pedido real
+- teste controlado com `Layout`, `Stripe_Currency`, `Shop_Gears_Order` e `Stripe_Checkout_Session_ID` também retornou apenas `MANDATORY_NOT_FOUND` para `Ordered_Items`, confirmando que os novos campos são aceitos pela API
+
+Campos obrigatórios do módulo `Sales_Orders`:
+
+- `Subject` (`text`, obrigatório)
+- `Ordered_Items` (`subform`, obrigatório)
+
+Campos customizados criados e confirmados na API:
+
+| Campo | API name | Tipo Zoho | JSON | Uso previsto |
+| --- | --- | --- | --- | --- |
+| App Order Created At | `App_Order_Created_At` | `datetime` | `string` | data/hora em que o app criou o pedido no Zoho |
+| App Order Status | `App_Order_Status` | `picklist` | `string` | estado interno do fluxo do app |
+| Parent Trip ID | `Parent_Trip_ID` | `text` | `string` | id da trip/Sales Order original que gerou o pedido de Shop Gears |
+| Shop Gears Order | `Shop_Gears_Order` | `boolean` | `boolean` | marca pedidos criados pelo fluxo Shop Gears |
+| Stripe Amount Total | `Stripe_Amount_Total` | `currency` | `double` | total pago confirmado pela Stripe |
+| Stripe Checkout Session ID | `Stripe_Checkout_Session_ID` | `text` | `string` | id `cs_...` usado para auditoria e prevenção de duplicidade |
+| Stripe Currency | `Stripe_Currency` | `text` | `string` | moeda retornada pela Stripe, como `usd` |
+| Stripe Payment Intent ID | `Stripe_Payment_Intent_ID` | `text` | `string` | id `pi_...` retornado pela Stripe |
+| Stripe Payment Status | `Stripe_Payment_Status` | `picklist` | `string` | status de pagamento vindo da Stripe |
+
+Valores de picklist confirmados:
+
+- `Stripe_Payment_Status`: `paid`, `unpaid`, `processing`, `failed`, `refunded`
+- `App_Order_Status`: `processing`, `zoho_created`, `failed`, `refunded`
+- `Payment_Terms`: usar `Credit card`
+- `Status`: para pedidos de Shop Gears pagos, usar `Completed` inicialmente, salvo decisão operacional diferente
+
+Campos principais do payload de criação do `Sales_Orders`:
+
+```js
+{
+  Subject: "Shop Gears - <trip/destination name>",
+  Deal_Name: { id: "<dealId>" },
+  Account_Name: { id: "<travelerAccountId>" },
+  Status: "Completed",
+  Payment_Terms: "Credit card",
+  Parent_Trip_ID: "<originalTripSalesOrderId>",
+  Shop_Gears_Order: true,
+  App_Order_Status: "zoho_created",
+  App_Order_Created_At: "<ISO datetime>",
+  Stripe_Checkout_Session_ID: "<cs_...>",
+  Stripe_Payment_Intent_ID: "<pi_...>",
+  Stripe_Payment_Status: "paid",
+  Stripe_Amount_Total: 123.45,
+  Stripe_Currency: "usd",
+  Ordered_Items: [
+    {
+      Product_Name: { id: "<productId>" },
+      Quantity: 2,
+      List_Price: 24.5,
+      Discount: 0,
+      Tax: 0,
+      Description: "SKU: <productCode> | Brand: <vendorName>"
+    }
+  ]
+}
+```
+
+Campos do subform `Ordered_Items` que devem ser enviados:
+
+- `Product_Name`: lookup obrigatório para `Products`
+- `Quantity`: quantidade do item no carrinho
+- `List_Price`: preço unitário confiável recalculado pelo backend
+- `Discount`: `0` enquanto não houver regra de desconto
+- `Tax`: `0` enquanto não houver regra de imposto
+- `Description`: texto curto com SKU/brand para suporte operacional
+
+Campos do subform `Ordered_Items` que não devem ser enviados:
+
+- `Parent_Id`
+- `Total`
+- `Total_After_Discount`
+- `Net_Total`
+- `Created_Time`
+- `Modified_Time`
+
+Esses campos são read-only, fórmula ou controlados pelo Zoho.
+
+Regras para a próxima implementação:
+
+- manter o snapshot do carrinho junto ao `checkoutStatus` no momento de `POST /api/crm/checkout/session`
+- criar/reutilizar o `Sales_Orders` apenas depois de Stripe confirmar `payment_status=paid`
+- manter criação idempotente usando `Stripe_Checkout_Session_ID`
+- só limpar o carrinho e mostrar animação de aprovado depois que o Zoho retornar o pedido criado
+- retornar para o frontend pelo menos `salesOrderId`, `salesOrderNumber`, `amountTotal`, `currency` e `items`
+
+Arquivos da implementação:
+
+- `functions/Zoho_api/services/checkout-state.js`
+- `functions/Zoho_api/services/zoho.js`
+- `functions/Zoho_api/routes/crm.js`
+- `functions/Zoho_api/routes/stripe.js`
+- `zyba-app/lib/api.ts`
+- `zyba-app/app/trips/[id]/shop-gears/success/page.tsx`
+- `zyba-app/app/globals.css`
+
+### Dry run do Sales Order
+
+Endpoint seguro para revisar o payload do pedido sem criar registro no Zoho:
+
+- `POST /api/crm/checkout/sales-order/dry-run`
+
+Request:
+
+```json
+{
+  "tripId": "6623..."
+}
+```
+
+Comportamento:
+
+- exige sessão autenticada
+- lê o carrinho atual da sessão + trip
+- recalcula produtos/preços no backend
+- monta o payload do layout `Product Orders`
+- retorna `createsZohoRecord: false`
+- não chama `zohoCreateRecord`
+- não limpa o carrinho
+- não chama Stripe
+
+Teste CLI realizado em 2026-05-24, sem criação de registro:
+
+- parent trip: `6623116000003137040`
+- produto: `6623116000003148502`
+- layout retornado: `Product Orders` (`6623116000003296011`)
+- subject gerado: `Shop Gears - Eco Fishing Lodge - 6 Full Days Fishing`
+- total: `9.99`
+- `Ordered_Items[0].Product_Name.id`: `6623116000003148502`
+- `Ordered_Items[0].Quantity`: `1`
+- `Ordered_Items[0].List_Price`: `9.99`
+- `Stripe_Currency`: `usd`
+- resultado: `createsZohoRecord: false`
+
+### Correção do erro pós-Stripe em localhost
+
+Data:
+
+- 2026-05-24
+
+Sintoma:
+
+- após retorno da Stripe para `/shop-gears/success`, o app permanecia em erro
+- `POST /api/crm/checkout/finalize` retornava `400`
+
+Causas encontradas:
+
+- Zoho recusou `App_Order_Created_At` quando enviado como ISO com milissegundos e `Z`
+- carrinho podia ser limpo pelo webhook antes da criação do `Sales_Orders`, deixando o finalize sem `Ordered_Items`
+
+Correções:
+
+- `App_Order_Created_At` passou a usar o formato já aceito pelo Zoho no projeto: `YYYY-MM-DDTHH:mm:ss+00:00`
+- webhook Stripe deixou de limpar carrinho; a limpeza acontece somente depois do `Sales_Orders` existir
+- `finalize` ganhou fallback para reconstruir o snapshot pelos line items da sessão Stripe usando `GET /checkout/sessions/:id/line_items`
+
+Teste:
+
+- sessão Stripe paga: `cs_test_a1zKjnuf2jpqoIRhBTZraVCgwqliq230yKwcijOQZfzKBE4zZAHl2e5qXX`
+- resultado do reprocessamento: `200 OK`
+- `Sales_Orders` criado: `6623116000003302005`
+- total: `19.98`
+- item: produto `6623116000003148502`, quantidade `2`, unit price `9.99`
 
 ### Dependências
 
@@ -748,9 +929,57 @@ Ponto de atenção:
 
 ---
 
+### 15. Página `Your Orders`
+
+Data:
+
+- 2026-05-25
+
+Causa:
+
+- após a criação de pedidos de Shop Gears no layout `Product Orders`, o app precisava listar as compras do cliente e permitir abrir os itens comprados
+- o usuário também precisava baixar o PDF do Sales Order diretamente pela tela de pedidos
+
+Solução:
+
+- criada/ajustada a tela `/orders` com:
+  - título `Your Orders`
+  - subtítulo de histórico
+  - cards de pedido com `Status`, número do pedido, destino, data de pagamento e total
+  - badge de status com variação visual para `Completed`
+  - ação circular para download do PDF do Sales Order
+  - card expansível para exibir os produtos comprados, quantidade, preço unitário e total
+- a rota `GET /crm/orders` agora retorna também:
+  - `destinationName`
+  - `paymentDate`
+  - `items` do subform `Ordered_Items`
+- criada rota `GET /crm/orders/:id/pdf`, validando que o pedido pertence ao usuário logado antes de gerar o PDF
+- template de impressão usado no download:
+  - nome correto: `Product Order`
+  - ID validado no Zoho: `6623116000003296412`
+  - a rota resolve automaticamente pelo nome `Product Order`
+  - `PRODUCT_ORDER_TEMPLATE_ID` pode sobrescrever o ID, se necessário
+- observação sobre o ID `6623116000000522759`:
+  - esse ID é a pasta `Public Templates`, não o template PDF
+
+Arquivos:
+
+- `zyba-app/app/orders/page.tsx`
+- `zyba-app/app/globals.css`
+- `zyba-app/lib/api.ts`
+- `functions/Zoho_api/routes/crm.js`
+- `functions/Zoho_api/services/zoho.js`
+
+Ponto de atenção:
+
+- `paymentDate` usa `App_Order_Created_At` como data de referência do pagamento/pedido aprovado. Se o Zoho passar a receber uma data oficial do Stripe separada, a tela deve priorizar esse novo campo.
+- o PDF depende de um template de impressão do Zoho, não do ID do layout nem da pasta. Se o nome `Product Order` mudar no Zoho, atualizar `PRODUCT_ORDER_TEMPLATE_NAME` ou `PRODUCT_ORDER_TEMPLATE_ID`.
+
+---
+
 ## Próximas etapas recomendadas
 
-1. criar `Sales Order` no Zoho somente após aprovação/finalização do pagamento
+1. validar em produção o download do PDF do Product Order após deploy da rota `/crm/orders/:id/pdf`
 2. decidir regra de expiração/limpeza administrativa para carrinhos órfãos antigos
 3. criar mecanismo explícito de refresh de catálogo caso seja necessário ignorar temporariamente o cache de `Products`
 4. decidir compatibilidade para URLs antigas de detalhe de produto, caso usuários tenham links salvos

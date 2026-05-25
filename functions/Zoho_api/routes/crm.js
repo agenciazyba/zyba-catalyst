@@ -4,16 +4,20 @@ const { getSession } = require("../services/session");
 const {
   getTravelerByEmail,
   getTripsByLoggedUser,
+  getProductOrdersByLoggedUser,
   getTripDetailsById,
   getTripRequirementsById,
   acknowledgeTripRequirements,
   createFlightForLoggedUser,
   listProducts,
   getProductById,
+  buildShopGearsSalesOrderDraft,
+  createShopGearsSalesOrder,
   getModulePicklistValues,
   streamZohoFile,
   streamZohoRecordPhoto,
-  streamSalesOrderPdf
+  streamSalesOrderPdf,
+  getInventoryTemplateIdByName
 } = require("../services/zoho");
 const {
   buildSessionCartOwnerKey,
@@ -24,7 +28,11 @@ const {
   clearCart,
   replaceCart,
 } = require("../services/cart");
-const { createCheckoutSession, getCheckoutSession } = require("../services/stripe");
+const {
+  createCheckoutSession,
+  getCheckoutSession,
+  getCheckoutSessionLineItems,
+} = require("../services/stripe");
 const {
   getCheckoutStatusByTrip,
   setCheckoutStatus,
@@ -86,6 +94,63 @@ async function buildTrustedCartItems(items) {
   );
 }
 
+function buildCartSnapshot(tripId, items) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const subtotal = safeItems.reduce((sum, item) => {
+    const unitPrice = typeof item?.unitPrice === "number" ? item.unitPrice : Number(item?.unitPrice || 0);
+    const quantity = Math.max(0, Math.floor(Number(item?.quantity) || 0));
+    return sum + unitPrice * quantity;
+  }, 0);
+  const totalItems = safeItems.reduce(
+    (sum, item) => sum + Math.max(0, Math.floor(Number(item?.quantity) || 0)),
+    0
+  );
+
+  return {
+    tripId,
+    items: safeItems,
+    subtotal,
+    totalItems,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function buildCartSnapshotFromStripeLineItems(tripId, lineItems) {
+  const items = Array.isArray(lineItems?.data)
+    ? lineItems.data
+        .map((lineItem) => {
+          const product = lineItem?.price?.product || {};
+          const metadata = product?.metadata || {};
+          const productId = String(metadata.productId || "").trim();
+          const productName = String(product.name || lineItem.description || "").trim();
+          const quantity = Math.max(0, Math.floor(Number(lineItem.quantity) || 0));
+          const unitAmount = Number(lineItem?.price?.unit_amount);
+          const unitPrice = Number.isFinite(unitAmount) ? unitAmount / 100 : null;
+
+          if (!productId || !productName || quantity <= 0 || unitPrice === null) {
+            return null;
+          }
+
+          const brandMatch = String(product.description || "").match(/^Brand:\s*(.+)$/i);
+
+          return {
+            productId,
+            productName,
+            productCode: String(metadata.productCode || "").trim() || null,
+            category: null,
+            unitPrice,
+            quantity,
+            imageDownloadKey: null,
+            imageAlt: productName,
+            vendorName: brandMatch?.[1]?.trim() || null,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  return buildCartSnapshot(tripId, items);
+}
+
 async function handleCrmRoutes(app, req, res, parsedUrl) {
   const path = parsedUrl.pathname;
   const method = (req.method || "GET").toUpperCase();
@@ -128,6 +193,78 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       ok: true,
       data: trips
     });
+    return true;
+  }
+
+  if (method === "GET" && path === "/crm/orders") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const orders = await getProductOrdersByLoggedUser(session.email);
+      sendJson(res, 200, {
+        ok: true,
+        data: orders,
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || "Failed to load orders",
+      });
+    }
+
+    return true;
+  }
+
+  const productOrderPdfMatch = path.match(/^\/crm\/orders\/([^/]+)\/pdf$/);
+
+  if (method === "GET" && productOrderPdfMatch) {
+    const orderId = productOrderPdfMatch[1];
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    const orders = await getProductOrdersByLoggedUser(session.email);
+    const order = orders.find((item) => String(item.id) === String(orderId));
+
+    if (!order) {
+      sendJson(res, 404, { ok: false, error: "Order not found for logged user" });
+      return true;
+    }
+
+    const requestedTemplateName =
+      parsedUrl.searchParams.get("templateName") ||
+      process.env.PRODUCT_ORDER_TEMPLATE_NAME ||
+      "Product Order";
+    const templateId =
+      parsedUrl.searchParams.get("templateId") ||
+      process.env.PRODUCT_ORDER_TEMPLATE_ID ||
+      (await getInventoryTemplateIdByName(requestedTemplateName, "Sales_Orders"));
+
+    if (!templateId) {
+      sendJson(res, 400, {
+        ok: false,
+        error:
+          `Missing Product Order template. Set PRODUCT_ORDER_TEMPLATE_ID or create an inventory template named ${requestedTemplateName}.`,
+      });
+      return true;
+    }
+
+    try {
+      await streamSalesOrderPdf(templateId, orderId, res);
+    } catch (e) {
+      sendJson(res, 500, { ok: false, error: e.message || "Failed to download Order PDF" });
+    }
+
     return true;
   }
 
@@ -397,6 +534,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         amountTotal: trustedCart.subtotal,
         currency: "usd",
         customerEmail: session.email,
+        cartSnapshot: trustedCart,
       });
 
       sendJson(res, 200, {
@@ -410,6 +548,72 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       sendJson(res, 400, {
         ok: false,
         error: error?.message || "Failed to create checkout session",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "POST" && path === "/crm/checkout/sales-order/dry-run") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const body = await getRequestBody(req);
+      const tripId = String(body?.tripId || "").trim();
+
+      if (!tripId) {
+        sendJson(res, 400, { ok: false, error: "tripId is required" });
+        return true;
+      }
+
+      const cart = await getCart(app, buildSessionCartOwnerKey(token), tripId);
+
+      if (!cart?.items?.length) {
+        sendJson(res, 400, { ok: false, error: "Cart is empty" });
+        return true;
+      }
+
+      const trustedItems = await buildTrustedCartItems(cart.items);
+      const cartSnapshot = buildCartSnapshot(tripId, trustedItems);
+      const dryRunSessionId = `dry_run_${Date.now()}`;
+      const draft = await buildShopGearsSalesOrderDraft({
+        tripId,
+        checkoutStatus: {
+          tripId,
+          checkoutSessionId: dryRunSessionId,
+          paymentStatus: "paid",
+          amountTotal: cartSnapshot.subtotal,
+          currency: "usd",
+          customerEmail: session.email,
+          cartSnapshot,
+        },
+        stripeSession: {
+          id: dryRunSessionId,
+          payment_status: "paid",
+          amount_total: Math.round(cartSnapshot.subtotal * 100),
+          currency: "usd",
+          payment_intent: "dry_run",
+        },
+      });
+
+      sendJson(res, 200, {
+        ok: true,
+        data: {
+          dryRun: true,
+          createsZohoRecord: false,
+          ...draft,
+        },
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error?.message || "Failed to build Sales Order dry run",
       });
     }
 
@@ -436,11 +640,12 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       }
 
       let checkoutStatus = await getCheckoutStatusByTrip(app, tripId);
+      let stripeSession = null;
       let isPaid =
         checkoutStatus?.status === "paid" || checkoutStatus?.paymentStatus === "paid";
 
       if (!isPaid && sessionId) {
-        const stripeSession = await getCheckoutSession(sessionId);
+        stripeSession = await getCheckoutSession(sessionId);
         const stripeTripId = String(
           stripeSession?.metadata?.tripId || stripeSession?.client_reference_id || ""
         ).trim();
@@ -470,6 +675,9 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
               stripeSession?.customer_email ||
               checkoutStatus.customerEmail ||
               null,
+            cartSnapshot: checkoutStatus.cartSnapshot || null,
+            salesOrder: checkoutStatus.salesOrder || null,
+            salesOrderError: checkoutStatus.salesOrderError || null,
           });
           isPaid = true;
         }
@@ -483,6 +691,41 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         return true;
       }
 
+      if (!stripeSession && (sessionId || checkoutStatus.checkoutSessionId)) {
+        stripeSession = await getCheckoutSession(sessionId || checkoutStatus.checkoutSessionId);
+      }
+
+      if (!checkoutStatus.cartSnapshot?.items?.length) {
+        const fallbackCart = await getCart(app, buildSessionCartOwnerKey(token), tripId);
+        if (fallbackCart?.items?.length) {
+          checkoutStatus = await setCheckoutStatus(app, {
+            ...checkoutStatus,
+            tripId,
+            cartSnapshot: fallbackCart,
+          });
+        }
+      }
+
+      if (!checkoutStatus.cartSnapshot?.items?.length && stripeSession?.id) {
+        const stripeLineItems = await getCheckoutSessionLineItems(stripeSession.id);
+        const cartSnapshot = buildCartSnapshotFromStripeLineItems(tripId, stripeLineItems);
+        if (cartSnapshot?.items?.length) {
+          checkoutStatus = await setCheckoutStatus(app, {
+            ...checkoutStatus,
+            tripId,
+            cartSnapshot,
+          });
+        }
+      }
+
+      const salesOrder =
+        checkoutStatus.salesOrder ||
+        (await createShopGearsSalesOrder({
+          tripId,
+          checkoutStatus,
+          stripeSession,
+        }));
+
       const finalizedSummary = {
         tripId,
         checkoutSessionId: checkoutStatus.checkoutSessionId || null,
@@ -491,6 +734,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         currency: checkoutStatus.currency || null,
         customerEmail: checkoutStatus.customerEmail || null,
         stripeEventId: checkoutStatus.stripeEventId || null,
+        salesOrder,
         finalizedAt: checkoutStatus.finalizedAt || new Date().toISOString(),
       };
 
@@ -499,6 +743,8 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         ...checkoutStatus,
         tripId,
         status: "paid_finalized",
+        salesOrder,
+        salesOrderError: null,
         finalizedAt: finalizedSummary.finalizedAt,
       });
 

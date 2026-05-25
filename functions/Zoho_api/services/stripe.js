@@ -210,6 +210,18 @@ module.exports = {
 
     return stripeGet(`/v1/checkout/sessions/${encodeURIComponent(safeSessionId)}`);
   },
+  getCheckoutSessionLineItems: function getCheckoutSessionLineItems(sessionId) {
+    const safeSessionId = String(sessionId || "").trim();
+    if (!safeSessionId) {
+      throw new Error("Missing sessionId");
+    }
+
+    return stripeGet(
+      `/v1/checkout/sessions/${encodeURIComponent(
+        safeSessionId
+      )}/line_items?expand%5B%5D=data.price.product`
+    );
+  },
   verifyWebhookSignature: function verifyWebhookSignature(payload, signatureHeader, endpointSecret) {
     const safePayload = String(payload || "");
     const safeHeader = String(signatureHeader || "").trim();

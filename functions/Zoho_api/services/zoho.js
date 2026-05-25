@@ -235,13 +235,14 @@ function mapFlightRecord(record) {
 
   return {
     id: record.id || null,
-    trackingNumber: record.Name || null,
+    trackingNumber: record.Flight_Number || record.Name || null,
     airlineCompany: record.Airline_Company || null,
     airportDestination: record.Airport_Destination || null,
     arrival: record.Arrival || null,
     departure: record.Departure || null,
     departureAirport: record.Departure_Airport || null,
     status: record.Status || null,
+    ticketFile: mapUploadedFiles("Flights", record.id, record.Ticket_File),
     connectionsInformation: Array.isArray(record.Connection_Info)
       ? record.Connection_Info.map((row) => ({
           id: row.id || null,
@@ -576,6 +577,94 @@ async function zohoGetModuleFields(moduleApiName) {
   return fields;
 }
 
+async function zohoGetModuleLayouts(moduleApiName) {
+  const safeModule = normalizeOptionalString(moduleApiName);
+  if (!safeModule) return [];
+
+  const cacheKey = `layouts:${safeModule}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const token = await getZohoAccessToken();
+  const url = new URL("/crm/v8/settings/layouts", process.env.ZOHO_API_DOMAIN);
+  url.searchParams.set("module", safeModule);
+
+  const response = await httpsRequest({
+    hostname: url.hostname,
+    path: url.pathname + url.search,
+    method: "GET",
+    headers: {
+      Authorization: `Zoho-oauthtoken ${token.access_token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (response.statusCode >= 400) {
+    throw new Error(
+      typeof response.data === "string"
+        ? response.data
+        : response.data.message || `Failed to fetch layouts from ${safeModule}`
+    );
+  }
+
+  const layouts = Array.isArray(response.data?.layouts) ? response.data.layouts : [];
+  setDataCache(cacheKey, layouts, TTL_PRODUCTS_MS);
+  return layouts;
+}
+
+async function zohoGetInventoryTemplates(moduleApiName) {
+  const safeModule = normalizeOptionalString(moduleApiName);
+  const cacheKey = `inventory-templates:${safeModule || "all"}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const token = await getZohoAccessToken();
+  const url = new URL("/crm/v8/settings/inventory_templates", process.env.ZOHO_API_DOMAIN);
+
+  const response = await httpsRequest({
+    hostname: url.hostname,
+    path: url.pathname + url.search,
+    method: "GET",
+    headers: {
+      Authorization: `Zoho-oauthtoken ${token.access_token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (response.statusCode >= 400) {
+    throw new Error(
+      typeof response.data === "string"
+        ? response.data
+        : response.data.message || "Failed to fetch inventory templates"
+    );
+  }
+
+  const templates = Array.isArray(response.data?.inventory_templates)
+    ? response.data.inventory_templates
+    : [];
+  const filtered = safeModule
+    ? templates.filter((template) => template?.module?.api_name === safeModule)
+    : templates;
+
+  setDataCache(cacheKey, filtered, TTL_PRODUCTS_MS);
+  return filtered;
+}
+
+async function getInventoryTemplateIdByName(templateName, moduleApiName = "Sales_Orders") {
+  const safeTemplateName = normalizeOptionalString(templateName);
+  if (!safeTemplateName) return null;
+
+  const templates = await zohoGetInventoryTemplates(moduleApiName);
+  const template = templates.find(
+    (item) =>
+      String(item?.name || "")
+        .trim()
+        .toLowerCase() === safeTemplateName.toLowerCase()
+  );
+
+  return normalizeOptionalString(template?.id);
+}
+
 function mapPicklistOption(option) {
   const displayValue = normalizeOptionalString(option?.display_value || option?.display_label || option?.actual_value);
   const actualValue = normalizeOptionalString(option?.actual_value || option?.reference_value || displayValue);
@@ -692,7 +781,7 @@ async function getDealsByIds(dealIds) {
   for (const idsChunk of chunks) {
     const inClause = idsChunk.map((id) => `'${escapeCoql(id)}'`).join(", ");
     const query = `
-      select id, Arrival_Date, Deal_Cover
+      select id, Deal_Name, Arrival_Date, Departure_Date, Deal_Cover, Destination
       from Deals
       where (id in (${inClause}))
       limit 0, 200
@@ -702,7 +791,6 @@ async function getDealsByIds(dealIds) {
     for (const deal of response.data || []) {
       if (deal?.id) {
         dealsMap.set(String(deal.id), deal);
-        setDataCache(`record:Deals:${deal.id}`, deal, TTL_DEALS_MS);
       }
     }
   }
@@ -735,6 +823,59 @@ async function getFlightsByIds(flightIds) {
   );
 
   return flightsMap;
+}
+
+async function getFlightsByParentTrip(tripId) {
+  const safeTripId = normalizeOptionalString(tripId);
+  if (!safeTripId) return [];
+
+  const cacheKey = `flights-by-parent-trip:${safeTripId}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const items = [];
+  const perPage = 200;
+  for (let page = 1; page <= 5; page += 1) {
+    const pageItems = await zohoListRecords(
+      "Flights",
+      ["Name", "Flight_Number", "Parent_Trip"],
+      page,
+      perPage
+    );
+    items.push(
+      ...pageItems.filter((item) => String(item?.Parent_Trip?.id || "") === safeTripId)
+    );
+
+    if (pageItems.length < perPage) break;
+  }
+
+  const flights = (
+    await Promise.all(
+      items.map(async (item) => {
+        if (!item?.id) return null;
+        try {
+          const record = await zohoGetRecord("Flights", item.id);
+          return mapFlightRecord(record);
+        } catch (e) {
+          return {
+            id: item.id || null,
+            trackingNumber: item.Flight_Number || item.Name || null,
+            ticketFile: [],
+            connectionsInformation: [],
+          };
+        }
+      })
+    )
+  )
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aTime = new Date(a.departure || a.arrival || 0).getTime();
+      const bTime = new Date(b.departure || b.arrival || 0).getTime();
+      return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
+    });
+
+  setDataCache(cacheKey, flights, TTL_TRIP_DETAILS_MS);
+  return flights;
 }
 
 async function streamZohoFile(module, recordId, attachmentId, res) {
@@ -1085,14 +1226,22 @@ async function getTripsByLoggedUser(email) {
     );
   }
 
-  const tripRecordsById = new Map();
+  const vendorIds = Array.from(
+    new Set(
+      Array.from(dealsById.values())
+        .map((deal) => deal?.Destination?.id)
+        .filter(Boolean)
+        .map((id) => String(id))
+    )
+  );
+
+  const vendorsById = new Map();
   await Promise.all(
-    items.map(async (item) => {
-      if (!item?.id) return;
+    vendorIds.map(async (vendorId) => {
       try {
-        const record = await zohoGetRecord("Sales_Orders", item.id);
-        if (record) {
-          tripRecordsById.set(String(item.id), record);
+        const vendorRecord = await zohoGetRecord("Vendors", vendorId);
+        if (vendorRecord) {
+          vendorsById.set(vendorId, vendorRecord);
         }
       } catch (e) {}
     })
@@ -1100,13 +1249,34 @@ async function getTripsByLoggedUser(email) {
 
   const result = items.map((item) => {
       let arrivalDate = null;
+      let departureDate = null;
       let coverId = null;
-      const tripRecord = tripRecordsById.get(String(item.id));
+      let tripName = item.Subject || item.Deal_Name?.name || null;
+      let destinationName = item.Deal_Name?.name || null;
+      let destinationCountry = null;
 
       if (item.Deal_Name && item.Deal_Name.id) {
         const dealRecord = dealsById.get(String(item.Deal_Name.id));
         if (dealRecord) {
           arrivalDate = dealRecord.Arrival_Date || null;
+          departureDate = dealRecord.Departure_Date || null;
+          tripName = item.Subject || dealRecord.Deal_Name || item.Deal_Name?.name || null;
+
+          const destinationLookup = mapLookup(dealRecord.Destination);
+          const vendorRecord = destinationLookup?.id
+            ? vendorsById.get(String(destinationLookup.id))
+            : null;
+
+          destinationName =
+            destinationLookup?.name ||
+            vendorRecord?.Vendor_Name ||
+            vendorRecord?.Name ||
+            vendorRecord?.Deal_Name ||
+            destinationName;
+          destinationCountry =
+            vendorRecord?.Destination_Country ||
+            vendorRecord?.Country ||
+            null;
 
           if (dealRecord.Deal_Cover) {
             const attId = extractAttachmentId(dealRecord.Deal_Cover);
@@ -1119,16 +1289,108 @@ async function getTripsByLoggedUser(email) {
 
       return {
         id: item.id || null,
+        tripName,
         dealName: item.Deal_Name?.name || null,
+        destinationName,
+        destinationCountry,
         subject: item.Subject || null,
         status: item.Status || null,
         totalAmount: item.Grand_Total ?? null,
         documentsAcknowledged: item.Documents_Acknowledged === true,
         arrivalDate,
+        departureDate,
         coverId,
-        flights: mapLookupList(tripRecord?.Flights),
       };
     });
+
+  setDataCache(cacheKey, result, TTL_TRIPS_MS);
+  return result;
+}
+
+async function getProductOrdersByLoggedUser(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const cacheKey = `product-orders:${normalizedEmail}`;
+
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const query = `
+    select id, Subject, SO_Number, Grand_Total, Status, Stripe_Currency, App_Order_Created_At, Deal_Name
+    from Sales_Orders
+    where ((Shop_Gears_Order = true) and (Account_Name.Email = '${escapeCoql(normalizedEmail)}'))
+    limit 0, 200
+  `;
+
+  const response = await runCoqlQuery(query);
+  const items = response.data || [];
+
+  const recordsById = new Map();
+  await Promise.all(
+    items.map(async (item) => {
+      if (!item?.id) return;
+      try {
+        const record = await zohoGetRecord("Sales_Orders", item.id);
+        if (record) {
+          recordsById.set(String(item.id), record);
+        }
+      } catch (e) {}
+    })
+  );
+
+  const result = items
+    .map((item) => {
+      const record = recordsById.get(String(item.id)) || item;
+      const orderedItems = Array.isArray(record.Ordered_Items) ? record.Ordered_Items : [];
+
+      return {
+        id: item.id || null,
+        subject: normalizeOptionalString(record.Subject || item.Subject),
+        salesOrderNumber: item.SO_Number ? String(item.SO_Number) : normalizeOptionalString(record.SO_Number),
+        destinationName:
+          normalizeOptionalString(record.Deal_Name?.name || item.Deal_Name?.name) ||
+          normalizeOptionalString(record.Subject || item.Subject)?.replace(/^Shop Gears\s*-\s*/i, "") ||
+          null,
+        total:
+          normalizeOptionalNumber(record.Grand_Total) ??
+          normalizeOptionalNumber(item.Grand_Total) ??
+          normalizeOptionalNumber(record.Stripe_Amount_Total),
+        status: normalizeOptionalString(record.Status || item.Status),
+        currency:
+          normalizeOptionalString(record.Stripe_Currency || item.Stripe_Currency) || "usd",
+        paymentDate:
+          normalizeOptionalString(
+            record.App_Order_Created_At || item.App_Order_Created_At || record.Created_Time
+          ),
+        createdAt:
+          normalizeOptionalString(
+            record.App_Order_Created_At || item.App_Order_Created_At || record.Created_Time
+          ),
+        items: orderedItems
+          .map((subItem) => {
+            const quantity = normalizeOptionalNumber(subItem.Quantity);
+            const unitPrice = normalizeOptionalNumber(subItem.List_Price);
+            const total =
+              normalizeOptionalNumber(subItem.Net_Total) ??
+              normalizeOptionalNumber(subItem.Total) ??
+              (quantity !== null && unitPrice !== null ? quantity * unitPrice : null);
+
+            return {
+              id: normalizeOptionalString(subItem.id) || normalizeOptionalString(subItem.Product_Name?.id),
+              name:
+                normalizeOptionalString(subItem.Product_Name?.name || subItem.Product_Name) ||
+                normalizeOptionalString(subItem.Description) ||
+                "Product",
+              description: normalizeOptionalString(subItem.Description),
+              quantity,
+              unitPrice,
+              total,
+            };
+          })
+          .filter((subItem) => subItem.id || subItem.name),
+      };
+    })
+    .filter((item) => item.id)
+    .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)));
 
   setDataCache(cacheKey, result, TTL_TRIPS_MS);
   return result;
@@ -1156,8 +1418,7 @@ async function getTripDetailsById(tripId, email) {
   }
 
   const tripRecord = await zohoGetRecord("Sales_Orders", tripId);
-  const flightLookups = mapLookupList(tripRecord?.Flights || trip?.Flights);
-  const flightsById = await getFlightsByIds(flightLookups.map((item) => item.id));
+  const flights = await getFlightsByParentTrip(tripId);
 
   const dealLookup = trip.Deal_Name || null;
   const dealId = dealLookup?.id || null;
@@ -1172,9 +1433,8 @@ async function getTripDetailsById(tripId, email) {
     if (dealRecord) {
       const destinationLookup = mapLookup(dealRecord.Destination);
       vendorName = destinationLookup?.name || null;
-      destinationCountry = dealRecord.Destination_Country || null;
 
-      if (destinationLookup?.id && (!vendorName || !destinationCountry)) {
+      if (destinationLookup?.id) {
         try {
           const vendorRecord = await zohoGetRecord("Vendors", destinationLookup.id);
           if (vendorRecord) {
@@ -1185,7 +1445,6 @@ async function getTripDetailsById(tripId, email) {
               vendorRecord.Deal_Name ||
               null;
             destinationCountry =
-              destinationCountry ||
               vendorRecord.Destination_Country ||
               vendorRecord.Country ||
               null;
@@ -1199,7 +1458,7 @@ async function getTripDetailsById(tripId, email) {
         airport: dealRecord.Airport || null,
         arrivalDate: dealRecord.Arrival_Date || null,
         departureDate: dealRecord.Departure_Date || null,
-        country: dealRecord.Country || null,
+        country: destinationCountry,
         vendorName,
         dealCover: Array.isArray(dealRecord.Deal_Cover)
           ? dealRecord.Deal_Cover.map((file) => ({
@@ -1242,21 +1501,19 @@ async function getTripDetailsById(tripId, email) {
       subject: trip.Subject || null,
       status: trip.Status || null,
       totalAmount: trip.Grand_Total ?? null,
-      flights: flightLookups.map((item) => {
-        const flight = item.id ? flightsById.get(String(item.id)) : null;
-        return {
-          id: item.id || null,
-          name: item.name || flight?.trackingNumber || null,
-          trackingNumber: flight?.trackingNumber || item.name || null,
-          airlineCompany: flight?.airlineCompany || null,
-          airportDestination: flight?.airportDestination || null,
-          arrival: flight?.arrival || null,
-          departure: flight?.departure || null,
-          departureAirport: flight?.departureAirport || null,
-          status: flight?.status || null,
-          connectionsInformation: flight?.connectionsInformation || [],
-        };
-      }),
+      flights: flights.map((flight) => ({
+        id: flight.id || null,
+        name: flight.trackingNumber || null,
+        trackingNumber: flight.trackingNumber || null,
+        airlineCompany: flight.airlineCompany || null,
+        airportDestination: flight.airportDestination || null,
+        arrival: flight.arrival || null,
+        departure: flight.departure || null,
+        departureAirport: flight.departureAirport || null,
+        status: flight.status || null,
+        ticketFile: flight.ticketFile || [],
+        connectionsInformation: flight.connectionsInformation || [],
+      })),
       hotelName: tripRecord?.Hotel_Name || null,
       hotelInformation: tripRecord?.Hotel_Information || null,
       hotelConfirmationCode: tripRecord?.Hotel_Confirmation_Code || null,
@@ -1452,14 +1709,28 @@ async function acknowledgeTripRequirements(tripId, email, version = null) {
 }
 
 async function createFlightForLoggedUser(email, payload = {}) {
-  const traveler = await getTravelerByEmail(email);
+  const tripId = normalizeOptionalString(
+    pickFirstValue(payload.tripId, payload.parentTripId, payload.Parent_Trip)
+  );
 
-  if (!traveler) {
+  if (!tripId) {
+    throw new Error("Parent Trip is required");
+  }
+
+  const tripDetails = await getTripDetailsById(tripId, email);
+
+  if (!tripDetails?.trip?.id) {
     return null;
   }
 
   const trackingNumber = normalizeOptionalString(
-    pickFirstValue(payload.trackingNumber, payload.name, payload.Name)
+    pickFirstValue(
+      payload.trackingNumber,
+      payload.flightNumber,
+      payload.Flight_Number,
+      payload.name,
+      payload.Name
+    )
   );
   const airlineCompany = normalizeOptionalString(
     pickFirstValue(payload.airlineCompany, payload.Airline_Company)
@@ -1491,13 +1762,14 @@ async function createFlightForLoggedUser(email, payload = {}) {
   }
 
   const zohoPayload = {
-    Name: trackingNumber,
+    Flight_Number: trackingNumber,
     Airline_Company: airlineCompany,
     Airport_Destination: airportDestination,
     Arrival: arrival,
     Departure: departure,
     Departure_Airport: departureAirport,
     Status: status,
+    Parent_Trip: { id: tripId },
     Connection_Info: connectionRows
       .map((row) => ({
         Connection_Airport: normalizeOptionalString(
@@ -1528,6 +1800,8 @@ async function createFlightForLoggedUser(email, payload = {}) {
   const created = await zohoCreateRecord("Flights", zohoPayload);
 
   clearDataCacheByPrefix("record:Flights:");
+  clearDataCacheByPrefix(`flights-by-parent-trip:${tripId}`);
+  clearDataCacheByPrefix(`trip-details:${tripId}:`);
 
   return {
     id: created?.details?.id || null,
@@ -1545,10 +1819,9 @@ async function createFlightForLoggedUser(email, payload = {}) {
       duration: row.Duration,
       time: row.Time,
     })),
-    traveler: {
-      id: traveler.id || null,
-      email: traveler.email || null,
-      travelerName: traveler.travelerName || null,
+    parentTrip: {
+      id: tripDetails.trip.id,
+      subject: tripDetails.trip.subject || null,
     },
     zoho: created,
   };
@@ -1586,6 +1859,7 @@ function mapProductRecord(record) {
     owner: mapLookup(record.Owner),
     productActive: normalizeOptionalBoolean(record.Product_Active) === true,
     productCode: normalizeOptionalString(record.Product_Code),
+    essential: normalizeOptionalBoolean(record.Essential) === true,
     productRecommended:
       normalizeOptionalBoolean(
         pickFirstValue(record.Product_Recommended, record.Highly_Recommended, record.Recommended)
@@ -1603,7 +1877,6 @@ function mapProductRecord(record) {
     productName: normalizeOptionalString(record.Product_Name),
     qtyOrdered: normalizeOptionalNumber(record.Qty_Ordered),
     qtyInDemand: normalizeOptionalNumber(record.Qty_in_Demand),
-    qtyInStock: normalizeOptionalNumber(record.Qty_in_Stock),
     reorderLevel: normalizeOptionalNumber(record.Reorder_Level),
     salesEndDate: normalizeOptionalIsoDate(record.Sales_End_Date),
     salesStartDate: normalizeOptionalIsoDate(record.Sales_Start_Date),
@@ -1667,12 +1940,12 @@ async function listProducts(payload = {}) {
       "Owner",
       "Product_Active",
       "Product_Code",
+      "Essential",
       "Product_Image_Catalog",
       "Product_Image_Real",
       "Product_Name",
       "Qty_Ordered",
       "Qty_in_Demand",
-      "Qty_in_Stock",
       "Reorder_Level",
       "Sales_End_Date",
       "Sales_Start_Date",
@@ -1813,21 +2086,278 @@ async function getProductById(productId, payload = {}) {
   return product;
 }
 
+function normalizeCheckoutItemsForSalesOrder(items) {
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((item) => {
+      const productId = normalizeOptionalString(item?.productId);
+      const productName = normalizeOptionalString(item?.productName);
+      const quantity = Math.max(0, Math.floor(Number(item?.quantity) || 0));
+      const unitPrice = normalizeOptionalNumber(item?.unitPrice);
+
+      if (!productId || !productName || quantity <= 0 || unitPrice === null) {
+        return null;
+      }
+
+      return {
+        productId,
+        productName,
+        productCode: normalizeOptionalString(item?.productCode),
+        vendorName: normalizeOptionalString(item?.vendorName),
+        quantity,
+        unitPrice,
+      };
+    })
+    .filter(Boolean);
+}
+
+function mapShopGearsSalesOrder(record, fallback = {}) {
+  if (!record || typeof record !== "object") return null;
+
+  const id = normalizeOptionalString(record.id || fallback.id || fallback.salesOrderId);
+  if (!id) return null;
+
+  return {
+    id,
+    salesOrderId: id,
+    salesOrderNumber: normalizeOptionalString(record.SO_Number || fallback.salesOrderNumber),
+    subject: normalizeOptionalString(record.Subject || fallback.subject),
+    status: normalizeOptionalString(record.Status || fallback.status),
+    amountTotal:
+      normalizeOptionalNumber(record.Grand_Total) ??
+      normalizeOptionalNumber(record.Stripe_Amount_Total) ??
+      normalizeOptionalNumber(fallback.amountTotal),
+    currency: normalizeOptionalString(record.Stripe_Currency || fallback.currency),
+    appOrderStatus: normalizeOptionalString(record.App_Order_Status || fallback.appOrderStatus),
+    stripeCheckoutSessionId: normalizeOptionalString(
+      record.Stripe_Checkout_Session_ID || fallback.stripeCheckoutSessionId
+    ),
+    createdAt: normalizeOptionalString(record.App_Order_Created_At || fallback.createdAt),
+    items: Array.isArray(fallback.items) ? fallback.items : [],
+  };
+}
+
+async function findShopGearsSalesOrderByStripeSession(stripeCheckoutSessionId) {
+  const safeSessionId = normalizeOptionalString(stripeCheckoutSessionId);
+  if (!safeSessionId) return null;
+
+  const query = `
+    select id, SO_Number, Subject, Status, Grand_Total, Stripe_Amount_Total, Stripe_Currency, App_Order_Status, Stripe_Checkout_Session_ID, App_Order_Created_At
+    from Sales_Orders
+    where Stripe_Checkout_Session_ID = '${escapeCoql(safeSessionId)}'
+    limit 0, 1
+  `;
+
+  const response = await runCoqlQuery(query);
+  const existing = response.data?.[0] || null;
+  if (!existing?.id) return null;
+
+  try {
+    const record = await zohoGetRecord("Sales_Orders", existing.id);
+    return mapShopGearsSalesOrder(record, {
+      stripeCheckoutSessionId: safeSessionId,
+    });
+  } catch {
+    return mapShopGearsSalesOrder(existing, {
+      stripeCheckoutSessionId: safeSessionId,
+    });
+  }
+}
+
+async function getProductOrdersLayout() {
+  const configuredLayoutId = normalizeOptionalString(process.env.ZOHO_PRODUCT_ORDERS_LAYOUT_ID);
+  const configuredLayoutName =
+    normalizeOptionalString(process.env.ZOHO_PRODUCT_ORDERS_LAYOUT_NAME) || "Product Orders";
+
+  const layouts = await zohoGetModuleLayouts("Sales_Orders");
+  const layout =
+    (configuredLayoutId
+      ? layouts.find((item) => String(item?.id || "").trim() === configuredLayoutId)
+      : null) ||
+    layouts.find(
+      (item) =>
+        String(item?.name || item?.display_label || "")
+          .trim()
+          .toLowerCase() === configuredLayoutName.toLowerCase()
+    );
+
+  if (!layout?.id) {
+    throw new Error(`Zoho Sales_Orders layout not found: ${configuredLayoutName}`);
+  }
+
+  return {
+    id: String(layout.id).trim(),
+    name: normalizeOptionalString(layout.name || layout.display_label) || configuredLayoutName,
+  };
+}
+
+async function buildShopGearsSalesOrderDraft({ tripId, checkoutStatus, stripeSession }) {
+  const safeTripId = normalizeOptionalString(tripId);
+  const safeSessionId = normalizeOptionalString(
+    stripeSession?.id || checkoutStatus?.checkoutSessionId
+  );
+
+  if (!safeTripId) {
+    throw new Error("Missing tripId for Sales Order");
+  }
+
+  if (!safeSessionId) {
+    throw new Error("Missing Stripe Checkout Session ID for Sales Order");
+  }
+
+  const cartSnapshot = checkoutStatus?.cartSnapshot || null;
+  const items = normalizeCheckoutItemsForSalesOrder(cartSnapshot?.items);
+  if (!items.length) {
+    throw new Error("Missing checkout cart snapshot for Sales Order");
+  }
+
+  const tripRecord = await zohoGetRecord("Sales_Orders", safeTripId);
+  if (!tripRecord?.id) {
+    throw new Error("Parent trip Sales Order not found");
+  }
+
+  const layout = await getProductOrdersLayout();
+  const createdAt = new Date().toISOString().replace(/\.\d{3}Z$/, "+00:00");
+  const amountTotal =
+    typeof stripeSession?.amount_total === "number" && Number.isFinite(stripeSession.amount_total)
+      ? stripeSession.amount_total / 100
+      : normalizeOptionalNumber(checkoutStatus?.amountTotal) ?? normalizeOptionalNumber(cartSnapshot?.subtotal);
+  const currency = normalizeOptionalString(stripeSession?.currency || checkoutStatus?.currency) || "usd";
+  const subjectBase =
+    normalizeOptionalString(tripRecord.Subject) ||
+    normalizeOptionalString(tripRecord.Deal_Name?.name) ||
+    safeTripId;
+  const subject = `Shop Gears - ${subjectBase}`;
+
+  const recordData = {
+    Layout: { id: layout.id },
+    Subject: subject,
+    Status: "Completed",
+    Payment_Terms: "Credit card",
+    Parent_Trip_ID: safeTripId,
+    Shop_Gears_Order: true,
+    App_Order_Status: "zoho_created",
+    App_Order_Created_At: createdAt,
+    Stripe_Checkout_Session_ID: safeSessionId,
+    Stripe_Payment_Intent_ID: normalizeOptionalString(stripeSession?.payment_intent),
+    Stripe_Payment_Status: normalizeOptionalString(stripeSession?.payment_status) || "paid",
+    Stripe_Amount_Total: amountTotal,
+    Stripe_Currency: currency,
+    Discount: 0,
+    Tax: 0,
+    Adjustment: 0,
+    Ordered_Items: items.map((item) => {
+      const description = [
+        item.productCode ? `SKU: ${item.productCode}` : null,
+        item.vendorName ? `Brand: ${item.vendorName}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      return {
+        Product_Name: { id: item.productId },
+        Quantity: item.quantity,
+        List_Price: item.unitPrice,
+        Discount: 0,
+        Tax: 0,
+        Description: description || item.productName,
+      };
+    }),
+  };
+
+  if (tripRecord.Deal_Name?.id) {
+    recordData.Deal_Name = { id: tripRecord.Deal_Name.id };
+  }
+
+  if (tripRecord.Account_Name?.id) {
+    recordData.Account_Name = { id: tripRecord.Account_Name.id };
+  }
+
+  const summary = mapShopGearsSalesOrder(
+    { id: "dry_run", ...recordData },
+    {
+      id: "dry_run",
+      subject,
+      status: recordData.Status,
+      amountTotal,
+      currency,
+      appOrderStatus: recordData.App_Order_Status,
+      stripeCheckoutSessionId: safeSessionId,
+      createdAt,
+      items,
+    }
+  );
+
+  return {
+    layout,
+    parentTrip: {
+      id: safeTripId,
+      subject: normalizeOptionalString(tripRecord.Subject),
+      dealId: normalizeOptionalString(tripRecord.Deal_Name?.id),
+      dealName: normalizeOptionalString(tripRecord.Deal_Name?.name),
+      accountId: normalizeOptionalString(tripRecord.Account_Name?.id),
+      accountName: normalizeOptionalString(tripRecord.Account_Name?.name),
+    },
+    recordData,
+    summary,
+  };
+}
+
+async function createShopGearsSalesOrder({ tripId, checkoutStatus, stripeSession }) {
+  const safeSessionId = normalizeOptionalString(
+    stripeSession?.id || checkoutStatus?.checkoutSessionId
+  );
+
+  const existing = await findShopGearsSalesOrderByStripeSession(safeSessionId);
+  if (existing) return existing;
+
+  const draft = await buildShopGearsSalesOrderDraft({ tripId, checkoutStatus, stripeSession });
+  const recordData = draft.recordData;
+  const created = await zohoCreateRecord("Sales_Orders", recordData);
+  const createdId = normalizeOptionalString(created?.details?.id);
+  if (!createdId) {
+    throw new Error("Zoho did not return the created Sales Order id");
+  }
+
+  let createdRecord = null;
+  try {
+    createdRecord = await zohoGetRecord("Sales_Orders", createdId);
+  } catch {}
+
+  return mapShopGearsSalesOrder(createdRecord || { id: createdId }, {
+    id: createdId,
+    subject: draft.summary?.subject,
+    status: draft.summary?.status,
+    amountTotal: draft.summary?.amountTotal,
+    currency: draft.summary?.currency,
+    appOrderStatus: draft.summary?.appOrderStatus,
+    stripeCheckoutSessionId: draft.summary?.stripeCheckoutSessionId,
+    createdAt: draft.summary?.createdAt,
+    items: draft.summary?.items,
+  });
+}
+
 module.exports = {
   getZohoAccessToken,
   getTravelerByEmail,
   getTripsByLoggedUser,
+  getProductOrdersByLoggedUser,
   getTripDetailsById,
   getTripRequirementsById,
   acknowledgeTripRequirements,
   streamZohoFile,
   streamZohoRecordPhoto,
   streamSalesOrderPdf,
+  getInventoryTemplateIdByName,
   runCoqlQuery,
   zohoGetRecord,
   zohoListRecords,
+  zohoCreateRecord,
   createFlightForLoggedUser,
   listProducts,
   getProductById,
+  buildShopGearsSalesOrderDraft,
+  createShopGearsSalesOrder,
   getModulePicklistValues
 };

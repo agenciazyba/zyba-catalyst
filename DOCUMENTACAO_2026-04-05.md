@@ -759,3 +759,122 @@ Arquivo:
 - `Transfer Information` reorganizada com cards de motorista e veículo
 - botões `Back to trip details` padronizados e não fixos
 - fluxo de imagem do veículo documentado e corrigido no backend
+
+### 12.11 Ajuste estrutural do módulo Flights
+- O vínculo entre viagem e voo passou a usar lookup simples no módulo `Flights`.
+- Campo criado no Zoho:
+  - `Parent_Trip`
+  - tipo `Lookup`
+  - módulo relacionado: `Sales_Orders`
+- O app deixou de depender do lookup múltiplo `Flights` dentro da viagem.
+- Nova regra de leitura:
+  - buscar a trip/Sales Order pelo usuário logado
+  - consultar `Flights` com `Parent_Trip` preenchido e filtrar pelo ID da trip no backend
+  - carregar o registro completo de cada voo para manter `Connection_Info`
+  - ordenar os voos por `Departure`/`Arrival`
+- Otimização aplicada:
+  - a lista `My Trips` deixou de buscar o registro completo de cada viagem apenas para ler o lookup múltiplo antigo de voos
+  - a leitura detalhada de voos acontece somente na tela `Flight Information`
+- Teste validado:
+  - Flight: `6623116000003094106`
+  - Name/PNR: `TESTE6789`
+  - Parent Trip: `6623116000003008031`
+  - SO Number: `6623116000003008034`
+
+Arquivos:
+- `functions/Zoho_api/services/zoho.js`
+- `zyba-app/lib/api.ts`
+
+Ponto de atenção:
+- Para criar novos voos via API do app, o payload agora deve enviar `tripId`, pois `Parent_Trip` é obrigatório para o novo relacionamento.
+- O COQL testado não retornou resultados ao filtrar diretamente `Parent_Trip = <id>`; por isso a primeira versão filtra em código. Antes de produção com volume alto, validar a Related List API do Zoho para buscar os voos filhos diretamente pela viagem.
+
+### 12.12 Campo Flight Number
+- O antigo campo `Flight Number` do módulo `Flights` era lookup para trip e foi excluído.
+- Novo campo criado:
+  - label: `Flight Number`
+  - API name: `Flight_Number`
+  - tipo: `Single Line`
+- O backend passou a:
+  - ler `Flight_Number` como número/PNR exibido no app
+  - gravar `Flight_Number` ao criar voos
+  - manter `Name` apenas como fallback para registros legados
+
+Arquivo:
+- `functions/Zoho_api/services/zoho.js`
+
+### 12.13 Flight Information em carrossel
+- A tela `Flight Information` passou a exibir múltiplos voos em cards com rolagem horizontal.
+- O comportamento visual segue o padrão da tela `My Trips`:
+  - scroll horizontal
+  - card ativo com leve escala
+  - dots de navegação
+- Ajustes no card:
+  - horário de departure e arrival final exibidos no trecho principal
+  - data de departure e arrival final exibidas junto aos horários
+  - tempo de conexão removido do centro do trecho principal
+  - centro do trecho mostra `Direct flight`, `1 Connection` ou `N Connections`
+  - seção `Connection info` lista cidade, aeroporto e layover
+  - botão `Back to trip details` removido desta tela
+- Correção de data/hora:
+  - a UI passou a exibir data/hora do Zoho preservando o valor local do CRM
+  - evitamos converter `DateTime` para o timezone do navegador, que podia deslocar dia/hora
+
+Arquivos:
+- `zyba-app/app/trips/[id]/flight-information/page.tsx`
+- `zyba-app/app/globals.css`
+
+### 12.14 País de destino via Vendor
+- O campo `Country` do módulo `Deals` foi removido por não ser necessário.
+- A regra consolidada passou a ser:
+  - a viagem aponta para um `Deal`
+  - o `Deal` aponta para o destino/vendor pelo lookup `Destination`
+  - o país de destino deve vir do registro `Vendors`
+- Campos considerados no Vendor:
+  - `Destination_Country`
+  - fallback: `Country`
+- O backend não depende mais de `Deals.Country`.
+
+Arquivo:
+- `functions/Zoho_api/services/zoho.js`
+
+### 12.15 Ticket PDF e dots do carrossel de voos
+- Campo novo no módulo `Flights`:
+  - label/API: `Ticket_File`
+  - tipo: `File Upload`
+- O backend passou a mapear `Ticket_File` como `ticketFile[]`, usando o mesmo padrão de `downloadKey` já usado em imagens e PDFs do CRM.
+- A tela `Flight Information` passou a exibir o botão `Download Flight ticket` abaixo do card quando existe arquivo anexado.
+- O download usa a rota já existente:
+  - `/api/crm/files/:fileKey?sessionToken=...`
+- O indicador de bolinhas do carrossel foi ajustado:
+  - o card ativo agora é calculado pelo centro real do scroll horizontal
+  - o clique nas bolinhas centraliza o card dentro do container
+
+Arquivos:
+- `functions/Zoho_api/services/zoho.js`
+- `zyba-app/app/trips/[id]/flight-information/page.tsx`
+- `zyba-app/app/globals.css`
+
+### 12.16 Card da página My Trips
+- O texto fixo `Trip name` foi removido do card da página `My Trips`.
+- A rota `/crm/trips` passou a devolver dados específicos para compor o card:
+  - `tripName`
+  - `arrivalDate`
+  - `departureDate`
+  - `destinationName`
+  - `destinationCountry`
+- A hierarquia visual do card passou a ser:
+  - badge superior com data de chegada e data de retorno
+  - título com nome da viagem
+  - subtítulo com nome do destino
+  - subtítulo secundário com país do destino
+- Regra mantida:
+  - país do destino vem do módulo `Vendors`, usando o lookup `Destination` do `Deal`
+- Ajuste técnico:
+  - a consulta resumida de `Deals` não salva mais registros parciais no cache de `zohoGetRecord`, evitando contaminar páginas que precisam do registro completo.
+
+Arquivos:
+- `functions/Zoho_api/services/zoho.js`
+- `zyba-app/lib/api.ts`
+- `zyba-app/app/trips/page.tsx`
+- `zyba-app/app/globals.css`

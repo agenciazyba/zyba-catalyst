@@ -3,7 +3,6 @@
 const { sendJson, getRawRequestBody } = require("../utils/http");
 const { verifyWebhookSignature } = require("../services/stripe");
 const { getCheckoutStatusByTrip, setCheckoutStatus } = require("../services/checkout-state");
-const { clearCart } = require("../services/cart");
 
 async function handleStripeRoutes(app, req, res, parsedUrl) {
   const path = parsedUrl.pathname;
@@ -57,20 +56,16 @@ async function handleStripeRoutes(app, req, res, parsedUrl) {
               : null,
           currency: session?.currency || null,
           customerEmail: session?.customer_details?.email || session?.customer_email || null,
+          cartSnapshot: currentStatus?.cartSnapshot || null,
+          salesOrder: currentStatus?.salesOrder || null,
+          salesOrderError: currentStatus?.salesOrderError || null,
           finalizedAt: currentStatus?.finalizedAt || null,
         });
 
-        if (isSuccess) {
-          const cartOwnerKey = String(session?.metadata?.cartOwnerKey || "").trim();
-          const customerEmail =
-            session?.customer_details?.email || session?.customer_email || null;
-          if (cartOwnerKey) {
-            await clearCart(app, cartOwnerKey, tripId);
-          }
-          if (customerEmail) {
-            await clearCart(app, customerEmail, tripId);
-          }
-        }
+        // Cart cleanup happens after the Zoho Sales Order is created in
+        // /crm/checkout/finalize. The webhook may arrive before the redirect
+        // page runs, so clearing here can remove the source data needed for
+        // Ordered_Items.
       }
 
       sendJson(res, 200, { ok: true, received: true });

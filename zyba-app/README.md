@@ -14,9 +14,11 @@ Important project documentation:
 - Products come from the Zoho CRM `Products` module.
 - Product separation/filtering is driven by the `Category` Pick List from the CRM.
 - Product listing only shows records with `Product_Active=true`.
+- Product cards show a green `ESSENTIAL` badge when the CRM boolean field `Essential` is checked.
 - Product detail opens as an in-page bottom sheet/modal; the old product detail route was removed.
 - The cart is isolated by session + trip, not by email alone.
 - The cart page is `My Tackle Box`, with item quantity controls, item-level remove, payment summary, `PAY NOW`, and `CONTINUE SHOPPING`.
+- Sales Order creation after Stripe approval uses the Zoho `Product Orders` layout and must finish before the approved animation appears.
 - There is no full-cart clear button in the current UI.
 - Local cart snapshots are cleared on logout and before a new login session is stored.
 - After logout + new login, Shop Gears should start with a clean cart.

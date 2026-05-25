@@ -11,16 +11,51 @@ type Traveler = {
   travelerName?: string | null;
 };
 
-function formatDateUs(value: string | null | undefined) {
-  if (!value) return "July 14th 2026";
+function formatShortDate(value: string | null | undefined) {
+  if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
 
-  const day = d.getUTCDate();
-  const month = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" }).format(d);
-  const year = d.getUTCFullYear();
-  const suffix = day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
-  return `${month} ${day}${suffix} ${year}`;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+
+function formatTripDateRange(arrivalDate?: string | null, departureDate?: string | null) {
+  if (arrivalDate && departureDate) {
+    const arrival = new Date(arrivalDate);
+    const departure = new Date(departureDate);
+
+    if (!Number.isNaN(arrival.getTime()) && !Number.isNaN(departure.getTime())) {
+      const arrivalMonth = new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        timeZone: "UTC",
+      }).format(arrival);
+      const departureMonth = new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        timeZone: "UTC",
+      }).format(departure);
+      const arrivalDay = arrival.getUTCDate();
+      const departureDay = departure.getUTCDate();
+      const arrivalYear = arrival.getUTCFullYear();
+      const departureYear = departure.getUTCFullYear();
+
+      if (arrivalYear === departureYear) {
+        return `${arrivalMonth} ${arrivalDay} – ${departureMonth} ${departureDay}, ${departureYear}`;
+      }
+
+      return `${arrivalMonth} ${arrivalDay}, ${arrivalYear} – ${departureMonth} ${departureDay}, ${departureYear}`;
+    }
+  }
+
+  const arrival = formatShortDate(arrivalDate);
+  const departure = formatShortDate(departureDate);
+
+  if (arrival && departure) return `${arrival} - ${departure}`;
+  return arrival || departure || "Dates to be confirmed";
 }
 
 export default function TripsPage() {
@@ -53,12 +88,16 @@ export default function TripsPage() {
         .filter((item: Trip) => item && item.id)
         .map((item: Trip) => ({
           id: String(item.id),
+          tripName: item.tripName ?? null,
           dealName: item.dealName ?? null,
+          destinationName: item.destinationName ?? null,
+          destinationCountry: item.destinationCountry ?? null,
           subject: item.subject ?? null,
           status: item.status ?? null,
           totalAmount: item.totalAmount ?? null,
           documentsAcknowledged: item.documentsAcknowledged,
           arrivalDate: item.arrivalDate ?? null,
+          departureDate: item.departureDate ?? null,
           coverId: item.coverId ?? null,
         }));
 
@@ -176,27 +215,38 @@ export default function TripsPage() {
           <div className="trips-carousel-area">
             <div className="trips-carousel-view" ref={carouselRef}>
               <div className="trips-carousel-track">
-                {trips.map((trip) => (
-                  <Link
-                    key={trip.id}
-                    href={`/trips/${trip.id}`}
-                    className={`trip-card-link${activeTripId === trip.id ? " is-active" : ""}`}
-                    ref={(node) => {
-                      tripLinkRefs.current[trip.id] = node;
-                    }}
-                  >
-                    <article
-                      className="trip-card-modern"
-                      style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(0,0,0,0.9) 100%), url('${getBgUrl(trip)}')` }}
+                {trips.map((trip) => {
+                  const tripTitle = trip.tripName || trip.subject || trip.dealName || "Trip";
+                  const destinationName = trip.destinationName || trip.dealName || "Destination";
+                  const destinationCountry = trip.destinationCountry || "";
+
+                  return (
+                    <Link
+                      key={trip.id}
+                      href={`/trips/${trip.id}`}
+                      className={`trip-card-link${activeTripId === trip.id ? " is-active" : ""}`}
+                      ref={(node) => {
+                        tripLinkRefs.current[trip.id] = node;
+                      }}
                     >
-                      <span className="trip-date-badge">{formatDateUs(trip.arrivalDate)}</span>
-                      <div className="trip-card-bottom">
-                        <h5 className="trip-card-title">Trip name</h5>
-                        <p className="trip-card-subtitle">{trip.dealName || "Lorem ipsum is simply dummy text of the printing and typesetting industry."}</p>
-                      </div>
-                    </article>
-                  </Link>
-                ))}
+                      <article
+                        className="trip-card-modern"
+                        style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(0,0,0,0.9) 100%), url('${getBgUrl(trip)}')` }}
+                      >
+                        <span className="trip-date-badge">
+                          {formatTripDateRange(trip.arrivalDate, trip.departureDate)}
+                        </span>
+                        <div className="trip-card-bottom">
+                          <h5 className="trip-card-title">{tripTitle}</h5>
+                          <p className="trip-card-subtitle">{destinationName}</p>
+                          {destinationCountry ? (
+                            <p className="trip-card-country">{destinationCountry}</p>
+                          ) : null}
+                        </div>
+                      </article>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
             <div className="trips-carousel-dots" aria-label="Trips carousel position">
