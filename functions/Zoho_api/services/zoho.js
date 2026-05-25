@@ -256,6 +256,109 @@ function mapFlightRecord(record) {
   };
 }
 
+function normalizeStringArray(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeOptionalString(item))
+      .filter(Boolean);
+  }
+
+  return normalizeOptionalString(value)
+    ? String(value)
+        .split(";")
+        .map((item) => normalizeOptionalString(item))
+        .filter(Boolean)
+    : [];
+}
+
+function mapHotelRecord(record) {
+  if (!record) return null;
+
+  return {
+    id: record.id || null,
+    bookingCode: normalizeOptionalString(record.Name),
+    checkIn: record.Check_in || null,
+    checkOut: record.Check_out || null,
+    checkinInformation: normalizeOptionalString(record.Checkin_information),
+    parentTrip: mapLookup(record.Parent_Trip),
+    email: normalizeOptionalString(record.Email),
+    secondaryEmail: normalizeOptionalString(record.Secondary_Email),
+    extraNight: normalizeOptionalNumber(record.Extra_Night),
+    features: normalizeStringArray(record.Features),
+    hotelName: mapLookup(record.Hotel_name),
+    payment: normalizeOptionalString(record.Payment),
+    roomType: normalizeOptionalString(record.Room_type),
+    singleRoomExtra: normalizeOptionalNumber(record.Price),
+    tag: normalizeOptionalString(record.Tag),
+    recordImage: mapRecordPhoto("Hotels", record.id || null, record.Record_Image),
+  };
+}
+
+function mapVendorHotelPhotos(vendorRecord) {
+  if (!vendorRecord?.id) return [];
+  return mapUploadedFiles("Vendors", vendorRecord.id, vendorRecord.Photos);
+}
+
+function mapVendorHotelAddress(vendorRecord) {
+  if (!vendorRecord) return null;
+
+  const parts = [
+    vendorRecord.Street,
+    vendorRecord.City,
+    vendorRecord.State,
+    vendorRecord.Zip_Code,
+    vendorRecord.Destination_Country,
+  ]
+    .map((item) => normalizeOptionalString(item))
+    .filter(Boolean);
+
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+async function attachVendorPhotosToHotels(hotels) {
+  const vendorIds = Array.from(
+    new Set(
+      (hotels || [])
+        .map((hotel) => normalizeOptionalString(hotel?.hotelName?.id))
+        .filter(Boolean)
+    )
+  );
+
+  if (vendorIds.length === 0) return hotels;
+
+  const vendorsById = new Map();
+  await Promise.all(
+    vendorIds.map(async (vendorId) => {
+      try {
+        const vendorRecord = await zohoGetRecord("Vendors", vendorId);
+        if (vendorRecord) {
+          vendorsById.set(vendorId, vendorRecord);
+        }
+      } catch (e) {}
+    })
+  );
+
+  return hotels.map((hotel) => {
+    const vendorId = normalizeOptionalString(hotel?.hotelName?.id);
+    const vendorRecord = vendorId ? vendorsById.get(vendorId) : null;
+    const photos = mapVendorHotelPhotos(vendorRecord);
+    const address = mapVendorHotelAddress(vendorRecord);
+
+    return {
+      ...hotel,
+      hotelAddress: address,
+      hotelName: hotel.hotelName
+        ? {
+            ...hotel.hotelName,
+            photos,
+            address,
+          }
+        : hotel.hotelName,
+      hotelPhotos: photos,
+    };
+  });
+}
+
 function includesMultiSelect(value, target) {
   if (!value || !target) return false;
 
@@ -1827,6 +1930,66 @@ async function createFlightForLoggedUser(email, payload = {}) {
   };
 }
 
+async function listHotelsForLoggedUser(email, payload = {}) {
+  const tripId = normalizeOptionalString(
+    pickFirstValue(payload.tripId, payload.parentTripId, payload.Parent_Trip)
+  );
+
+  if (!tripId) {
+    throw new Error("Parent Trip is required");
+  }
+
+  const tripDetails = await getTripDetailsById(tripId, email);
+
+  if (!tripDetails?.trip?.id) {
+    return null;
+  }
+
+  const cacheKey = `hotels-by-parent-trip:${tripId}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const records = await zohoListRecords(
+    "Hotels",
+    [
+      "Name",
+      "Check_in",
+      "Check_out",
+      "Checkin_information",
+      "Parent_Trip",
+      "Email",
+      "Secondary_Email",
+      "Extra_Night",
+      "Features",
+      "Hotel_name",
+      "Payment",
+      "Room_type",
+      "Price",
+      "Tag",
+      "Record_Image",
+    ],
+    1,
+    200
+  );
+
+  const hotels = records
+    .map((record) => mapHotelRecord(record))
+    .filter(Boolean)
+    .filter((hotel) =>
+      String(hotel.parentTrip?.id || "") === String(tripId)
+    )
+    .sort((a, b) => {
+      const aTime = new Date(a.checkIn || a.checkOut || 0).getTime();
+      const bTime = new Date(b.checkIn || b.checkOut || 0).getTime();
+      return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
+    });
+
+  const enrichedHotels = await attachVendorPhotosToHotels(hotels);
+
+  setDataCache(cacheKey, enrichedHotels, TTL_TRIP_DETAILS_MS);
+  return enrichedHotels;
+}
+
 function mapProductRecord(record) {
   if (!record) return null;
 
@@ -2355,6 +2518,7 @@ module.exports = {
   zohoListRecords,
   zohoCreateRecord,
   createFlightForLoggedUser,
+  listHotelsForLoggedUser,
   listProducts,
   getProductById,
   buildShopGearsSalesOrderDraft,

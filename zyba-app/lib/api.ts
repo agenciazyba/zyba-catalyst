@@ -148,6 +148,46 @@ export type FlightInput = {
   connectionsInformation?: FlightConnectionInput[];
 };
 
+export type HotelRecord = {
+  id?: string | null;
+  bookingCode?: string | null;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  checkinInformation?: string | null;
+  email?: string | null;
+  secondaryEmail?: string | null;
+  extraNight?: number | null;
+  features?: string[];
+  hotelName?: {
+    id?: string | null;
+    name?: string | null;
+    photos?: Array<{
+      id?: string | null;
+      fileId?: string | null;
+      previewId?: string | null;
+      fileName?: string | null;
+      downloadKey?: string | null;
+    }>;
+    address?: string | null;
+  } | null;
+  hotelAddress?: string | null;
+  hotelPhotos?: Array<{
+    id?: string | null;
+    fileId?: string | null;
+    previewId?: string | null;
+    fileName?: string | null;
+    downloadKey?: string | null;
+  }>;
+  parentTrip?: {
+    id?: string | null;
+    name?: string | null;
+  } | null;
+  payment?: string | null;
+  roomType?: string | null;
+  singleRoomExtra?: number | null;
+  tag?: string | null;
+};
+
 async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const text = await response.text();
 
@@ -305,6 +345,21 @@ export async function createFlight(sessionToken: string, payload: FlightInput) {
   });
 
   return parseResponse(response);
+}
+
+export async function getHotels(sessionToken: string, tripId: string): Promise<ApiResponse<HotelRecord[]>> {
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/hotels?tripId=${encodeURIComponent(tripId)}`, sessionToken),
+    {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+    }
+  );
+
+  return parseResponse<HotelRecord[]>(response);
 }
 
 export async function createCheckoutSession(sessionToken: string, tripId: string) {

@@ -9,6 +9,7 @@ const {
   getTripRequirementsById,
   acknowledgeTripRequirements,
   createFlightForLoggedUser,
+  listHotelsForLoggedUser,
   listProducts,
   getProductById,
   buildShopGearsSalesOrderDraft,
@@ -294,6 +295,39 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Failed to create flight"
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "GET" && path === "/crm/hotels") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const hotels = await listHotelsForLoggedUser(session.email, {
+        tripId: parsedUrl.searchParams.get("tripId"),
+      });
+
+      if (!hotels) {
+        sendJson(res, 404, { ok: false, error: "Trip not found for logged user" });
+        return true;
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        data: hotels,
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Failed to load hotels",
       });
     }
 

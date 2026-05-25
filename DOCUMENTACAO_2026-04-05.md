@@ -637,18 +637,9 @@ Arquivo:
 - estilos em `zyba-app/app/globals.css`
 
 ### 12.4 Página Hotel Information refeita
-- A página `Hotel Information` foi redesenhada com estrutura de card editorial.
-- Estrutura final:
-  - confirmation number no topo
-  - status em chip
-  - nome do hotel
-  - endereço com ícone de pin location
-  - hero card do hotel com botão `View Map`
-  - cards de `Check-in` e `Check-out`
-  - card `Hotel Details` exibindo apenas `hotelInformation`
-- Ajuste aplicado:
-  - `confirmation number` substituiu o texto `Upcoming Stay`
-  - `Hotel Details` passou a mostrar somente informações da hospedagem
+- Histórico: esta versão foi substituída pela arquitetura descrita em `12.18 Páginas Hotel e Hotel Details`.
+- A tela atual não usa mais o layout antigo com `View Map` nem campos antigos da trip como fonte principal.
+- A rota `Hotel Information` agora lista hospedagens e a rota `[hotelId]` mostra os detalhes do hotel selecionado.
 
 Arquivo:
 - `zyba-app/app/trips/[id]/hotel-information/page.tsx`
@@ -877,4 +868,73 @@ Arquivos:
 - `functions/Zoho_api/services/zoho.js`
 - `zyba-app/lib/api.ts`
 - `zyba-app/app/trips/page.tsx`
+- `zyba-app/app/globals.css`
+
+### 12.17 Rotas do módulo Hotels
+- Módulo CRM:
+  - API name: `Hotels`
+- Rotas criadas:
+  - `GET /crm/hotels?tripId=<salesOrderId>`
+- Rotas removidas:
+  - `POST /crm/hotels`, removida por não existir criação de hotéis no app; cadastro segue no Zoho CRM
+- Segurança:
+  - exige sessão autenticada
+  - `tripId` é obrigatório
+  - antes de listar, o backend valida se a trip pertence ao usuário logado
+- Vínculo com a viagem:
+  - usa o campo lookup simples `Parent_Trip`, seguindo o mesmo padrão do módulo `Flights`
+  - módulo relacionado: `Sales_Orders`
+  - o campo `Connected_To__s` não é utilizado neste fluxo
+- Campos mapeados:
+  - `Name`: booking code
+  - `Check_in`: check-in
+  - `Check_out`: check-out
+  - `Checkin_information`: informações de check-in
+  - `Parent_Trip`: lookup para a viagem/Sales Order
+  - `Email`
+  - `Secondary_Email`
+  - `Extra_Night`
+  - `Features`
+  - `Hotel_name`: lookup
+    - o lookup aponta para `Vendors`
+    - o backend busca o campo `Photos` no vendor relacionado
+    - `Photos` é `Image Upload`
+    - retorno disponível em `hotelName.photos[]` e `hotelPhotos[]`
+    - endereço completo também vem do vendor relacionado
+    - campos de endereço mapeados em `Vendors`: `Street`, `City`, `State`, `Zip_Code`, `Destination_Country`
+    - retorno disponível em `hotelName.address` e `hotelAddress`
+  - `Payment`
+  - `Room_type`
+  - `Price`: single room extra
+  - `Tag`
+  - `Record_Image`: mapeado para imagem/download quando retornado pelo CRM
+- Frontend:
+  - `getHotels(sessionToken, tripId)`
+
+Arquivos:
+- `functions/Zoho_api/routes/crm.js`
+- `functions/Zoho_api/services/zoho.js`
+- `zyba-app/lib/api.ts`
+
+### 12.18 Páginas Hotel e Hotel Details
+- A rota `Hotel Information` foi dividida em lista e detalhe para suportar mais de uma hospedagem por viagem.
+- Fonte principal:
+  - rota `GET /crm/hotels?tripId=...`
+  - vínculo pelo campo `Hotels.Parent_Trip`
+  - fotos e endereço completo vindos do `Vendor` selecionado em `Hotel_name`
+- Página lista:
+  - rota `zyba-app/app/trips/[id]/hotel-information/page.tsx`
+  - mostra apenas cards verticais das hospedagens cadastradas na viagem
+  - card com foto de fundo, nome do hotel, data de check-in e botão `Hotel Details`
+  - não usa carousel nesta visão
+- Página detalhe:
+  - rota `zyba-app/app/trips/[id]/hotel-information/[hotelId]/page.tsx`
+  - carrega a lista de hotéis da viagem e seleciona o registro pelo `hotelId` da URL
+  - mostra confirmação da reserva, status, endereço, carousel de fotos, check-in/check-out, `Hotel Details`, `Room Options` e `Amenities`
+- Observação:
+  - a página de detalhe usa `<img>` para aceitar URLs internas `/api/crm/files/...` e fallback remoto sem depender de configuração extra do `next/image`.
+
+Arquivos:
+- `zyba-app/app/trips/[id]/hotel-information/page.tsx`
+- `zyba-app/app/trips/[id]/hotel-information/[hotelId]/page.tsx`
 - `zyba-app/app/globals.css`
