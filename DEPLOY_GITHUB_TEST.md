@@ -68,6 +68,34 @@ catalyst deploy --only functions
 
 Depois, confirmar URL pública da função `Zoho_api` e usar essa URL no `API_PROXY_TARGET` do frontend.
 
+### 6.1) Regra anti `Route not found`
+
+Sempre que um commit alterar qualquer arquivo em `functions/Zoho_api/**`, o deploy do Vercel não é suficiente.
+Nesses casos, execute também:
+
+```bash
+catalyst deploy
+./scripts/check-catalyst-routes.sh
+```
+
+O check valida:
+
+- `/health` retorna `ok: true`
+- rotas CRM protegidas retornam `Unauthorized` sem sessão
+- uma rota nova que retornaria `Route not found` falha o script imediatamente
+
+Exemplo de leitura:
+
+- `Unauthorized`: rota publicada e protegida corretamente
+- `Route not found`: função Catalyst publicada ainda não tem a rota nova
+
+Variáveis opcionais:
+
+```bash
+CATALYST_BASE_URL="https://<backend>/server/Zoho_api" ./scripts/check-catalyst-routes.sh
+HOTELS_TRIP_ID="6623116000003137040" ./scripts/check-catalyst-routes.sh
+```
+
 ## 7) Teste com Usuários Reais
 
 - Testar em iPhone e Android.

@@ -4046,16 +4046,16 @@ h5 {
   min-height: 142px;
   overflow: hidden;
   border-radius: 6px;
-  background: #f4e9d3;
+  background: #ffffff;
 }
 
 .shop-gears-catalog-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   display: block;
-  background: #f4e9d3;
+  background: #ffffff;
 }
 
 .shop-gears-catalog-image-btn {
@@ -4075,10 +4075,75 @@ h5 {
   border-radius: 6px;
 }
 
+.shop-gears-image-carousel-btn {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(28, 28, 28, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #1c1c1c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "BL Melody", sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+  box-shadow: 0 5px 12px rgba(28, 28, 28, 0.12);
+}
+
+.shop-gears-image-carousel-btn.is-prev {
+  left: 7px;
+}
+
+.shop-gears-image-carousel-btn.is-next {
+  right: 7px;
+}
+
+.shop-gears-image-carousel-btn:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.shop-gears-image-carousel-btn:focus-visible {
+  outline: 2px solid rgba(17, 96, 51, 0.28);
+  outline-offset: 2px;
+}
+
+.shop-gears-image-carousel-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateX(-50%);
+}
+
+.shop-gears-image-carousel-dot {
+  width: 6px;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(28, 28, 28, 0.22);
+  cursor: pointer;
+}
+
+.shop-gears-image-carousel-dot.is-active {
+  width: 14px;
+  background: #1c1c1c;
+}
+
 .shop-gears-recommended-badge {
   position: absolute;
   left: 9px;
   top: 9px;
+  z-index: 4;
   min-height: 24px;
   padding: 0 9px;
   border-radius: 999px;
@@ -4097,6 +4162,7 @@ h5 {
   position: absolute;
   right: 8px;
   top: 8px;
+  z-index: 4;
   width: 25px;
   height: 25px;
   border: 1px solid rgba(28, 28, 28, 0.14);
@@ -4455,22 +4521,23 @@ h5 {
   min-height: 170px;
   overflow: hidden;
   border-radius: 8px;
-  background: #f4e9d3;
+  background: #ffffff;
 }
 
 .shop-gears-detail-sheet-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   display: block;
-  background: #f4e9d3;
+  background: #ffffff;
 }
 
 .shop-gears-detail-sheet-badge {
   position: absolute;
   left: 10px;
   top: 10px;
+  z-index: 4;
   min-height: 24px;
   padding: 0 10px;
   border-radius: 999px;

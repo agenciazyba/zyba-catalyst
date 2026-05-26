@@ -938,3 +938,23 @@ Arquivos:
 - `zyba-app/app/trips/[id]/hotel-information/page.tsx`
 - `zyba-app/app/trips/[id]/hotel-information/[hotelId]/page.tsx`
 - `zyba-app/app/globals.css`
+
+### 12.19 Mitigação de backend Catalyst desatualizado
+- Problema observado:
+  - após `git push`/redeploy do Vercel, rotas novas do backend retornavam `Route not found`
+  - causa: Vercel publica o frontend, mas não publica automaticamente `functions/Zoho_api`
+- Regra operacional:
+  - se qualquer commit alterar `functions/Zoho_api/**`, rodar também `catalyst deploy` na raiz do projeto
+  - após o deploy, executar `./scripts/check-catalyst-routes.sh`
+- Script criado:
+  - `scripts/check-catalyst-routes.sh`
+- O script valida:
+  - `/health` deve retornar `ok: true`
+  - `/crm/trips`, `/crm/hotels`, `/crm/orders` e `/crm/products` devem retornar `Unauthorized` sem sessão
+  - se uma rota retornar `Route not found`, o script falha e mostra a resposta
+- Interpretação:
+  - `Unauthorized`: rota existe e está protegida
+  - `Route not found`: Catalyst ainda não recebeu a nova versão
+- Variáveis opcionais:
+  - `CATALYST_BASE_URL`: troca a URL base do backend
+  - `HOTELS_TRIP_ID`: troca a trip usada no check de `/crm/hotels`

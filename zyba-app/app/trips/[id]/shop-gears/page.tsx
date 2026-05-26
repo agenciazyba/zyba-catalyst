@@ -48,6 +48,10 @@ type ProductListResponse = {
       downloadKey?: string | null;
       fileName?: string | null;
     }> | null;
+    productImageReal?: Array<{
+      downloadKey?: string | null;
+      fileName?: string | null;
+    }> | null;
     essential?: boolean | string | number | null;
     productRecommended?: boolean | string | number | null;
     productRecommendation?: boolean | string | number | null;
@@ -70,6 +74,11 @@ type CategoryFilterOption = {
   value: string;
 };
 
+type ProductImage = {
+  downloadKey: string;
+  fileName: string;
+};
+
 type ShopProduct = {
   id: string;
   productName: string;
@@ -80,6 +89,7 @@ type ShopProduct = {
   unitPrice: number | null;
   imageDownloadKey: string;
   imageAlt: string;
+  images: ProductImage[];
   isEssential: boolean;
 };
 
@@ -109,6 +119,20 @@ function isVisibleCategoryOption(value?: string | null) {
   return Boolean(normalized) && normalized !== "-none-" && normalized !== "none";
 }
 
+function buildProductImages(item: NonNullable<ProductListResponse["items"]>[number]) {
+  const seen = new Set<string>();
+  return [...(item?.productImageCatalog || []), ...(item?.productImageReal || [])]
+    .map((image) => ({
+      downloadKey: String(image?.downloadKey || "").trim(),
+      fileName: String(image?.fileName || item?.productName || "Product image").trim(),
+    }))
+    .filter((image) => {
+      if (!image.downloadKey || seen.has(image.downloadKey)) return false;
+      seen.add(image.downloadKey);
+      return true;
+    });
+}
+
 export default function ShopGearsPage() {
   const params = useParams();
   const router = useRouter();
@@ -131,6 +155,8 @@ export default function ShopGearsPage() {
   const [message, setMessage] = useState("");
   const [sessionToken, setSessionToken] = useState("");
   const [addButtonStates, setAddButtonStates] = useState<Record<string, AddTackleButtonState>>({});
+  const [activeImageByProduct, setActiveImageByProduct] = useState<Record<string, number>>({});
+  const [detailImageIndex, setDetailImageIndex] = useState(0);
   const [feedback, setFeedback] = useState<{ id: number; kind: "added"; productName: string } | null>(null);
   const { items: cartItems, subtotal, totalItems } = useShopCart(tripId);
   const cartPulseNonce = useShopCartAddPulse(tripId);
@@ -262,19 +288,25 @@ export default function ShopGearsPage() {
       const items = Array.isArray(body.data?.items) ? body.data?.items : [];
       setProducts(
         items
-          .map((item) => ({
-            id: String(item?.id || "").trim(),
-            productName: String(item?.productName || "").trim(),
-            productCode: String(item?.productCode || "").trim(),
-            vendorName: String(item?.vendorName?.name || "").trim(),
-            category: String(item?.category || "").trim(),
-            description: String(item?.description || "").trim(),
-            unitPrice:
-              typeof item?.unitPrice === "number" ? item.unitPrice : Number(item?.unitPrice ?? null),
-            imageDownloadKey: String(item?.productImageCatalog?.[0]?.downloadKey || "").trim(),
-            imageAlt: String(item?.productImageCatalog?.[0]?.fileName || item?.productName || "Product image"),
-            isEssential: isEssentialValue(item?.essential),
-          }))
+          .map((item) => {
+            const images = buildProductImages(item);
+            const firstImage = images[0] || null;
+
+            return {
+              id: String(item?.id || "").trim(),
+              productName: String(item?.productName || "").trim(),
+              productCode: String(item?.productCode || "").trim(),
+              vendorName: String(item?.vendorName?.name || "").trim(),
+              category: String(item?.category || "").trim(),
+              description: String(item?.description || "").trim(),
+              unitPrice:
+                typeof item?.unitPrice === "number" ? item.unitPrice : Number(item?.unitPrice ?? null),
+              imageDownloadKey: firstImage?.downloadKey || "",
+              imageAlt: firstImage?.fileName || String(item?.productName || "Product image"),
+              images,
+              isEssential: isEssentialValue(item?.essential),
+            };
+          })
           .filter((item) => item.id && item.productName)
           .map((item) => ({
             ...item,
@@ -421,12 +453,44 @@ export default function ShopGearsPage() {
 
   function closeProductDetail() {
     setSheetDragY(0);
+    setDetailImageIndex(0);
     setSelectedProduct(null);
   }
 
   function openProductDetail(product: ShopProduct) {
     setSheetDragY(0);
+    setDetailImageIndex(0);
     setSelectedProduct(product);
+  }
+
+  function getActiveProductImageIndex(product: ShopProduct) {
+    const maxIndex = Math.max(0, product.images.length - 1);
+    return Math.min(Math.max(activeImageByProduct[product.id] || 0, 0), maxIndex);
+  }
+
+  function changeProductImage(product: ShopProduct, delta: number) {
+    if (product.images.length <= 1) return;
+
+    setActiveImageByProduct((current) => {
+      const currentIndex = Math.min(Math.max(current[product.id] || 0, 0), product.images.length - 1);
+      const nextIndex = (currentIndex + delta + product.images.length) % product.images.length;
+      return {
+        ...current,
+        [product.id]: nextIndex,
+      };
+    });
+  }
+
+  function setProductImage(product: ShopProduct, index: number) {
+    setActiveImageByProduct((current) => ({
+      ...current,
+      [product.id]: Math.min(Math.max(index, 0), product.images.length - 1),
+    }));
+  }
+
+  function changeDetailImage(delta: number) {
+    if (!selectedProduct || selectedProduct.images.length <= 1) return;
+    setDetailImageIndex((current) => (current + delta + selectedProduct.images.length) % selectedProduct.images.length);
   }
 
   function handleDetailDragStart(event: PointerEvent<HTMLDivElement>) {
@@ -465,6 +529,9 @@ export default function ShopGearsPage() {
   const selectedProductDescription =
     selectedProduct?.description ||
     "No description available.";
+  const selectedProductImages = selectedProduct?.images || [];
+  const selectedProductImage =
+    selectedProductImages[Math.min(Math.max(detailImageIndex, 0), Math.max(0, selectedProductImages.length - 1))] || null;
 
   return (
     <main className="trip-details-page">
@@ -510,6 +577,8 @@ export default function ShopGearsPage() {
                 {filteredProducts.map((product) => {
                   const cartQuantity = cartQuantityByProduct[product.id] || 0;
                   const addButtonState = addButtonStates[product.id] || "idle";
+                  const activeImageIndex = getActiveProductImageIndex(product);
+                  const activeImage = product.images[activeImageIndex] || null;
                   return (
                     <article key={product.id} className="shop-gears-catalog-card">
                       <div className="shop-gears-catalog-media">
@@ -519,10 +588,10 @@ export default function ShopGearsPage() {
                           onClick={() => openProductDetail(product)}
                           aria-label={`Open details for ${product.productName}`}
                         >
-                          {product.imageDownloadKey && sessionToken ? (
+                          {activeImage?.downloadKey && sessionToken ? (
                             <Image
-                              src={`/api/crm/files/${encodeURIComponent(product.imageDownloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`}
-                              alt={product.imageAlt}
+                              src={`/api/crm/files/${encodeURIComponent(activeImage.downloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`}
+                              alt={activeImage.fileName || product.imageAlt}
                               width={320}
                               height={210}
                               className="shop-gears-catalog-image"
@@ -534,6 +603,38 @@ export default function ShopGearsPage() {
                             </div>
                           )}
                         </button>
+
+                        {product.images.length > 1 ? (
+                          <>
+                            <button
+                              type="button"
+                              className="shop-gears-image-carousel-btn is-prev"
+                              aria-label={`Previous image for ${product.productName}`}
+                              onClick={() => changeProductImage(product, -1)}
+                            >
+                              ‹
+                            </button>
+                            <button
+                              type="button"
+                              className="shop-gears-image-carousel-btn is-next"
+                              aria-label={`Next image for ${product.productName}`}
+                              onClick={() => changeProductImage(product, 1)}
+                            >
+                              ›
+                            </button>
+                            <div className="shop-gears-image-carousel-dots" aria-label={`${product.productName} images`}>
+                              {product.images.map((image, index) => (
+                                <button
+                                  key={`${product.id}-${image.downloadKey}`}
+                                  type="button"
+                                  className={`shop-gears-image-carousel-dot${index === activeImageIndex ? " is-active" : ""}`}
+                                  aria-label={`Show image ${index + 1} for ${product.productName}`}
+                                  onClick={() => setProductImage(product, index)}
+                                />
+                              ))}
+                            </div>
+                          </>
+                        ) : null}
 
                         {product.isEssential ? (
                           <span className="shop-gears-recommended-badge">ESSENTIAL</span>
@@ -692,10 +793,10 @@ export default function ShopGearsPage() {
 
               <div className="shop-gears-detail-sheet-body">
                 <div className="shop-gears-detail-sheet-media">
-                  {selectedProduct.imageDownloadKey && sessionToken ? (
+                  {selectedProductImage?.downloadKey && sessionToken ? (
                     <Image
-                      src={`/api/crm/files/${encodeURIComponent(selectedProduct.imageDownloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`}
-                      alt={selectedProduct.imageAlt}
+                      src={`/api/crm/files/${encodeURIComponent(selectedProductImage.downloadKey)}?sessionToken=${encodeURIComponent(sessionToken)}`}
+                      alt={selectedProductImage.fileName || selectedProduct.imageAlt}
                       width={420}
                       height={260}
                       className="shop-gears-detail-sheet-image"
@@ -706,6 +807,38 @@ export default function ShopGearsPage() {
                       <span className="shop-gears-product-image-placeholder-text">No image</span>
                     </div>
                   )}
+
+                  {selectedProductImages.length > 1 ? (
+                    <>
+                      <button
+                        type="button"
+                        className="shop-gears-image-carousel-btn is-prev"
+                        aria-label={`Previous image for ${selectedProduct.productName}`}
+                        onClick={() => changeDetailImage(-1)}
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        className="shop-gears-image-carousel-btn is-next"
+                        aria-label={`Next image for ${selectedProduct.productName}`}
+                        onClick={() => changeDetailImage(1)}
+                      >
+                        ›
+                      </button>
+                      <div className="shop-gears-image-carousel-dots" aria-label={`${selectedProduct.productName} images`}>
+                        {selectedProductImages.map((image, index) => (
+                          <button
+                            key={`detail-${selectedProduct.id}-${image.downloadKey}`}
+                            type="button"
+                            className={`shop-gears-image-carousel-dot${index === detailImageIndex ? " is-active" : ""}`}
+                            aria-label={`Show image ${index + 1} for ${selectedProduct.productName}`}
+                            onClick={() => setDetailImageIndex(index)}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
 
                   {selectedProduct.isEssential ? (
                     <span className="shop-gears-detail-sheet-badge">ESSENTIAL</span>
