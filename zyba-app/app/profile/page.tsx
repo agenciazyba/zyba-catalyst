@@ -3,6 +3,7 @@
 import Image from "next/image";
 import LogoutButton from "@/components/LogoutButton";
 import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getTraveler } from "@/lib/api";
@@ -146,6 +147,7 @@ export default function ProfilePage() {
       <AppTopBar firstName={firstName} />
 
       <section className="profile-page-body">
+        <TripBackLink href="/trips" label="Return to trips" />
         <div className="profile-hero">
           <div className="profile-avatar-wrap">
             {loading ? (

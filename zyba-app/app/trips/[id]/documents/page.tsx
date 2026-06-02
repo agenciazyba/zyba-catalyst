@@ -7,6 +7,9 @@ import { useParams, useRouter } from "next/navigation";
 import { acknowledgeRequirements, getTraveler, getTripRequirements } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 
+const EMPTY_INFORMATION_MESSAGE =
+  "This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.";
+
 type RequirementItem = {
   id: string | null;
   name: string | null;
@@ -145,6 +148,7 @@ export default function DocumentsPage() {
       <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
+        <TripBackLink href={`/trips/${tripId}`} label="Return to trip details" />
         <h5 className="trip-details-section-title">Documents</h5>
         {isAcknowledged ? (
           <div className="documents-verified-badge" aria-live="polite">
@@ -174,7 +178,7 @@ export default function DocumentsPage() {
 
           {!loading && requirements.length === 0 ? (
             <div className="documents-card">
-              <p className="documents-card-copy">No mandatory documents found for this trip.</p>
+              <p className="documents-card-copy">{EMPTY_INFORMATION_MESSAGE}</p>
             </div>
           ) : null}
 
@@ -203,16 +207,13 @@ export default function DocumentsPage() {
               </div>
             ))}
 
-          {!loading && !isAcknowledged ? (
+          {!loading && requirements.length > 0 && !isAcknowledged ? (
             <button className="btn documents-ack-btn" onClick={handleAcknowledge} disabled={isSubmitting}>
               {isSubmitting ? "Verifying..." : "I understand and acknowledge"}
             </button>
           ) : null}
         </div>
 
-        <div className="trip-back-action">
-          <TripBackLink href={`/trips/${tripId}`} />
-        </div>
       </section>
     </main>
   );

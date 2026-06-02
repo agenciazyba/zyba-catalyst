@@ -1,6 +1,7 @@
 "use client";
 
 import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
 import {
   createCheckoutSession,
@@ -201,6 +202,7 @@ export default function ShopCartPage() {
       <section className="trip-details-body">
         <div className="shop-gears-shell">
           <section className="shop-gears-section shop-gears-cart-page">
+            <TripBackLink href={`/trips/${tripId}/shop-gears`} label="Return to shop gears" />
             <h1 className="shop-gears-cart-page-title">My Tackle Box</h1>
 
             {checkoutStatus?.status && checkoutStatus.status !== "idle" ? (

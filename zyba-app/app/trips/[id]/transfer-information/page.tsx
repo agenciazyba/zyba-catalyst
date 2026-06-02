@@ -8,6 +8,9 @@ import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 
+const EMPTY_INFORMATION_MESSAGE =
+  "This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.";
+
 type TripDetailsResponse = {
   trip: {
     driverName: string | null;
@@ -112,6 +115,9 @@ export default function TransferInformationPage() {
         alt: file.fileName || `Vehicle photo ${index + 1}`,
       };
     }).filter(Boolean) || [];
+  const hasDriverInfo = hasText(data?.trip?.driverName) || hasText(data?.trip?.driverPhone);
+  const hasVehicleInfo = carPhotos.length > 0 || hasText(data?.trip?.licensePlate) || hasText(data?.trip?.driverInformation);
+  const hasTransferInfo = hasDriverInfo || hasVehicleInfo;
 
   return (
     <main className="trip-details-page">
@@ -120,6 +126,12 @@ export default function TransferInformationPage() {
       <section className="trip-details-body">
         <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
         <div className="transfer-page-stack">
+          <TripBackLink
+            href={`/trips/${tripId}`}
+            label="Return to trip details"
+            onClick={handleBackNavigation}
+            ariaDisabled={isLeaving}
+          />
           <div className="transfer-page-heading trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
             <h1 className="transfer-page-title">Transfer Details</h1>
           </div>
@@ -131,7 +143,7 @@ export default function TransferInformationPage() {
             </>
           ) : (
             <>
-              {(hasText(data?.trip?.driverName) || hasText(data?.trip?.driverPhone)) ? (
+              {hasDriverInfo ? (
                 <section className="transfer-panel trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "140ms" }}>
                   <h2 className="transfer-panel-title">Your Driver</h2>
 
@@ -149,7 +161,7 @@ export default function TransferInformationPage() {
                 </section>
               ) : null}
 
-              {(carPhotos.length > 0 || hasText(data?.trip?.licensePlate) || hasText(data?.trip?.driverInformation)) ? (
+              {hasVehicleInfo ? (
                 <section className="transfer-panel trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "260ms" }}>
                   <div className="transfer-panel-header">
                     <h2 className="transfer-panel-title">Vehicle</h2>
@@ -183,14 +195,20 @@ export default function TransferInformationPage() {
                   ) : null}
                 </section>
               ) : null}
+
+              {!hasTransferInfo ? (
+                <section className="transfer-panel trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "140ms" }}>
+                  <h2 className="transfer-panel-title">Transfer Details</h2>
+                  <div className="trip-content-card-copy">
+                    <p className="trip-content-card-line">{EMPTY_INFORMATION_MESSAGE}</p>
+                  </div>
+                </section>
+              ) : null}
             </>
           )}
 
           {message ? <p className="page-subtitle" style={{ color: "var(--color-orange)" }}>{message}</p> : null}
 
-          <div className="trip-back-action">
-            <TripBackLink href={`/trips/${tripId}`} onClick={handleBackNavigation} ariaDisabled={isLeaving} />
-          </div>
         </div>
         </div>
       </section>

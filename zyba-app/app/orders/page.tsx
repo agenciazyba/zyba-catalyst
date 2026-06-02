@@ -1,6 +1,7 @@
 "use client";
 
 import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
 import { getOrders, getTraveler, type ProductOrder } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
@@ -130,6 +131,7 @@ export default function OrdersPage() {
       <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="orders-body">
+        <TripBackLink href="/trips" label="Return to trips" />
         <h4 className="orders-title">Your Orders</h4>
         <p className="orders-subtitle">History of equipment and services for this trip</p>
         {message ? <p className="orders-message" role="status">{message}</p> : null}

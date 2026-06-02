@@ -2,6 +2,7 @@
 
 import AddTackleButton, { type AddTackleButtonState } from "@/components/AddTackleButton";
 import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import {
@@ -545,6 +546,7 @@ export default function ShopGearsPage() {
       <section className="trip-details-body">
         <div className="shop-gears-shell">
           <section className="shop-gears-catalog-hero">
+            <TripBackLink href={`/trips/${tripId}`} label="Return to trip details" />
             <h1 className="shop-gears-catalog-title">
               Essential gear for your
               <span className="shop-gears-catalog-title-destination">{vendorName}</span>

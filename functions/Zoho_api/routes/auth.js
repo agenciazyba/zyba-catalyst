@@ -4,12 +4,18 @@ const {
   isValidEmail,
   generateOtp,
   buildOtpCacheKey,
+  buildOtpThrottleCacheKey,
   getSessionTokenFromRequest
 } = require("../utils/helpers");
 const { getCacheSegment } = require("../services/cache");
 const { sendOtpEmail } = require("../services/email");
 const { createSession, getSession, logoutSession } = require("../services/session");
 const { getZohoAccessToken } = require("../services/zoho");
+
+function readPositiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 async function handleAuthRoutes(app, req, res, parsedUrl) {
   const path = parsedUrl.pathname;
@@ -39,8 +45,64 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
       return true;
     }
 
-    const otp = generateOtp();
     const segment = getCacheSegment(app);
+    const now = Date.now();
+    const cooldownSeconds = readPositiveNumber(process.env.OTP_RESEND_COOLDOWN_SECONDS, 60);
+    const windowMinutes = readPositiveNumber(process.env.OTP_RESEND_WINDOW_MINUTES, 15);
+    const maxPerWindow = readPositiveNumber(process.env.OTP_RESEND_MAX_PER_WINDOW, 5);
+    const cooldownMs = cooldownSeconds * 1000;
+    const windowMs = windowMinutes * 60 * 1000;
+    const throttleKey = buildOtpThrottleCacheKey(email);
+    const savedThrottle = await segment.getValue(throttleKey);
+    let throttle = {
+      lastSentAt: 0,
+      windowStartedAt: now,
+      count: 0
+    };
+
+    if (savedThrottle) {
+      try {
+        const parsedThrottle = JSON.parse(savedThrottle);
+        throttle = {
+          lastSentAt: Number(parsedThrottle.lastSentAt || 0),
+          windowStartedAt: Number(parsedThrottle.windowStartedAt || now),
+          count: Number(parsedThrottle.count || 0)
+        };
+      } catch {
+        throttle = {
+          lastSentAt: 0,
+          windowStartedAt: now,
+          count: 0
+        };
+      }
+    }
+
+    const isSameWindow = now - throttle.windowStartedAt < windowMs;
+    const elapsedSinceLastSend = now - throttle.lastSentAt;
+
+    if (throttle.lastSentAt && elapsedSinceLastSend < cooldownMs) {
+      const retryAfterSeconds = Math.ceil((cooldownMs - elapsedSinceLastSend) / 1000);
+
+      sendJson(res, 429, {
+        ok: false,
+        message: `Please wait ${retryAfterSeconds}s before requesting a new code.`,
+        retryAfterSeconds
+      });
+      return true;
+    }
+
+    if (isSameWindow && throttle.count >= maxPerWindow) {
+      const retryAfterSeconds = Math.ceil((throttle.windowStartedAt + windowMs - now) / 1000);
+
+      sendJson(res, 429, {
+        ok: false,
+        message: "Too many code requests. Please try again later.",
+        retryAfterSeconds
+      });
+      return true;
+    }
+
+    const otp = generateOtp();
 
     await segment.put(
       buildOtpCacheKey(email),
@@ -54,9 +116,28 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
 
     await sendOtpEmail(app, email, otp);
 
+    const nextThrottle = isSameWindow
+      ? {
+          ...throttle,
+          lastSentAt: now,
+          count: throttle.count + 1
+        }
+      : {
+          lastSentAt: now,
+          windowStartedAt: now,
+          count: 1
+        };
+
+    await segment.put(
+      throttleKey,
+      JSON.stringify(nextThrottle),
+      Math.max(1, Math.ceil(windowMs / (60 * 60 * 1000)))
+    );
+
     sendJson(res, 200, {
       ok: true,
-      message: "OTP enviado com sucesso"
+      message: "OTP enviado com sucesso",
+      retryAfterSeconds: cooldownSeconds
     });
     return true;
   }

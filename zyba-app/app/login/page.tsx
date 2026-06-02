@@ -1,36 +1,78 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestOtp, verifyOtp } from "@/lib/api";
 import { setSessionToken } from "@/lib/auth";
 import { clearAllShopCartSnapshots } from "@/lib/shop-cart";
 
+const OTP_DIGIT_COUNT = 6;
+const DEFAULT_RESEND_COOLDOWN_SECONDS = 60;
+
+function createEmptyOtpDigits() {
+  return Array.from({ length: OTP_DIGIT_COUNT }, () => "");
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const [otpDigits, setOtpDigits] = useState<string[]>(createEmptyOtpDigits);
   const [step, setStep] = useState<"email" | "otp">("email");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  async function handleRequestOtp() {
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = window.setTimeout(() => {
+      setResendCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
+  function getRetryAfterSeconds(result: unknown) {
+    const value = Number((result as { retryAfterSeconds?: number | string })?.retryAfterSeconds || 0);
+    return Number.isFinite(value) && value > 0 ? Math.ceil(value) : DEFAULT_RESEND_COOLDOWN_SECONDS;
+  }
+
+  async function handleRequestOtp(options: { isResend?: boolean } = {}) {
+    const isResend = options.isResend === true;
+    if (isResend && resendCooldown > 0) return;
+
     try {
-      setLoading(true);
+      if (isResend) {
+        setResendLoading(true);
+      } else {
+        setLoading(true);
+      }
       setMessage("");
       const result = await requestOtp(email);
       if (result.ok) {
         setStep("otp");
+        setOtpDigits(createEmptyOtpDigits());
+        setResendCooldown(getRetryAfterSeconds(result));
+        setMessage(isResend ? "A new code was sent to your email." : "");
+        window.requestAnimationFrame(() => {
+          otpRefs.current[0]?.focus();
+        });
         return;
       }
+      setResendCooldown(getRetryAfterSeconds(result));
       setMessage(result.error || result.message || "Failed to request code.");
     } catch {
       setMessage("Unable to contact server.");
     } finally {
-      setLoading(false);
+      if (isResend) {
+        setResendLoading(false);
+      } else {
+        setLoading(false);
+      }
     }
   }
 
@@ -56,6 +98,7 @@ export default function LoginPage() {
 
   const isEmailStep = step === "email";
   const otpValue = useMemo(() => otpDigits.join(""), [otpDigits]);
+  const canResendCode = !isEmailStep && !loading && !resendLoading && resendCooldown <= 0;
 
   function handleOtpDigitChange(index: number, value: string) {
     const cleaned = value.replace(/\D/g, "").slice(-1);
@@ -64,7 +107,7 @@ export default function LoginPage() {
       next[index] = cleaned;
       return next;
     });
-    if (cleaned && index < 5) {
+    if (cleaned && index < OTP_DIGIT_COUNT - 1) {
       otpRefs.current[index + 1]?.focus();
     }
   }
@@ -77,12 +120,12 @@ export default function LoginPage() {
 
   function handleOtpPaste(e: React.ClipboardEvent<HTMLDivElement>) {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_DIGIT_COUNT);
     if (!pasted) return;
-    const next = ["", "", "", "", "", ""];
+    const next = createEmptyOtpDigits();
     for (let i = 0; i < pasted.length; i += 1) next[i] = pasted[i];
     setOtpDigits(next);
-    const focusIndex = Math.min(pasted.length, 5);
+    const focusIndex = Math.min(pasted.length, OTP_DIGIT_COUNT - 1);
     otpRefs.current[focusIndex]?.focus();
   }
 
@@ -114,7 +157,7 @@ export default function LoginPage() {
               if (!loading && email) void handleRequestOtp();
               return;
             }
-            if (!loading && otpValue.length === 6) void handleVerifyOtp();
+            if (!loading && !resendLoading && otpValue.length === OTP_DIGIT_COUNT) void handleVerifyOtp();
           }}
         >
           <label className="text-h4 login-label" htmlFor={isEmailStep ? "email" : "otp"}>
@@ -154,12 +197,30 @@ export default function LoginPage() {
             </div>
           )}
 
+          {!isEmailStep ? (
+            <div className="login-resend-wrap">
+              <span className="login-resend-copy">Did not receive the code?</span>
+              <button
+                type="button"
+                className="login-resend-link"
+                disabled={!canResendCode}
+                onClick={() => void handleRequestOtp({ isResend: true })}
+              >
+                {resendLoading
+                  ? "Sending..."
+                  : resendCooldown > 0
+                    ? `Resend code in ${resendCooldown}s`
+                    : "Resend code"}
+              </button>
+            </div>
+          ) : null}
+
           {!isEmailStep && message ? <p className="login-message">{message}</p> : null}
 
           <button
             type="submit"
             className="btn"
-            disabled={loading || (isEmailStep ? !email : otpValue.length !== 6)}
+            disabled={loading || resendLoading || (isEmailStep ? !email : otpValue.length !== OTP_DIGIT_COUNT)}
             style={{ marginTop: 20 }}
           >
             {isEmailStep

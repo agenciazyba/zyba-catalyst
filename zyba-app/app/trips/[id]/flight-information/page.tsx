@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
@@ -295,6 +296,7 @@ export default function FlightInformationPage() {
       <AppTopBar firstName={traveler?.travelerName?.split(" ")[0] || "Traveler"} />
 
       <section className="trip-details-body">
+        <TripBackLink href={`/trips/${tripId}`} label="Return to trip details" />
         <h5 className="trip-details-section-title" style={{ marginBottom: 16 }}>
           Flight Itinerary
         </h5>

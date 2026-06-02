@@ -2,6 +2,7 @@
 
 import AppTopBar from "@/components/AppTopBar";
 import LottieFilePlayer from "@/components/LottieFilePlayer";
+import TripBackLink from "@/components/TripBackLink";
 import { getSessionToken } from "@/lib/auth";
 import {
   type FinalizeCheckoutResponse,
@@ -157,6 +158,7 @@ export default function ShopGearsSuccessPage() {
             />
             {orderSummary?.salesOrder ? (
               <article className="shop-gears-success-summary" aria-label="Order summary">
+                <TripBackLink href={`/trips/${tripId}/shop-gears`} label="Return to shop gears" />
                 <p className="shop-gears-success-kicker">Order approved</p>
                 <h1>{orderSummary.salesOrder.subject || "Your tackle box order"}</h1>
                 <dl>

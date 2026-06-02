@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import TripBackLink from "@/components/TripBackLink";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSessionToken } from "@/lib/auth";
@@ -31,11 +32,9 @@ export default function NotificationsPage() {
   return (
     <main className="notifications-overlay-page">
       <section className="notifications-panel">
+        <TripBackLink href="/trips" label="Return to trips" />
         <header className="notifications-top">
           <h2 className="notifications-title">Notifications</h2>
-          <button type="button" className="notifications-close" onClick={() => router.back()} aria-label="Close notifications">
-            ×
-          </button>
         </header>
 
         {loading ? (

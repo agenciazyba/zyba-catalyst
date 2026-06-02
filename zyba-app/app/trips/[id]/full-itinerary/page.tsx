@@ -7,6 +7,9 @@ import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 
+const EMPTY_INFORMATION_MESSAGE =
+  "This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.";
+
 type ItineraryItem = {
   id: string | null;
   day: string | null;
@@ -131,6 +134,12 @@ export default function FullItineraryPage() {
 
       <section className="trip-details-body">
         <div className={`hotel-page-transition-shell ${isLeaving ? "is-leaving" : "is-entering"}`}>
+        <TripBackLink
+          href={`/trips/${tripId}`}
+          label="Return to trip details"
+          onClick={handleBackNavigation}
+          ariaDisabled={isLeaving}
+        />
         <h5 className="trip-details-section-title trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
           Full Itinerary
         </h5>
@@ -159,7 +168,7 @@ export default function FullItineraryPage() {
           <div className="itinerary-empty-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "140ms" }}>
             <h2 className="trip-content-card-title">Itinerary</h2>
             <div className="trip-content-card-copy">
-              <p className="trip-content-card-line">No itinerary found.</p>
+              <p className="trip-content-card-line">{EMPTY_INFORMATION_MESSAGE}</p>
             </div>
           </div>
         ) : (
@@ -215,9 +224,6 @@ export default function FullItineraryPage() {
           </div>
         )}
 
-        <div className="trip-back-action">
-          <TripBackLink href={`/trips/${tripId}`} onClick={handleBackNavigation} ariaDisabled={isLeaving} />
-        </div>
         </div>
       </section>
     </main>

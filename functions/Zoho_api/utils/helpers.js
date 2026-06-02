@@ -24,6 +24,10 @@ function buildOtpCacheKey(email) {
   return `otp_${hashKey(normalizeEmail(email))}`;
 }
 
+function buildOtpThrottleCacheKey(email) {
+  return `otp_throttle_${hashKey(normalizeEmail(email))}`;
+}
+
 function buildSessionCacheKey(token) {
   return `ses_${hashKey(String(token || "").trim())}`;
 }
@@ -57,6 +61,7 @@ module.exports = {
   generateSessionToken,
   hashKey,
   buildOtpCacheKey,
+  buildOtpThrottleCacheKey,
   buildSessionCacheKey,
   getSessionTokenFromRequest
 };

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
 import { useParams, useRouter } from "next/navigation";
 import { getHotels, getTraveler, type HotelRecord } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
@@ -217,6 +218,7 @@ export default function HotelInformationPage() {
         <div className="hotel-page-transition-shell is-entering">
           <div className="hotel-redesign-stack">
             <div className="hotel-redesign-summary trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
+              <TripBackLink href={`/trips/${tripId}/hotel-information`} label="Return to hotels" />
               {hotelName ? <h1 className="hotel-redesign-title">{hotelName}</h1> : null}
 
               {(hotelConfirmationCode || status) ? (
@@ -228,16 +230,6 @@ export default function HotelInformationPage() {
                   ) : <span />}
 
                   {status ? <span className="hotel-redesign-status">{status}</span> : null}
-                </div>
-              ) : null}
-
-              {hotelAddress ? (
-                <div className="hotel-redesign-address">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 21s7-6.045 7-11a7 7 0 1 0-14 0c0 4.955 7 11 7 11Z" />
-                    <circle cx="12" cy="10" r="2.7" />
-                  </svg>
-                  <span>{hotelAddress}</span>
                 </div>
               ) : null}
             </div>
@@ -295,6 +287,16 @@ export default function HotelInformationPage() {
 
                     </section>
 
+                    {hotelAddress ? (
+                      <div className="hotel-redesign-address trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "180ms" }}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M12 21s7-6.045 7-11a7 7 0 1 0-14 0c0 4.955 7 11 7 11Z" />
+                          <circle cx="12" cy="10" r="2.7" />
+                        </svg>
+                        <span>{hotelAddress}</span>
+                      </div>
+                    ) : null}
+
                     {(checkInDate || checkOutDate) ? (
                   <div className="hotel-redesign-stay-grid trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "220ms" }}>
                     {checkInDate ? (
@@ -318,11 +320,6 @@ export default function HotelInformationPage() {
                     {hotelInfoLines.length > 0 ? (
                   <section className="hotel-redesign-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "300ms" }}>
                     <h2 className="hotel-redesign-card-title">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9" />
-                        <path d="M12 8h.01" />
-                        <path d="M11 12h1v5h1" />
-                      </svg>
                       <span>Hotel Details</span>
                     </h2>
                     <div className="hotel-redesign-card-copy">
@@ -336,12 +333,6 @@ export default function HotelInformationPage() {
                     {hasRoomOptions ? (
                   <section className="hotel-redesign-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "380ms" }}>
                     <h2 className="hotel-redesign-card-title">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 11V6h16v5" />
-                        <path d="M4 18v-4h16v4" />
-                        <path d="M7 14v4" />
-                        <path d="M17 14v4" />
-                      </svg>
                       <span>Room Options</span>
                     </h2>
 
@@ -349,7 +340,7 @@ export default function HotelInformationPage() {
                       {roomType ? (
                         <div className="hotel-redesign-room-row">
                           <div>
-                            <span>Type:</span>
+                            <strong>Type</strong>
                             <p>{roomType}</p>
                           </div>
                         </div>

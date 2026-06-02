@@ -53,6 +53,9 @@ Rotas principais:
 - `PATCH /api/crm/cart/items/:productId`
 - `DELETE /api/crm/cart/items/:productId`
 - `DELETE /api/crm/cart`
+- `POST /api/crm/checkout/session`
+- `GET /api/crm/checkout/status`
+- `POST /api/crm/checkout/finalize`
 
 Origem dos dados:
 
@@ -148,6 +151,12 @@ Objetivo:
 - reduzir chamadas repetidas ao Zoho
 - manter o mesmo padrão das demais áreas do app
 
+TTL atual:
+
+- products list/detail/categories: `TTL_PRODUCTS_MS`, padrão 2 minutos
+- front usa `cache: "no-store"`; a economia de API acontece no backend
+- imagens dos produtos são streamadas pelo endpoint `/api/crm/files/:fileId`
+
 ### Carrinho e sessão
 
 O carrinho não deve sobreviver a um ciclo de logout + novo login.
@@ -160,8 +169,32 @@ Regras atuais:
 - a chave persistida do carrinho é isolada por `session + tripId`
 - o logout chama `/auth/logout` como best-effort para invalidar a sessão no backend
 - o webhook Stripe recebe `cartOwnerKey` no metadata para limpar o carrinho da sessão correta após pagamento
+- estado de checkout é persistido em Catalyst Cache para suportar o retorno do Stripe e a finalização da Sales Order
+- após checkout aprovado, o snapshot local da trip é limpo
 
 Isso evita que um carrinho antigo de outro login, outro browser ou outro ciclo de sessão apareça novamente em `Shop Gears`.
+
+### Política geral de cache do app
+
+Data:
+
+- 2026-06-02
+
+Regras atuais:
+
+- `Documents/Requirements` fica sem cache de Trip Details para refletir imediatamente o aceite dos termos.
+- `Flights`, `Full Itinerary`, `Hotels`, `Hotel Details` e `Transfer` usam cache backend de 5 minutos.
+- `My Trips` e `My Orders` usam cache backend de 3 minutos.
+- `Profile/Traveler` usa cache backend de 5 minutos.
+- `Shop Gears` usa cache backend de 2 minutos para produtos e categorias.
+- atualizações feitas pelo app via `zohoUpdateRecord` invalidam o cache do record alterado.
+- rotas de dados no front continuam usando `cache: "no-store"` para evitar cache de browser/Next.
+
+Objetivo:
+
+- reduzir consumo de API Zoho nas páginas estáveis
+- manter leitura imediata em `Documents` após aceite
+- preservar UX rápida sem reaproveitar carrinho de sessões antigas
 
 ---
 
@@ -223,15 +256,24 @@ Melhorias aplicadas:
 - botão secundário `CONTINUE SHOPPING` retorna para a página de produtos
 - opção de limpar carrinho completo foi removida
 - campo `Order notes` foi removido da UI e do payload de checkout
+- botão de voltar visual, sem texto, foi padronizado acima dos títulos das páginas internas
+- estados vazios de `Documents`, `Itinerary`, `Hotels` e `Transfer` usam a mensagem padrão:
+  - `This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.`
+- login passou a permitir reenvio de OTP com cooldown visual de 60 segundos
+- backend limita reenvio de OTP a 5 solicitações por email em janela de 15 minutos
 
 Arquivos principais:
 
 - `zyba-app/components/AddTackleButton.tsx`
+- `zyba-app/components/TripBackLink.tsx`
+- `zyba-app/app/login/page.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/page.tsx`
 - `zyba-app/app/trips/[id]/shop-gears/cart/page.tsx`
 - `zyba-app/components/AppTopBar.tsx`
 - `zyba-app/lib/shop-cart.ts`
 - `zyba-app/app/globals.css`
+- `functions/Zoho_api/routes/auth.js`
+- `functions/Zoho_api/services/zoho.js`
 
 ### Navegação e descoberta do Shop Gears
 

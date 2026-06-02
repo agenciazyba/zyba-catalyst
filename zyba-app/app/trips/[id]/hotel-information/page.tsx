@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import AppTopBar from "@/components/AppTopBar";
+import TripBackLink from "@/components/TripBackLink";
 import { getHotels, getTraveler, type HotelRecord } from "@/lib/api";
 import { getSessionToken } from "@/lib/auth";
 
@@ -13,6 +14,8 @@ type Traveler = {
 
 const FALLBACK_HOTEL_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
+const EMPTY_INFORMATION_MESSAGE =
+  "This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.";
 
 function formatDate(value?: string | null) {
   const text = String(value || "").trim();
@@ -98,6 +101,7 @@ export default function HotelInformationPage() {
       <section className="trip-details-body hotel-list-body">
         <div className="hotel-list-stack">
           <header className="hotel-list-header trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "40ms" }}>
+            <TripBackLink href={`/trips/${tripId}`} label="Return to trip details" />
             <h1 className="hotel-list-title">Hotels</h1>
             <p className="hotel-list-subtitle">Your registered stays for this trip</p>
           </header>
@@ -137,7 +141,7 @@ export default function HotelInformationPage() {
           ) : (
             <div className="hotel-list-empty-card trip-details-reveal" style={{ ["--trip-reveal-delay" as string]: "120ms" }}>
               <h2>No hotels found</h2>
-              <p>There are no hotel bookings registered for this trip yet.</p>
+              <p>{EMPTY_INFORMATION_MESSAGE}</p>
             </div>
           )}
 

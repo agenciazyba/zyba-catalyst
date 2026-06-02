@@ -11,25 +11,23 @@ type TripBackLinkProps = {
 
 export default function TripBackLink({
   href,
-  label = "Back to trip details",
+  label = "Return",
   className = "trip-back-link",
   onClick,
   ariaDisabled,
 }: TripBackLinkProps) {
   return (
-    <Link href={href} className={className} onClick={onClick} aria-disabled={ariaDisabled}>
+    <Link href={href} className={className} onClick={onClick} aria-disabled={ariaDisabled} aria-label={label}>
       <svg
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth={2}
+        strokeWidth={3.5}
         className="trip-back-icon"
         aria-hidden="true"
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 5.5 8 12l6.5 6.5" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12H20" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 4.5 7.5 12l8 7.5" />
       </svg>
-      <span className="trip-back-label">{label}</span>
     </Link>
   );
 }

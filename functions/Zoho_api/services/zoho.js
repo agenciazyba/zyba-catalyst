@@ -26,7 +26,7 @@ const DATA_CACHE_TTL_MS =
 
 const TTL_TRAVELER_MS = Number(process.env.DATA_CACHE_TTL_TRAVELER_MS || 5 * 60 * 1000);
 const TTL_TRIPS_MS = Number(process.env.DATA_CACHE_TTL_TRIPS_MS || 3 * 60 * 1000);
-const TTL_TRIP_DETAILS_MS = Number(process.env.DATA_CACHE_TTL_TRIP_DETAILS_MS || 2 * 60 * 1000);
+const TTL_TRIP_DETAILS_MS = Number(process.env.DATA_CACHE_TTL_TRIP_DETAILS_MS || 5 * 60 * 1000);
 const TTL_DEALS_MS = Number(process.env.DATA_CACHE_TTL_DEALS_MS || 5 * 60 * 1000);
 const TTL_PRODUCTS_MS = Number(process.env.DATA_CACHE_TTL_PRODUCTS_MS || 2 * 60 * 1000);
 const dataCache = new Map();
@@ -575,9 +575,10 @@ async function runCoqlQuery(selectQuery) {
   return response.data;
 }
 
-async function zohoGetRecord(moduleApiName, recordId) {
+async function zohoGetRecord(moduleApiName, recordId, options = {}) {
+  const bypassCache = options?.bypassCache === true;
   const recordCacheKey = `record:${moduleApiName}:${recordId}`;
-  const cachedRecord = getDataCache(recordCacheKey);
+  const cachedRecord = bypassCache ? null : getDataCache(recordCacheKey);
   if (cachedRecord) return cachedRecord;
 
   const token = await getZohoAccessToken();
@@ -605,7 +606,7 @@ async function zohoGetRecord(moduleApiName, recordId) {
   }
 
   const record = response.data?.data?.[0] || null;
-  if (record) {
+  if (record && !bypassCache) {
     setDataCache(recordCacheKey, record, TTL_DEALS_MS);
   }
 
@@ -1204,6 +1205,8 @@ async function zohoUpdateRecord(moduleApiName, recordId, recordData) {
     }
   }
 
+  clearDataCacheByPrefix(`record:${moduleApiName}:${recordId}`);
+
   return response.data;
 }
 
@@ -1499,11 +1502,13 @@ async function getProductOrdersByLoggedUser(email) {
   return result;
 }
 
-async function getTripDetailsById(tripId, email) {
+async function getTripDetailsById(tripId, email, options = {}) {
+  const bypassCache = options?.bypassCache === true;
+  const includeFlights = options?.includeFlights !== false;
   const normalizedEmail = normalizeEmail(email);
   const cacheKey = `trip-details:${tripId}:${normalizedEmail}`;
 
-  const cached = getDataCache(cacheKey);
+  const cached = bypassCache ? null : getDataCache(cacheKey);
   if (cached) return cached;
 
   const tripQuery = `
@@ -1520,8 +1525,8 @@ async function getTripDetailsById(tripId, email) {
     return null;
   }
 
-  const tripRecord = await zohoGetRecord("Sales_Orders", tripId);
-  const flights = await getFlightsByParentTrip(tripId);
+  const tripRecord = await zohoGetRecord("Sales_Orders", tripId, { bypassCache });
+  const flights = includeFlights ? await getFlightsByParentTrip(tripId) : [];
 
   const dealLookup = trip.Deal_Name || null;
   const dealId = dealLookup?.id || null;
@@ -1649,12 +1654,17 @@ async function getTripDetailsById(tripId, email) {
     deal,
   };
 
-  setDataCache(cacheKey, result, TTL_TRIP_DETAILS_MS);
+  if (!bypassCache && includeFlights) {
+    setDataCache(cacheKey, result, TTL_TRIP_DETAILS_MS);
+  }
   return result;
 }
 
 async function getTripRequirementsById(tripId, email) {
-  const tripDetails = await getTripDetailsById(tripId, email);
+  const tripDetails = await getTripDetailsById(tripId, email, {
+    bypassCache: true,
+    includeFlights: false,
+  });
 
   if (!tripDetails) {
     return null;
@@ -1789,7 +1799,10 @@ async function getTripRequirementsById(tripId, email) {
 }
 
 async function acknowledgeTripRequirements(tripId, email, version = null) {
-  const tripDetails = await getTripDetailsById(tripId, email);
+  const tripDetails = await getTripDetailsById(tripId, email, {
+    bypassCache: true,
+    includeFlights: false,
+  });
 
   if (!tripDetails) {
     return null;
@@ -1808,7 +1821,10 @@ async function acknowledgeTripRequirements(tripId, email, version = null) {
   clearDataCacheByPrefix(`trip-requirements:${tripId}:`);
   clearDataCacheByPrefix("trips:");
 
-  return await getTripDetailsById(tripId, email);
+  return await getTripDetailsById(tripId, email, {
+    bypassCache: true,
+    includeFlights: false,
+  });
 }
 
 async function createFlightForLoggedUser(email, payload = {}) {

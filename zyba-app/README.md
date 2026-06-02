@@ -24,6 +24,30 @@ Important project documentation:
 - After logout + new login, Shop Gears should start with a clean cart.
 - Future attention: `Discount` and `Shipping` are currently fixed display values in the cart UI. If they become business rules, calculate them server-side before checkout.
 
+### App Cache Policy
+
+The authenticated frontend calls the local `/api/*` proxy with `cache: "no-store"` for app data. The main API reduction happens in the Catalyst backend before calling Zoho.
+
+Current backend cache defaults:
+
+- Traveler/Profile: 5 minutes.
+- My Trips and My Orders: 3 minutes.
+- Trip Details, Flights, Full Itinerary, Hotels, Hotel Details, and Transfer: 5 minutes.
+- Products and Shop Gears product details/categories: 2 minutes.
+- Documents/Requirements: intentionally bypasses the Trip Details cache so accepting document terms is reflected immediately.
+- Zoho record cache is invalidated when the app updates a record through `zohoUpdateRecord`.
+- Cart and checkout state use Catalyst Cache with longer TTLs because they are session/trip state, not Zoho read-cache.
+
+Login and OTP:
+
+- OTP request and verify calls use `cache: "no-store"`.
+- OTP resend has a 60 second cooldown and a backend limit of 5 requests per email in 15 minutes.
+- Login stores only `zyba_session_token` in `localStorage`; logout removes it and clears local cart snapshots.
+
+Common empty-state copy:
+
+- Documents, Flights/Itinerary, Hotels, and Transfer show: `This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.`
+
 ## Getting Started
 
 First, run the development server:
