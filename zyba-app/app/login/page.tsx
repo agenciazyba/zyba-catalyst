@@ -135,18 +135,14 @@ export default function LoginPage() {
         <Image src="/brand/Trans_Creme.png" alt="Zyba Outdoors" width={113} height={53} priority />
       </div>
 
-      <section className="login-body">
+      <section className={`login-body${isEmailStep ? "" : " is-otp-step"}`}>
         <Image src="/icons/email.png" alt="Email icon" width={112} height={62} priority />
 
         <div className="login-headline-block">
-          <h2 className="login-title">
+          <h2 className={`login-title${isEmailStep ? "" : " is-otp-title"}`}>
             {isEmailStep ? "VERIFICATION CODE" : "Email sent successfully"}
           </h2>
-          <h4 className="login-subtitle">
-            {isEmailStep
-              ? "Email one time password"
-              : "Please enter the code sent to your email below to sign in"}
-          </h4>
+          {isEmailStep ? <h4 className="login-subtitle">Email one time password</h4> : null}
         </div>
 
         <form

@@ -463,6 +463,10 @@ h5 {
   align-items: center;
 }
 
+.login-body.is-otp-step {
+  margin-top: 82px;
+}
+
 .login-headline-block {
   margin-top: 10px;
   display: grid;
@@ -479,6 +483,12 @@ h5 {
   text-transform: uppercase;
 }
 
+.login-title.is-otp-title {
+  font-size: 16px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 .login-subtitle {
   margin: 0;
   color: var(--color-cream);
@@ -491,6 +501,10 @@ h5 {
 .login-form {
   width: 100%;
   margin-top: 94px;
+}
+
+.login-body.is-otp-step .login-form {
+  margin-top: 54px;
 }
 
 .login-label {
@@ -592,6 +606,10 @@ h5 {
   width: 100%;
   display: flex;
   justify-content: center;
+}
+
+.login-body.is-otp-step .login-help-wrap {
+  margin-top: 34px;
 }
 
 .login-help-link {
