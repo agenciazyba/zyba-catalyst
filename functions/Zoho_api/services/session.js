@@ -1,13 +1,14 @@
 const { getCacheSegment } = require("./cache");
 const { generateSessionToken, buildSessionCacheKey, normalizeEmail } = require("../utils/helpers");
 
-async function createSession(app, email) {
+async function createSession(app, email, metadata = {}) {
   const segment = getCacheSegment(app);
   const sessionToken = generateSessionToken();
 
   await segment.put(
     buildSessionCacheKey(sessionToken),
     JSON.stringify({
+      ...metadata,
       email: normalizeEmail(email),
       createdAt: Date.now()
     }),

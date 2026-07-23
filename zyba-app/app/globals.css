@@ -467,6 +467,10 @@ h5 {
   margin-top: 82px;
 }
 
+.apple-review-login-body {
+  margin-top: 112px;
+}
+
 .login-headline-block {
   margin-top: 10px;
   display: grid;
@@ -507,10 +511,18 @@ h5 {
   margin-top: 54px;
 }
 
+.apple-review-login-form {
+  margin-top: 64px;
+}
+
 .login-label {
   display: block;
   margin: 0 0 8px;
   color: var(--color-cream);
+}
+
+.apple-review-password-label {
+  margin-top: 18px;
 }
 
 .input-login {

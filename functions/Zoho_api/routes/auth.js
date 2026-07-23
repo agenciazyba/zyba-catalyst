@@ -10,7 +10,16 @@ const {
 const { getCacheSegment } = require("../services/cache");
 const { sendOtpEmail } = require("../services/email");
 const { createSession, getSession, logoutSession } = require("../services/session");
-const { getZohoAccessToken } = require("../services/zoho");
+const { getZohoAccessToken, zohoGetRecord } = require("../services/zoho");
+
+// Temporary Apple review access. Remove this block and the
+// /auth/apple-review/login route after App Store approval.
+const APPLE_REVIEW_LOGIN = {
+  email: normalizeEmail(process.env.APPLE_REVIEW_LOGIN_EMAIL || "apple@zybaoutdoors.com"),
+  password: String(process.env.APPLE_REVIEW_LOGIN_PASSWORD || "123456"),
+  accountId: String(process.env.APPLE_REVIEW_ZOHO_ACCOUNT_ID || "6623116000002652001"),
+  accountName: String(process.env.APPLE_REVIEW_ZOHO_ACCOUNT_NAME || "Ricardo Magnusson"),
+};
 
 function readPositiveNumber(value, fallback) {
   const parsed = Number(value);
@@ -185,6 +194,63 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
       ok: true,
       message: "OTP validado com sucesso",
       email,
+      sessionToken
+    });
+    return true;
+  }
+
+  if (method === "POST" && path === "/auth/apple-review/login") {
+    const body = await getRequestBody(req);
+    const email = normalizeEmail(body.email);
+    const password = String(body.password || "");
+
+    if (email !== APPLE_REVIEW_LOGIN.email || password !== APPLE_REVIEW_LOGIN.password) {
+      sendJson(res, 401, { ok: false, message: "Invalid login credentials" });
+      return true;
+    }
+
+    let accountRecord = null;
+    try {
+      accountRecord = await zohoGetRecord("Accounts", APPLE_REVIEW_LOGIN.accountId);
+    } catch (error) {
+      sendJson(res, 502, {
+        ok: false,
+        message: "Unable to load Apple review account",
+        error: error.message || "Zoho account lookup failed"
+      });
+      return true;
+    }
+
+    const crmEmail = normalizeEmail(accountRecord?.Email);
+
+    if (!crmEmail) {
+      sendJson(res, 404, {
+        ok: false,
+        message: "Apple review account is missing an email in Zoho CRM"
+      });
+      return true;
+    }
+
+    const accountName =
+      accountRecord?.Account_Name ||
+      accountRecord?.Name ||
+      APPLE_REVIEW_LOGIN.accountName;
+    const sessionToken = await createSession(app, crmEmail, {
+      loginEmail: APPLE_REVIEW_LOGIN.email,
+      accountId: APPLE_REVIEW_LOGIN.accountId,
+      accountName,
+      isAppleReviewSession: true
+    });
+
+    sendJson(res, 200, {
+      ok: true,
+      message: "Login realizado com sucesso",
+      email: APPLE_REVIEW_LOGIN.email,
+      account: {
+        id: APPLE_REVIEW_LOGIN.accountId,
+        name: accountName,
+        email: crmEmail
+      },
       sessionToken
     });
     return true;

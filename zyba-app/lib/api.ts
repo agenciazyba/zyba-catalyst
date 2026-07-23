@@ -227,6 +227,19 @@ export async function verifyOtp(email: string, otp: string) {
   return parseResponse(response);
 }
 
+export async function appleReviewLogin(email: string, password: string) {
+  const response = await fetch(`${getApiBase()}/auth/apple-review/login`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  return parseResponse(response);
+}
+
 export async function logoutSession(sessionToken: string) {
   const response = await fetch(withSessionToken(`${getApiBase()}/auth/logout`, sessionToken), {
     method: "POST",
