@@ -3,7 +3,7 @@
 import AppTopBar from "@/components/AppTopBar";
 import LottieFilePlayer from "@/components/LottieFilePlayer";
 import TripBackLink from "@/components/TripBackLink";
-import { getSessionToken } from "@/lib/auth";
+import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import {
   type FinalizeCheckoutResponse,
   finalizeCheckout,
@@ -85,7 +85,7 @@ export default function ShopGearsSuccessPage() {
 
     const token = getSessionToken();
     if (!token) {
-      router.replace("/login");
+      router.replace(DEFAULT_LOGIN_PATH);
       return;
     }
 

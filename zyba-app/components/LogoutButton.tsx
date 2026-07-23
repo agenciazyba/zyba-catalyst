@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { logoutSession } from "@/lib/api";
-import { clearSessionToken, getSessionToken } from "@/lib/auth";
+import { clearSessionToken, DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import { clearAllShopCartSnapshots } from "@/lib/shop-cart";
 
 type LogoutButtonProps = {
@@ -23,7 +23,7 @@ export default function LogoutButton({ className = "" }: LogoutButtonProps) {
       });
     }
 
-    router.push("/login");
+    router.push(DEFAULT_LOGIN_PATH);
   }
 
   return (

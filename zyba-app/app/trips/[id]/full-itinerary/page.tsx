@@ -5,7 +5,7 @@ import TripBackLink from "@/components/TripBackLink";
 import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
-import { getSessionToken } from "@/lib/auth";
+import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 
 const EMPTY_INFORMATION_MESSAGE =
   "This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.";
@@ -82,7 +82,7 @@ export default function FullItineraryPage() {
 
       const token = getSessionToken();
       if (!token) {
-        router.push("/login");
+        router.push(DEFAULT_LOGIN_PATH);
         return;
       }
 

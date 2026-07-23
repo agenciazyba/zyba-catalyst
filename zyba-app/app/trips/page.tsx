@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getTrips, getTraveler, type Trip } from "@/lib/api";
-import { getSessionToken } from "@/lib/auth";
+import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import AppTopBar from "@/components/AppTopBar";
 
@@ -71,7 +71,7 @@ export default function TripsPage() {
     async function loadData() {
       const token = getSessionToken();
       if (!token) {
-        router.push("/login");
+        router.push(DEFAULT_LOGIN_PATH);
         return;
       }
 

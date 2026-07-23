@@ -3,7 +3,7 @@
 import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { getOrders, getTraveler, type ProductOrder } from "@/lib/api";
-import { getSessionToken } from "@/lib/auth";
+import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -101,7 +101,7 @@ export default function OrdersPage() {
     async function loadOrders() {
       const token = getSessionToken();
       if (!token) {
-        router.replace("/login");
+        router.replace(DEFAULT_LOGIN_PATH);
         return;
       }
 

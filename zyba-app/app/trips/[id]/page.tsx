@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
-import { getSessionToken } from "@/lib/auth";
+import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import Image from "next/image";
 import AppTopBar from "@/components/AppTopBar";
 
@@ -82,7 +82,7 @@ export default function TripIndexPage() {
     async function load() {
       const token = getSessionToken();
       if (!token) {
-        router.replace("/login");
+        router.replace(DEFAULT_LOGIN_PATH);
         return;
       }
       setSessionToken(token);

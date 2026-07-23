@@ -2,7 +2,7 @@
 
 import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
-import { getSessionToken } from "@/lib/auth";
+import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import {
   createCheckoutSession,
   getCheckoutStatus,
@@ -86,7 +86,7 @@ export default function ShopCartPage() {
   useEffect(() => {
     const token = getSessionToken();
     if (!token) {
-      router.replace("/login");
+      router.replace(DEFAULT_LOGIN_PATH);
       return;
     }
 

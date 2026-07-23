@@ -3,13 +3,14 @@
 import Image from "next/image";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { DEFAULT_LOGIN_PATH } from "@/lib/auth";
 
 export default function SplashPage() {
   const router = useRouter();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      router.replace("/login");
+      router.replace(DEFAULT_LOGIN_PATH);
     }, 3000);
 
     return () => window.clearTimeout(timer);

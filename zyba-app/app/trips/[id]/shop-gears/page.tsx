@@ -3,7 +3,7 @@
 import AddTackleButton, { type AddTackleButtonState } from "@/components/AddTackleButton";
 import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
-import { getSessionToken } from "@/lib/auth";
+import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import { getTraveler, getTripDetails } from "@/lib/api";
 import {
   addItemToShopCart,
@@ -189,7 +189,7 @@ export default function ShopGearsPage() {
     async function loadData() {
       const token = getSessionToken();
       if (!token) {
-        router.replace("/login");
+        router.replace(DEFAULT_LOGIN_PATH);
         return;
       }
       setSessionToken(token);
