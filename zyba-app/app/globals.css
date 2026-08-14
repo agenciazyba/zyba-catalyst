@@ -27,13 +27,14 @@
   background: var(--color-black);
   padding: var(--safe-top) var(--screen-padding) 0;
   display: flex;
-  align-items: stretch;
+  align-items: center;
 }
 
 .app-topbar-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  align-self: center;
   min-height: var(--mobile-header-height);
   width: 100%;
 }
@@ -138,12 +139,13 @@
   --max-width: 420px;
   --screen-padding: 20px;
   --safe-top: env(safe-area-inset-top, 0px);
-  --mobile-header-height: 56px;
-  --mobile-footer-height: 56px;
+  --mobile-header-height: 90px;
+  --mobile-footer-height: 70px;
   --mobile-header-total-height: calc(var(--mobile-header-height) + var(--safe-top));
   --nav-height: var(--mobile-footer-height);
+  --nav-float-gap: 15px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --nav-total-height: calc(var(--nav-height) + var(--safe-bottom));
+  --nav-total-height: calc(var(--nav-height) + var(--nav-float-gap) + var(--safe-bottom));
 }
 
 * {
@@ -177,7 +179,7 @@ select {
   max-width: var(--max-width);
   height: 100dvh;
   margin: 0 auto;
-  background: var(--bg);
+  background: #ffffff;
   position: relative;
   overflow: hidden;
 }
@@ -751,15 +753,20 @@ h5 {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 0;
-  width: min(var(--max-width), 100%);
-  height: var(--nav-total-height);
-  min-height: var(--nav-total-height);
-  background: #314132;
-  border-top: 0;
+  bottom: calc(var(--safe-bottom) + var(--nav-float-gap));
+  width: min(calc(100% - 32px), 388px);
+  height: var(--nav-height);
+  min-height: var(--nav-height);
+  background: rgba(49, 65, 50, 0.94);
+  border: 1px solid rgba(244, 233, 211, 0.12);
+  border-radius: 28px;
+  box-shadow: 0 14px 28px rgba(17, 96, 51, 0.16);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding-bottom: var(--safe-bottom);
+  align-items: center;
+  padding: 7px;
   z-index: 40;
 }
 
@@ -769,20 +776,30 @@ h5 {
   align-items: center;
   justify-content: center;
   gap: 4px;
+  min-width: 0;
+  height: 56px;
+  border-radius: 20px;
   color: var(--color-cream);
   opacity: 0.86;
   font-size: 13px;
-  transition: transform 120ms ease, opacity 120ms ease;
+  transition: background 140ms ease, transform 120ms ease, opacity 120ms ease;
+}
+
+.nav-item:hover {
+  background: rgba(35, 35, 35, 0.34);
+  opacity: 1;
 }
 
 .nav-item:active {
   transform: scale(0.96);
   opacity: 1;
+  background: rgba(35, 35, 35, 0.48);
 }
 
 .nav-item.active {
   opacity: 1;
   font-weight: 400;
+  background: rgba(35, 35, 35, 0.42);
 }
 
 .nav-icon {
@@ -1128,6 +1145,23 @@ h5 {
   transition: transform 120ms ease, opacity 120ms ease;
 }
 
+.trips-notify-btn::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: rgba(244, 233, 211, 0.14);
+  opacity: 0;
+  transform: scale(0.72);
+  animation: notifyBellPulse 2.4s ease-out infinite;
+}
+
+.trips-notify-btn:hover::before {
+  opacity: 1;
+  transform: scale(1);
+  animation-play-state: paused;
+}
+
 .trips-notify-btn:active {
   transform: scale(0.94);
 }
@@ -1135,13 +1169,18 @@ h5 {
 .trips-notify-icon {
   width: 24px;
   height: 24px;
+  position: relative;
+  z-index: 1;
   opacity: 0.72;
+  transform-origin: 50% 8%;
+  animation: notifyBellRing 2.4s ease-in-out infinite;
 }
 
 .trips-notify-badge {
   position: absolute;
   top: -6px;
   right: -8px;
+  z-index: 2;
   min-width: 16px;
   height: 16px;
   border-radius: 999px;
@@ -2950,10 +2989,47 @@ h5 {
   }
 }
 
+@keyframes notifyBellPulse {
+  0%,
+  62% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.32);
+  }
+}
+
+@keyframes notifyBellRing {
+  0%,
+  72%,
+  100% {
+    transform: rotate(0);
+  }
+  76% {
+    transform: rotate(8deg);
+  }
+  80% {
+    transform: rotate(-7deg);
+  }
+  84% {
+    transform: rotate(4deg);
+  }
+  88% {
+    transform: rotate(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hotel-page-transition-shell,
   .hotel-page-transition-shell.is-entering,
-  .hotel-page-transition-shell.is-leaving {
+  .hotel-page-transition-shell.is-leaving,
+  .trips-notify-btn::before,
+  .trips-notify-icon {
     animation: none !important;
     transform: none !important;
     opacity: 1 !important;

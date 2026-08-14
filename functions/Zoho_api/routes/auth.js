@@ -16,7 +16,7 @@ const { getZohoAccessToken, zohoGetRecord } = require("../services/zoho");
 // /auth/apple-review/login route after App Store approval.
 const APPLE_REVIEW_LOGIN = {
   email: normalizeEmail(process.env.APPLE_REVIEW_LOGIN_EMAIL || "apple@zybaoutdoors.com"),
-  password: String(process.env.APPLE_REVIEW_LOGIN_PASSWORD || "123456"),
+  password: String(process.env.APPLE_REVIEW_LOGIN_PASSWORD || ""),
   accountId: String(process.env.APPLE_REVIEW_ZOHO_ACCOUNT_ID || "6623116000002652001"),
   accountName: String(process.env.APPLE_REVIEW_ZOHO_ACCOUNT_NAME || "Ricardo Magnusson"),
 };
@@ -203,6 +203,11 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
     const body = await getRequestBody(req);
     const email = normalizeEmail(body.email);
     const password = String(body.password || "");
+
+    if (!APPLE_REVIEW_LOGIN.password) {
+      sendJson(res, 503, { ok: false, message: "Apple review login is not configured" });
+      return true;
+    }
 
     if (email !== APPLE_REVIEW_LOGIN.email || password !== APPLE_REVIEW_LOGIN.password) {
       sendJson(res, 401, { ok: false, message: "Invalid login credentials" });

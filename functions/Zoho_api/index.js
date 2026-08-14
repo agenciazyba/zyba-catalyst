@@ -8,7 +8,7 @@ const { handleAuthRoutes } = require("./routes/auth");
 const { handleCrmRoutes } = require("./routes/crm");
 const { handleStripeRoutes } = require("./routes/stripe");
 
-dotenv.config({ path: __dirname + "/.env", override: true });
+dotenv.config({ path: __dirname + "/.env", override: false });
 
 module.exports = async (req, res) => {
   const app = catalyst.initialize(req);

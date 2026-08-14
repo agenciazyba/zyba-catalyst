@@ -1,6 +1,5 @@
 export const SESSION_TOKEN_KEY = "zyba_session_token";
-// Temporary App Store review default. Change back to "/login" after approval.
-export const DEFAULT_LOGIN_PATH = "/apple-review-login";
+export const DEFAULT_LOGIN_PATH = "/login";
 
 export function getSessionToken(): string {
   if (typeof window === "undefined") return "";

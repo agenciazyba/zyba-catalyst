@@ -43,6 +43,28 @@ Login and OTP:
 - OTP request and verify calls use `cache: "no-store"`.
 - OTP resend has a 60 second cooldown and a backend limit of 5 requests per email in 15 minutes.
 - Login stores only `zyba_session_token` in `localStorage`; logout removes it and clears local cart snapshots.
+- The default customer login path is `/login`, using email OTP.
+
+### App Store Review Login
+
+For App Store review only, the app keeps a hidden alternate route at `/apple-review-login`.
+This route is not linked from the customer UI. It calls `POST /auth/apple-review/login`
+in the Catalyst backend and creates a normal session for the configured Apple review
+account.
+
+Decision:
+
+- Customers use OTP at `/login`.
+- Apple Review can use `/apple-review-login` with credentials supplied only in App Review notes.
+- The Apple review password is configured with `APPLE_REVIEW_LOGIN_PASSWORD` in Catalyst, not committed in source.
+- The temporary Apple review route should be disabled or removed after App Store approval and before broad customer launch.
+
+Required Catalyst variables for the review route:
+
+- `APPLE_REVIEW_LOGIN_EMAIL`
+- `APPLE_REVIEW_LOGIN_PASSWORD`
+- `APPLE_REVIEW_ZOHO_ACCOUNT_ID`
+- `APPLE_REVIEW_ZOHO_ACCOUNT_NAME`
 
 Common empty-state copy:
 

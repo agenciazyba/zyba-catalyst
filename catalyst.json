@@ -3,7 +3,10 @@
     "targets": [
       "Zoho_api"
     ],
-    "ignore": [],
+    "ignore": [
+      "**/.env",
+      "**/.env.*"
+    ],
     "source": "functions"
   }
 }
