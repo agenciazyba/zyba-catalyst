@@ -202,6 +202,14 @@ async function createCheckoutSession({ cart, tripId, customerEmail, cartOwnerKey
 
 module.exports = {
   createCheckoutSession,
+  expireCheckoutSession: function expireCheckoutSession(sessionId) {
+    const safeSessionId = String(sessionId || "").trim();
+    if (!safeSessionId) {
+      throw new Error("Missing sessionId");
+    }
+
+    return stripeRequest(`/v1/checkout/sessions/${encodeURIComponent(safeSessionId)}/expire`, {});
+  },
   getCheckoutSession: function getCheckoutSession(sessionId) {
     const safeSessionId = String(sessionId || "").trim();
     if (!safeSessionId) {

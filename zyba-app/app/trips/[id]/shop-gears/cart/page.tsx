@@ -4,6 +4,7 @@ import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import {
+  cancelCheckout,
   createCheckoutSession,
   getCheckoutStatus,
   getTraveler,
@@ -63,11 +64,12 @@ export default function ShopCartPage() {
     checkoutStatus?.status === "paid" ||
     checkoutStatus?.status === "paid_finalized" ||
     checkoutStatus?.paymentStatus === "paid";
-  const isCheckoutPending =
+  const isCheckoutUnpaid =
+    checkoutStatus?.status === "pending" && checkoutStatus?.paymentStatus === "unpaid";
+  const isCheckoutConfirming =
     checkoutStatus?.status === "pending" ||
-    checkoutStatus?.paymentStatus === "processing" ||
-    checkoutStatus?.paymentStatus === "unpaid";
-  const isCheckoutProcessing = checkoutLoading || isCheckoutPending;
+    checkoutStatus?.paymentStatus === "processing";
+  const isCheckoutProcessing = checkoutLoading || (isCheckoutConfirming && !isCheckoutUnpaid);
 
   const refreshCheckoutStatus = useEffectEvent(async (token: string, options?: { silent?: boolean }) => {
     if (!tripId) return;
@@ -116,12 +118,26 @@ export default function ShopCartPage() {
     }
 
     if (checkoutStatus === "cancel") {
-      setMessage("Payment cancelled. Your tackle box is still saved.");
+      setMessage("Payment was not completed. Your tackle box is still saved.");
+      setCheckoutStatus(null);
+
+      const token = sessionToken || getSessionToken();
+      if (token && tripId) {
+        void cancelCheckout(token, tripId).then((result) => {
+          if (result.ok) {
+            setCheckoutStatus((result.data as CheckoutStatus) || null);
+          }
+        });
+      }
+
+      if (tripId) {
+        router.replace(`/trips/${tripId}/shop-gears/cart`, { scroll: false });
+      }
     }
-  }, [searchParams]);
+  }, [router, searchParams, sessionToken, tripId]);
 
   useEffect(() => {
-    if (!sessionToken || !tripId || !isCheckoutPending) return;
+    if (!sessionToken || !tripId || !isCheckoutProcessing || checkoutLoading) return;
 
     const poll = window.setInterval(() => {
       void refreshCheckoutStatus(sessionToken, { silent: true });
@@ -130,7 +146,7 @@ export default function ShopCartPage() {
     return () => {
       window.clearInterval(poll);
     };
-  }, [isCheckoutPending, sessionToken, tripId]);
+  }, [checkoutLoading, isCheckoutProcessing, sessionToken, tripId]);
 
   useEffect(() => {
     if (isCheckoutPaid) {
@@ -205,11 +221,18 @@ export default function ShopCartPage() {
             <TripBackLink href={`/trips/${tripId}/shop-gears`} label="Return to shop gears" />
             <h1 className="shop-gears-cart-page-title">My Tackle Box</h1>
 
-            {checkoutStatus?.status && checkoutStatus.status !== "idle" ? (
-              <div className={`shop-gears-api-card${isCheckoutPaid ? " is-success" : ""}`}>
+            {isCheckoutPaid || isCheckoutUnpaid || isCheckoutProcessing ? (
+              <div
+                className={`shop-gears-api-card${
+                  isCheckoutPaid ? " is-success" : isCheckoutUnpaid ? " is-warning" : ""
+                }`}
+              >
                 <p className="shop-gears-api-purpose">
-                  Checkout status: {checkoutStatus.status}
-                  {checkoutStatus.paymentStatus ? ` · Stripe: ${checkoutStatus.paymentStatus}` : ""}
+                  {isCheckoutPaid
+                    ? "Payment confirmed. Your order is secured."
+                    : isCheckoutUnpaid
+                      ? "Payment was not completed. Your items are still saved."
+                      : "Checking secure payment confirmation..."}
                 </p>
               </div>
             ) : null}

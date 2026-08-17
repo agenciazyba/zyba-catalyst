@@ -31,6 +31,7 @@ const {
 } = require("../services/cart");
 const {
   createCheckoutSession,
+  expireCheckoutSession,
   getCheckoutSession,
   getCheckoutSessionLineItems,
 } = require("../services/stripe");
@@ -79,6 +80,32 @@ async function buildTrustedCartItem(productId, fallbackItem = {}) {
     category: String(product?.category || fallbackItem.category || "").trim() || null,
     vendorName: String(product?.vendorName?.name || fallbackItem.vendorName || "").trim() || null,
   };
+}
+
+async function expireStripeCheckoutSessionIfOpen(sessionId) {
+  const safeSessionId = String(sessionId || "").trim();
+  if (!safeSessionId) return false;
+
+  try {
+    const session = await getCheckoutSession(safeSessionId);
+    if (session?.status === "open") {
+      await expireCheckoutSession(safeSessionId);
+      return true;
+    }
+  } catch (error) {
+    console.warn("Unable to expire Stripe Checkout Session", {
+      sessionId: safeSessionId,
+      error: error?.message || String(error),
+    });
+  }
+
+  return false;
+}
+
+function checkoutStatusBelongsToSession(checkoutStatus, session) {
+  const statusEmail = String(checkoutStatus?.customerEmail || "").trim().toLowerCase();
+  const sessionEmail = String(session?.email || "").trim().toLowerCase();
+  return Boolean(statusEmail && sessionEmail && statusEmail === sessionEmail);
 }
 
 async function buildTrustedCartItems(items) {
@@ -544,6 +571,17 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
         return true;
       }
 
+      const existingCheckoutStatus = await getCheckoutStatusByTrip(app, tripId);
+      if (
+        existingCheckoutStatus?.status === "pending" &&
+        existingCheckoutStatus?.checkoutSessionId &&
+        existingCheckoutStatus?.paymentStatus !== "paid" &&
+        checkoutStatusBelongsToSession(existingCheckoutStatus, session)
+      ) {
+        await expireStripeCheckoutSessionIfOpen(existingCheckoutStatus.checkoutSessionId);
+        await clearCheckoutStatus(app, tripId, existingCheckoutStatus.checkoutSessionId);
+      }
+
       const trustedItems = await buildTrustedCartItems(cart.items);
       const trustedCart = await replaceCart(app, buildSessionCartOwnerKey(token), tripId, trustedItems);
 
@@ -582,6 +620,59 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       sendJson(res, 400, {
         ok: false,
         error: error?.message || "Failed to create checkout session",
+      });
+    }
+
+    return true;
+  }
+
+  if (method === "POST" && path === "/crm/checkout/cancel") {
+    const token = getSessionTokenFromRequest(req, parsedUrl);
+    const session = await getSession(app, token);
+
+    if (!session || !session.email) {
+      sendJson(res, 401, { ok: false, error: "Unauthorized" });
+      return true;
+    }
+
+    try {
+      const body = await getRequestBody(req);
+      const tripId = String(body?.tripId || "").trim();
+
+      if (!tripId) {
+        sendJson(res, 400, { ok: false, error: "tripId is required" });
+        return true;
+      }
+
+      const checkoutStatus = await getCheckoutStatusByTrip(app, tripId);
+
+      if (checkoutStatus?.status === "idle" || !checkoutStatus?.checkoutSessionId) {
+        sendJson(res, 200, { ok: true, data: checkoutStatus });
+        return true;
+      }
+
+      if (!checkoutStatusBelongsToSession(checkoutStatus, session)) {
+        sendJson(res, 403, { ok: false, error: "Checkout does not belong to this session" });
+        return true;
+      }
+
+      if (checkoutStatus.status === "paid" || checkoutStatus.paymentStatus === "paid") {
+        sendJson(res, 200, { ok: true, data: checkoutStatus });
+        return true;
+      }
+
+      await expireStripeCheckoutSessionIfOpen(checkoutStatus.checkoutSessionId);
+      const clearedStatus = await clearCheckoutStatus(
+        app,
+        tripId,
+        checkoutStatus.checkoutSessionId
+      );
+
+      sendJson(res, 200, { ok: true, data: clearedStatus });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error?.message || "Failed to cancel checkout",
       });
     }
 

@@ -408,6 +408,24 @@ export async function getCheckoutStatus(sessionToken: string, tripId: string) {
   return parseResponse<CheckoutStatusResponse>(response);
 }
 
+export async function cancelCheckout(sessionToken: string, tripId: string) {
+  const response = await fetch(
+    withSessionToken(`${getApiBase()}/crm/checkout/cancel`, sessionToken),
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+        "X-Session-Token": sessionToken,
+      },
+      body: JSON.stringify({ tripId }),
+    }
+  );
+
+  return parseResponse<CheckoutStatusResponse>(response);
+}
+
 export async function finalizeCheckout(sessionToken: string, tripId: string, sessionId?: string) {
   const response = await fetch(
     withSessionToken(`${getApiBase()}/crm/checkout/finalize`, sessionToken),

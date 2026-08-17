@@ -19,6 +19,8 @@ Important project documentation:
 - The cart is isolated by session + trip, not by email alone.
 - The cart page is `My Tackle Box`, with item quantity controls, item-level remove, payment summary, `PAY NOW`, and `CONTINUE SHOPPING`.
 - Sales Order creation after Stripe approval uses the Zoho `Product Orders` layout and must finish before the approved animation appears.
+- If a traveler returns from Stripe without paying, the app treats it as an incomplete checkout, keeps the cart editable, and does not show technical pending/unpaid status text.
+- Starting a new `PAY NOW` attempt expires the prior open Stripe Checkout Session for the same logged-in traveler before creating a new session.
 - There is no full-cart clear button in the current UI.
 - Local cart snapshots are cleared on logout and before a new login session is stored.
 - After logout + new login, Shop Gears should start with a clean cart.
