@@ -8,6 +8,8 @@ import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
 import Image from "next/image";
 import AppTopBar from "@/components/AppTopBar";
 
+const SALES_ORDER_TEMPLATE_ID = "6623116000003103002";
+
 type TripDetailsResponse = {
   trip: {
     id: string | null;
@@ -121,7 +123,9 @@ export default function TripIndexPage() {
 
     try {
       const response = await fetch(
-        `/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(sessionToken)}`,
+        `/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(
+          sessionToken
+        )}&templateId=${encodeURIComponent(SALES_ORDER_TEMPLATE_ID)}`,
         {
           method: "GET",
           headers: {

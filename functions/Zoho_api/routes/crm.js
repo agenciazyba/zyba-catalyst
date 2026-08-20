@@ -41,6 +41,8 @@ const {
   clearCheckoutStatus,
 } = require("../services/checkout-state");
 
+const DEFAULT_SALES_ORDER_TEMPLATE_ID = "6623116000003103002";
+
 async function buildTrustedCartItem(productId, fallbackItem = {}) {
   const safeProductId = String(productId || "").trim();
   if (!safeProductId) {
@@ -1129,6 +1131,7 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     const templateId =
       parsedUrl.searchParams.get("templateId") ||
       process.env.SALES_ORDER_TEMPLATE_ID ||
+      DEFAULT_SALES_ORDER_TEMPLATE_ID ||
       "";
 
     if (!templateId) {
