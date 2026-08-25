@@ -3,12 +3,13 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { requestOtp, verifyOtp } from "@/lib/api";
+import { appleReviewLogin, requestOtp, verifyOtp } from "@/lib/api";
 import { setSessionToken } from "@/lib/auth";
 import { clearAllShopCartSnapshots } from "@/lib/shop-cart";
 
 const OTP_DIGIT_COUNT = 6;
 const DEFAULT_RESEND_COOLDOWN_SECONDS = 60;
+const APPLE_REVIEW_LOGIN_EMAIL = "apple@zybaoutdoors.com";
 
 function createEmptyOtpDigits() {
   return Array.from({ length: OTP_DIGIT_COUNT }, () => "");
@@ -17,6 +18,7 @@ function createEmptyOtpDigits() {
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(createEmptyOtpDigits);
   const [step, setStep] = useState<"email" | "otp">("email");
   const [message, setMessage] = useState("");
@@ -39,6 +41,27 @@ export default function LoginPage() {
   function getRetryAfterSeconds(result: unknown) {
     const value = Number((result as { retryAfterSeconds?: number | string })?.retryAfterSeconds || 0);
     return Number.isFinite(value) && value > 0 ? Math.ceil(value) : DEFAULT_RESEND_COOLDOWN_SECONDS;
+  }
+
+  async function handleAppleReviewLogin() {
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const result = await appleReviewLogin(email, password);
+      if (result.ok && result.sessionToken) {
+        clearAllShopCartSnapshots();
+        setSessionToken(result.sessionToken);
+        router.push("/trips");
+        return;
+      }
+
+      setMessage(result.error || result.message || "Invalid login credentials.");
+    } catch {
+      setMessage("Unable to contact server.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleRequestOtp(options: { isResend?: boolean } = {}) {
@@ -98,6 +121,8 @@ export default function LoginPage() {
 
   const isEmailStep = step === "email";
   const otpValue = useMemo(() => otpDigits.join(""), [otpDigits]);
+  const normalizedEmail = email.trim().toLowerCase();
+  const isAppleReviewLogin = isEmailStep && normalizedEmail === APPLE_REVIEW_LOGIN_EMAIL;
   const canResendCode = !isEmailStep && !loading && !resendLoading && resendCooldown <= 0;
 
   function handleOtpDigitChange(index: number, value: string) {
@@ -150,6 +175,10 @@ export default function LoginPage() {
           onSubmit={(e) => {
             e.preventDefault();
             if (isEmailStep) {
+              if (isAppleReviewLogin) {
+                if (!loading && email && password) void handleAppleReviewLogin();
+                return;
+              }
               if (!loading && email) void handleRequestOtp();
               return;
             }
@@ -166,7 +195,11 @@ export default function LoginPage() {
               type="email"
               className="input-login"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setPassword("");
+                setMessage("");
+              }}
               autoComplete="email"
               placeholder="Your Email here"
             />
@@ -193,6 +226,23 @@ export default function LoginPage() {
             </div>
           )}
 
+          {isAppleReviewLogin ? (
+            <>
+              <label className="text-h4 login-label apple-review-password-label" htmlFor="apple-review-password">
+                Password
+              </label>
+              <input
+                id="apple-review-password"
+                type="password"
+                className="input-login"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                placeholder="Your password here"
+              />
+            </>
+          ) : null}
+
           {!isEmailStep ? (
             <div className="login-resend-wrap">
               <span className="login-resend-copy">Did not receive the code?</span>
@@ -211,18 +261,26 @@ export default function LoginPage() {
             </div>
           ) : null}
 
-          {!isEmailStep && message ? <p className="login-message">{message}</p> : null}
+          {message ? <p className="login-message">{message}</p> : null}
 
           <button
             type="submit"
             className="btn"
-            disabled={loading || resendLoading || (isEmailStep ? !email : otpValue.length !== OTP_DIGIT_COUNT)}
+            disabled={
+              loading ||
+              resendLoading ||
+              (isEmailStep ? !email || (isAppleReviewLogin && !password) : otpValue.length !== OTP_DIGIT_COUNT)
+            }
             style={{ marginTop: 20 }}
           >
             {isEmailStep
-              ? loading
-                ? "Sending..."
-                : "Send me the code"
+              ? isAppleReviewLogin
+                ? loading
+                  ? "Signing in..."
+                  : "Sign in"
+                : loading
+                  ? "Sending..."
+                  : "Send me the code"
               : loading
                 ? "Verifying..."
                 : "Verify your code"}
