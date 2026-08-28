@@ -50,7 +50,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
     const email = normalizeEmail(body.email);
 
     if (!isValidEmail(email)) {
-      sendJson(res, 400, { ok: false, message: "Email inválido" });
+      sendJson(res, 400, { ok: false, message: "Invalid email address" });
       return true;
     }
 
@@ -145,7 +145,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
 
     sendJson(res, 200, {
       ok: true,
-      message: "OTP enviado com sucesso",
+      message: "Access code sent successfully",
       retryAfterSeconds: cooldownSeconds
     });
     return true;
@@ -157,7 +157,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
     const otp = String(body.otp || "").trim();
 
     if (!isValidEmail(email)) {
-      sendJson(res, 400, { ok: false, message: "Email inválido" });
+      sendJson(res, 400, { ok: false, message: "Invalid email address" });
       return true;
     }
 
@@ -165,7 +165,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
     const saved = await segment.getValue(buildOtpCacheKey(email));
 
     if (!saved) {
-      sendJson(res, 400, { ok: false, message: "Código inválido ou expirado" });
+      sendJson(res, 400, { ok: false, message: "Invalid or expired code" });
       return true;
     }
 
@@ -173,17 +173,17 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
     try {
       parsed = JSON.parse(saved);
     } catch {
-      sendJson(res, 400, { ok: false, message: "Código inválido ou expirado" });
+      sendJson(res, 400, { ok: false, message: "Invalid or expired code" });
       return true;
     }
 
     if (Date.now() > Number(parsed.expiresAt || 0)) {
-      sendJson(res, 400, { ok: false, message: "Código expirado" });
+      sendJson(res, 400, { ok: false, message: "Code expired" });
       return true;
     }
 
     if (parsed.otp !== otp) {
-      sendJson(res, 400, { ok: false, message: "Código inválido" });
+      sendJson(res, 400, { ok: false, message: "Invalid code" });
       return true;
     }
 
@@ -192,7 +192,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
 
     sendJson(res, 200, {
       ok: true,
-      message: "OTP validado com sucesso",
+      message: "Access code verified successfully",
       email,
       sessionToken
     });
@@ -249,7 +249,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
 
     sendJson(res, 200, {
       ok: true,
-      message: "Login realizado com sucesso",
+      message: "Signed in successfully",
       email: APPLE_REVIEW_LOGIN.email,
       account: {
         id: APPLE_REVIEW_LOGIN.accountId,
@@ -266,7 +266,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
     const session = await getSession(app, token);
 
     if (!session) {
-      sendJson(res, 401, { ok: false, message: "Sessão inválida ou expirada" });
+      sendJson(res, 401, { ok: false, message: "Invalid or expired session" });
       return true;
     }
 
@@ -281,7 +281,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
     const token = getSessionTokenFromRequest(req, parsedUrl);
 
     if (!token) {
-      sendJson(res, 400, { ok: false, message: "Sessão não informada" });
+      sendJson(res, 400, { ok: false, message: "Missing session" });
       return true;
     }
 
@@ -289,7 +289,7 @@ async function handleAuthRoutes(app, req, res, parsedUrl) {
 
     sendJson(res, 200, {
       ok: true,
-      message: "Logout realizado com sucesso"
+      message: "Signed out successfully"
     });
     return true;
   }

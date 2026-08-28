@@ -33,6 +33,7 @@ const dataCache = new Map();
 const DEFAULT_OPERATIONS_ACCESS_EMAILS = [
   "sales@zybaoutdoors.com",
   "fishingtrips@zybaoutdoors.com",
+  "fishingtrips@zuybaoutdoors.com",
 ];
 const DEFAULT_VISIBLE_TRIP_STATUSES = ["Approved", "Rescheduled"];
 
