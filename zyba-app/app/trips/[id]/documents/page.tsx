@@ -5,7 +5,8 @@ import TripBackLink from "@/components/TripBackLink";
 import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { acknowledgeRequirements, getTraveler, getTripRequirements } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
+import { isIosWebView, openInCurrentWindow } from "@/lib/browser";
 
 const EMPTY_INFORMATION_MESSAGE =
   "This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.";
@@ -65,7 +66,7 @@ export default function DocumentsPage() {
 
       const token = getSessionToken();
       if (!token) {
-        router.push(DEFAULT_LOGIN_PATH);
+        router.push(getDefaultLoginPath());
         return;
       }
 
@@ -95,7 +96,7 @@ export default function DocumentsPage() {
 
     const token = getSessionToken();
     if (!token) {
-      router.push(DEFAULT_LOGIN_PATH);
+      router.push(getDefaultLoginPath());
       return;
     }
 
@@ -138,6 +139,12 @@ export default function DocumentsPage() {
     }
 
     setIsSubmitting(false);
+  }
+
+  function handleExternalLink(event: React.MouseEvent<HTMLAnchorElement>, url: string) {
+    if (!isIosWebView()) return;
+    event.preventDefault();
+    openInCurrentWindow(url);
   }
 
   const requirements = data?.requirements || [];
@@ -194,7 +201,13 @@ export default function DocumentsPage() {
                 {item.type ? <p className="documents-card-meta">{item.type}</p> : null}
                 <p className="documents-card-copy">{item.description || "No description provided."}</p>
                 {item.helpLink ? (
-                  <a href={item.helpLink} target="_blank" rel="noreferrer" className="documents-instruction-link">
+                  <a
+                    href={item.helpLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="documents-instruction-link"
+                    onClick={(event) => handleExternalLink(event, item.helpLink || "")}
+                  >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="documents-instruction-icon" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M10 14 14 10" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14 14v-4h-4" />

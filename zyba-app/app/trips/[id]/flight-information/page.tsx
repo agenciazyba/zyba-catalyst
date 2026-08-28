@@ -5,7 +5,7 @@ import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
 
 type FlightConnection = {
   id?: string | null;
@@ -195,7 +195,7 @@ export default function FlightInformationPage() {
 
       const token = getSessionToken();
       if (!token) {
-        router.push(DEFAULT_LOGIN_PATH);
+        router.push(getDefaultLoginPath());
         return;
       }
       setSessionToken(token);

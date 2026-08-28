@@ -1,14 +1,27 @@
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { URL } = require("url");
 const dotenv = require("dotenv");
 const catalyst = require("zcatalyst-sdk-node");
+
+const envFilePath = path.join(__dirname, ".env");
+
+if (fs.existsSync(envFilePath)) {
+  const parsedEnv = dotenv.parse(fs.readFileSync(envFilePath));
+
+  for (const [key, value] of Object.entries(parsedEnv)) {
+    if (process.env[key] === undefined || process.env[key] === "") {
+      process.env[key] = value;
+    }
+  }
+}
+
 const { sendJson } = require("./utils/http");
 const { handleAuthRoutes } = require("./routes/auth");
 const { handleCrmRoutes } = require("./routes/crm");
 const { handleStripeRoutes } = require("./routes/stripe");
-
-dotenv.config({ path: __dirname + "/.env", override: false });
 
 module.exports = async (req, res) => {
   const app = catalyst.initialize(req);

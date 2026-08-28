@@ -7,7 +7,7 @@ import TripBackLink from "@/components/TripBackLink";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getTraveler } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
 
 type Traveler = {
   id?: string | null;
@@ -108,7 +108,7 @@ export default function ProfilePage() {
     async function load() {
       const token = getSessionToken();
       if (!token) {
-        router.replace(DEFAULT_LOGIN_PATH);
+        router.replace(getDefaultLoginPath());
         return;
       }
 

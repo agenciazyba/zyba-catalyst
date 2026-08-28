@@ -342,6 +342,8 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
     try {
       const hotels = await listHotelsForLoggedUser(session.email, {
         tripId: parsedUrl.searchParams.get("tripId"),
+      }, {
+        allowOperationsAccess: true,
       });
 
       if (!hotels) {
@@ -1096,7 +1098,9 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       return true;
     }
 
-    const requirements = await getTripRequirementsById(tripId, session.email);
+    const requirements = await getTripRequirementsById(tripId, session.email, {
+      allowOperationsAccess: true,
+    });
 
     if (!requirements) {
       sendJson(res, 404, { ok: false, error: "Trip not found for logged user" });
@@ -1122,7 +1126,9 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       return true;
     }
 
-    const tripDetails = await getTripDetailsById(tripId, session.email);
+    const tripDetails = await getTripDetailsById(tripId, session.email, {
+      allowOperationsAccess: true,
+    });
     if (!tripDetails || !tripDetails.trip?.id) {
       sendJson(res, 404, { ok: false, error: "Trip not found for logged user" });
       return true;
@@ -1162,7 +1168,9 @@ async function handleCrmRoutes(app, req, res, parsedUrl) {
       return true;
     }
 
-    const tripDetails = await getTripDetailsById(tripId, session.email);
+    const tripDetails = await getTripDetailsById(tripId, session.email, {
+      allowOperationsAccess: true,
+    });
 
     if (!tripDetails) {
       sendJson(res, 404, { ok: false, error: "Trip not found for logged user" });

@@ -5,7 +5,7 @@ import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { useParams, useRouter } from "next/navigation";
 import { getHotels, getTraveler, type HotelRecord } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
 
 type Traveler = {
   travelerName?: string | null;
@@ -137,7 +137,7 @@ export default function HotelInformationPage() {
 
       const token = getSessionToken();
       if (!token) {
-        router.push(DEFAULT_LOGIN_PATH);
+        router.push(getDefaultLoginPath());
         return;
       }
 

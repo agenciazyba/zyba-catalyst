@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getTrips, getTraveler, type Trip } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { clearSessionToken, getDefaultLoginPath, getSessionToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import AppTopBar from "@/components/AppTopBar";
 
@@ -63,6 +63,7 @@ export default function TripsPage() {
   const [traveler, setTraveler] = useState<Traveler | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [activeTripId, setActiveTripId] = useState("");
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const tripLinkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
@@ -71,13 +72,26 @@ export default function TripsPage() {
     async function loadData() {
       const token = getSessionToken();
       if (!token) {
-        router.push(DEFAULT_LOGIN_PATH);
+        router.push(getDefaultLoginPath());
         return;
       }
 
       const [travelerResult, tripsResult] = await Promise.all([getTraveler(token), getTrips(token)]);
 
       if (!travelerResult.ok || !tripsResult.ok) {
+        if (travelerResult.status === 401 || tripsResult.status === 401) {
+          clearSessionToken();
+          router.push(getDefaultLoginPath());
+          return;
+        }
+
+        setErrorMessage(
+          travelerResult.message ||
+            tripsResult.message ||
+            travelerResult.error ||
+            tripsResult.error ||
+            "Unable to load trips right now. Please try again."
+        );
         setLoading(false);
         return;
       }
@@ -103,6 +117,7 @@ export default function TripsPage() {
 
       setTraveler(parsedTraveler);
       setTrips(normalizedTrips);
+      setErrorMessage("");
       setLoading(false);
     }
 
@@ -209,6 +224,8 @@ export default function TripsPage() {
               </div>
             </div>
           </div>
+        ) : errorMessage ? (
+          <p className="text-h5" style={{ marginTop: 25, color: "var(--color-black)" }}>{errorMessage}</p>
         ) : trips.length === 0 ? (
           <p className="text-h5" style={{ marginTop: 25, color: "var(--color-black)" }}>No trips available.</p>
         ) : (

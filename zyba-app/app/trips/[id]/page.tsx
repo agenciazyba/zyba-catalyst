@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
+import { isIosWebView, openInCurrentWindow } from "@/lib/browser";
 import Image from "next/image";
 import AppTopBar from "@/components/AppTopBar";
 
@@ -84,7 +85,7 @@ export default function TripIndexPage() {
     async function load() {
       const token = getSessionToken();
       if (!token) {
-        router.replace(DEFAULT_LOGIN_PATH);
+        router.replace(getDefaultLoginPath());
         return;
       }
       setSessionToken(token);
@@ -122,18 +123,22 @@ export default function TripIndexPage() {
     setDownloadingPdf(true);
 
     try {
-      const response = await fetch(
-        `/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(
-          sessionToken
-        )}&templateId=${encodeURIComponent(SALES_ORDER_TEMPLATE_ID)}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-            "X-Session-Token": sessionToken,
-          },
-        }
-      );
+      const pdfUrl = `/api/crm/trips/${tripId}/sales-order/pdf?sessionToken=${encodeURIComponent(
+        sessionToken
+      )}&templateId=${encodeURIComponent(SALES_ORDER_TEMPLATE_ID)}`;
+
+      if (isIosWebView()) {
+        openInCurrentWindow(pdfUrl);
+        return;
+      }
+
+      const response = await fetch(pdfUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "X-Session-Token": sessionToken,
+        },
+      });
 
       if (!response.ok) {
         let errorMessage = "Failed to download Sales Order PDF.";

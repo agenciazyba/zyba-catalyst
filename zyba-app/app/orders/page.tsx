@@ -3,7 +3,8 @@
 import AppTopBar from "@/components/AppTopBar";
 import TripBackLink from "@/components/TripBackLink";
 import { getOrders, getTraveler, type ProductOrder } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
+import { isIosWebView, openInCurrentWindow } from "@/lib/browser";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -57,16 +58,20 @@ export default function OrdersPage() {
     setDownloadingOrderId(order.id);
 
     try {
-      const response = await fetch(
-        `/api/crm/orders/${order.id}/pdf?sessionToken=${encodeURIComponent(token)}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "X-Session-Token": token,
-          },
-        }
-      );
+      const pdfUrl = `/api/crm/orders/${order.id}/pdf?sessionToken=${encodeURIComponent(token)}`;
+
+      if (isIosWebView()) {
+        openInCurrentWindow(pdfUrl);
+        return;
+      }
+
+      const response = await fetch(pdfUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-Session-Token": token,
+        },
+      });
 
       if (!response.ok) {
         let errorMessage = "Failed to download Order PDF.";
@@ -101,7 +106,7 @@ export default function OrdersPage() {
     async function loadOrders() {
       const token = getSessionToken();
       if (!token) {
-        router.replace(DEFAULT_LOGIN_PATH);
+        router.replace(getDefaultLoginPath());
         return;
       }
 

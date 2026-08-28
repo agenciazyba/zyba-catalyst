@@ -49,15 +49,18 @@ Login and OTP:
 
 ### App Store Review Login
 
-For App Store review only, the app keeps a hidden alternate route at `/apple-review-login`.
-This route is not linked from the customer UI. It calls `POST /auth/apple-review/login`
-in the Catalyst backend and creates a normal session for the configured Apple review
-account.
+For App Store review only, the app accepts the configured Apple review account from
+the normal `/login` screen. When `apple@zybaoutdoors.com` is entered, the password
+field appears and the frontend calls `POST /auth/apple-review/login` in the Catalyst
+backend to create a normal session for the configured Apple review account.
+
+The hidden `/apple-review-login` route remains available as a technical fallback, but
+App Review notes should direct reviewers to use the normal sign-in screen in the app.
 
 Decision:
 
 - Customers use OTP at `/login`.
-- Apple Review can use `/apple-review-login` with credentials supplied only in App Review notes.
+- Apple Review uses the normal `/login` screen with credentials supplied only in App Review notes.
 - The Apple review password is configured with `APPLE_REVIEW_LOGIN_PASSWORD` in Catalyst, not committed in source.
 - The temporary Apple review route should be disabled or removed after App Store approval and before broad customer launch.
 
@@ -67,6 +70,39 @@ Required Catalyst variables for the review route:
 - `APPLE_REVIEW_LOGIN_PASSWORD`
 - `APPLE_REVIEW_ZOHO_ACCOUNT_ID`
 - `APPLE_REVIEW_ZOHO_ACCOUNT_NAME`
+
+### Catalyst Backend Deploy Safety
+
+Vercel deploys only the frontend. Any change under `functions/Zoho_api/**`
+must also be deployed to Catalyst for the backend route to change.
+
+Do not run a direct Catalyst deploy from the repository root unless
+`functions/Zoho_api/catalyst-config.json` has been prepared with the correct
+environment variables. The local config intentionally keeps sensitive values
+empty, and a direct deploy can overwrite the Catalyst Development environment
+with blank values, causing errors such as:
+
+- `invalid_client`
+- `Apple review login is not configured`
+
+Safe backend deploy flow:
+
+1. Deploy only the backend function, never the full project by accident.
+2. Use a temporary copy outside the Git worktree when injecting secrets for
+   deployment.
+3. Do not commit secrets or edited deployment configs.
+4. After deploy, validate:
+
+```bash
+curl https://zyba-costumer-app-915232350.development.catalystserverless.com/server/Zoho_api/health
+curl https://zyba-costumer-app-915232350.development.catalystserverless.com/server/Zoho_api/auth/token
+```
+
+Expected results:
+
+- `/health` returns `ok: true`.
+- `/auth/token` returns `ok: true` with a sanitized token preview.
+- Apple Review login should create a session for the configured review account.
 
 Common empty-state copy:
 

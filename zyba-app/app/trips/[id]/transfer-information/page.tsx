@@ -6,7 +6,7 @@ import TripBackLink from "@/components/TripBackLink";
 import AppTopBar from "@/components/AppTopBar";
 import { useParams, useRouter } from "next/navigation";
 import { getTraveler, getTripDetails } from "@/lib/api";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
 
 const EMPTY_INFORMATION_MESSAGE =
   "This information is not available yet, but we're working on it. You'll receive a notification as soon as it's ready.";
@@ -57,7 +57,7 @@ export default function TransferInformationPage() {
 
       const token = getSessionToken();
       if (!token) {
-        router.push(DEFAULT_LOGIN_PATH);
+        router.push(getDefaultLoginPath());
         return;
       }
       setSessionToken(token);

@@ -1,6 +1,10 @@
 export const SESSION_TOKEN_KEY = "zyba_session_token";
 export const DEFAULT_LOGIN_PATH = "/login";
 
+export function getDefaultLoginPath(): string {
+  return DEFAULT_LOGIN_PATH;
+}
+
 export function getSessionToken(): string {
   if (typeof window === "undefined") return "";
   return localStorage.getItem(SESSION_TOKEN_KEY) || "";

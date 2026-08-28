@@ -13,6 +13,7 @@ function withSessionToken(url: string, sessionToken: string) {
 
 export type ApiResponse<T = unknown> = {
   ok: boolean;
+  status?: number;
   data?: T;
   error?: string;
   message?: string;
@@ -192,10 +193,15 @@ async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const text = await response.text();
 
   try {
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    return {
+      ...parsed,
+      status: response.status,
+    };
   } catch {
     return {
       ok: false,
+      status: response.status,
       error: text || "Invalid JSON response",
     };
   }

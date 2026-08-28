@@ -4,7 +4,7 @@ import Link from "next/link";
 import TripBackLink from "@/components/TripBackLink";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DEFAULT_LOGIN_PATH, getSessionToken } from "@/lib/auth";
+import { getDefaultLoginPath, getSessionToken } from "@/lib/auth";
 import { type AppNotification } from "@/lib/notifications";
 import { loadUserNotifications } from "@/lib/notifications-service";
 
@@ -16,7 +16,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     const token = getSessionToken();
     if (!token) {
-      router.push(DEFAULT_LOGIN_PATH);
+      router.push(getDefaultLoginPath());
       return;
     }
 

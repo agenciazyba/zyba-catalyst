@@ -30,6 +30,11 @@ const TTL_TRIP_DETAILS_MS = Number(process.env.DATA_CACHE_TTL_TRIP_DETAILS_MS ||
 const TTL_DEALS_MS = Number(process.env.DATA_CACHE_TTL_DEALS_MS || 5 * 60 * 1000);
 const TTL_PRODUCTS_MS = Number(process.env.DATA_CACHE_TTL_PRODUCTS_MS || 2 * 60 * 1000);
 const dataCache = new Map();
+const DEFAULT_OPERATIONS_ACCESS_EMAILS = [
+  "sales@zybaoutdoors.com",
+  "fishingtrips@zybaoutdoors.com",
+];
+const DEFAULT_VISIBLE_TRIP_STATUSES = ["Approved", "Rescheduled"];
 
 function getDataCache(key) {
   const cached = dataCache.get(key);
@@ -418,6 +423,62 @@ function normalizeOptionalString(value) {
   if (value === undefined || value === null) return null;
   const text = String(value).trim();
   return text || null;
+}
+
+function getOperationsAccessEmails() {
+  return String(process.env.OPERATIONS_ACCESS_EMAILS || DEFAULT_OPERATIONS_ACCESS_EMAILS.join(","))
+    .split(",")
+    .map((email) => normalizeEmail(email))
+    .filter(Boolean);
+}
+
+function hasOperationsTripAccess(email) {
+  const normalizedEmail = normalizeEmail(email);
+  return Boolean(normalizedEmail && getOperationsAccessEmails().includes(normalizedEmail));
+}
+
+function getVisibleTripStatuses() {
+  return String(process.env.VISIBLE_TRIP_STATUSES || DEFAULT_VISIBLE_TRIP_STATUSES.join(","))
+    .split(",")
+    .map((status) => normalizeOptionalString(status))
+    .filter(Boolean);
+}
+
+function buildVisibleTripStatusClause() {
+  const statuses = getVisibleTripStatuses();
+  const values = statuses.length ? statuses : DEFAULT_VISIBLE_TRIP_STATUSES;
+  return `Status in (${values.map((status) => `'${escapeCoql(status)}'`).join(", ")})`;
+}
+
+function buildTripsAccessWhereClause(email, options = {}) {
+  const normalizedEmail = normalizeEmail(email);
+  const statusClause = buildVisibleTripStatusClause();
+  const allowOperationsAccess = options?.allowOperationsAccess === true;
+
+  if (allowOperationsAccess && hasOperationsTripAccess(normalizedEmail)) {
+    return `(${statusClause})`;
+  }
+
+  return `((${statusClause}) and (Account_Name.Email = '${escapeCoql(normalizedEmail)}'))`;
+}
+
+function buildOperationsTraveler(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!hasOperationsTripAccess(normalizedEmail)) return null;
+
+  const label = normalizedEmail.startsWith("sales@") ? "Zyba Sales" : "Zyba Fishing Trips";
+
+  return {
+    id: null,
+    travelerName: label,
+    email: normalizedEmail,
+    gender: null,
+    passport: null,
+    passportExpiration: null,
+    recordImage: null,
+    country: null,
+    isOperationsUser: true,
+  };
 }
 
 function normalizeOptionalNumber(value) {
@@ -1274,28 +1335,62 @@ async function getTravelerByEmail(email) {
   const response = await runCoqlQuery(query);
   const item = response.data?.[0];
 
-  if (!item) return null;
+  if (!item) {
+    const operationsTraveler = buildOperationsTraveler(normalizedEmail);
+    if (operationsTraveler) {
+      setDataCache(cacheKey, operationsTraveler, TTL_TRAVELER_MS);
+      return operationsTraveler;
+    }
+
+    return null;
+  }
 
   const accountRecord = await zohoGetRecord("Accounts", item.id);
-
-  const result = {
-    id: item.id || null,
-    travelerName: item.Account_Name || null,
-    email: item.Email || null,
-    gender: item.Gender || null,
-    passport: item.Passport || null,
-    passportExpiration: item.Passport_Expiration || null,
-    recordImage: item.Record_Image || null,
-    country: accountRecord?.Country || null,
-  };
+  const result = mapTravelerAccount(accountRecord || item);
 
   setDataCache(cacheKey, result, TTL_TRAVELER_MS);
   return result;
 }
 
+async function getTravelerByAccountId(accountId) {
+  const safeAccountId = normalizeOptionalString(accountId);
+  if (!safeAccountId) return null;
+
+  const cacheKey = `traveler-account:${safeAccountId}`;
+  const cached = getDataCache(cacheKey);
+  if (cached) return cached;
+
+  const accountRecord = await zohoGetRecord("Accounts", safeAccountId);
+  const result = mapTravelerAccount(accountRecord);
+
+  if (result) {
+    setDataCache(cacheKey, result, TTL_TRAVELER_MS);
+  }
+
+  return result;
+}
+
+function mapTravelerAccount(record) {
+  if (!record) return null;
+
+  return {
+    id: normalizeOptionalString(record.id),
+    travelerName: normalizeOptionalString(record.Account_Name || record.Name),
+    email: normalizeOptionalString(record.Email),
+    gender: normalizeOptionalString(record.Gender),
+    passport: normalizeOptionalString(record.Passport),
+    passportExpiration: normalizeOptionalString(record.Passport_Expiration),
+    recordImage: record.Record_Image || null,
+    country: normalizeOptionalString(record.Country),
+  };
+}
+
 async function getTripsByLoggedUser(email) {
   const normalizedEmail = normalizeEmail(email);
-  const cacheKey = `trips:${normalizedEmail}`;
+  const isOperationsAccess = hasOperationsTripAccess(normalizedEmail);
+  const cacheKey = isOperationsAccess
+    ? `trips:operations:${getVisibleTripStatuses().join("|")}`
+    : `trips:${normalizedEmail}`;
 
   const cached = getDataCache(cacheKey);
   if (cached) return cached;
@@ -1303,7 +1398,7 @@ async function getTripsByLoggedUser(email) {
   const query = `
     select id, Deal_Name, Subject, Status, Grand_Total, Documents_Acknowledged
     from Sales_Orders
-    where ((Status in ('Approved', 'Rescheduled')) and (Account_Name.Email = '${escapeCoql(normalizedEmail)}'))
+    where ${buildTripsAccessWhereClause(normalizedEmail, { allowOperationsAccess: true })}
     limit 0, 200
   `;
 
@@ -1506,15 +1601,21 @@ async function getTripDetailsById(tripId, email, options = {}) {
   const bypassCache = options?.bypassCache === true;
   const includeFlights = options?.includeFlights !== false;
   const normalizedEmail = normalizeEmail(email);
-  const cacheKey = `trip-details:${tripId}:${normalizedEmail}`;
+  const allowOperationsAccess = options?.allowOperationsAccess === true;
+  const isOperationsAccess = allowOperationsAccess && hasOperationsTripAccess(normalizedEmail);
+  const cacheKey = `trip-details:${tripId}:${isOperationsAccess ? "operations" : normalizedEmail}`;
 
   const cached = bypassCache ? null : getDataCache(cacheKey);
   if (cached) return cached;
 
   const tripQuery = `
-    select id, Deal_Name, Subject, Status, Grand_Total
+    select id, Deal_Name, Account_Name, Subject, Status, Grand_Total
     from Sales_Orders
-    where ((id = '${escapeCoql(tripId)}') and (Account_Name.Email = '${escapeCoql(normalizedEmail)}'))
+    where ((id = '${escapeCoql(tripId)}') and ${
+      isOperationsAccess
+        ? buildVisibleTripStatusClause()
+        : `(Account_Name.Email = '${escapeCoql(normalizedEmail)}')`
+    })
     limit 0, 1
   `;
 
@@ -1527,6 +1628,14 @@ async function getTripDetailsById(tripId, email, options = {}) {
 
   const tripRecord = await zohoGetRecord("Sales_Orders", tripId, { bypassCache });
   const flights = includeFlights ? await getFlightsByParentTrip(tripId) : [];
+  const accountLookup = mapLookup(tripRecord?.Account_Name || trip.Account_Name);
+  let accountRecord = null;
+
+  if (accountLookup?.id) {
+    try {
+      accountRecord = await zohoGetRecord("Accounts", accountLookup.id);
+    } catch (e) {}
+  }
 
   const dealLookup = trip.Deal_Name || null;
   const dealId = dealLookup?.id || null;
@@ -1644,6 +1753,15 @@ async function getTripDetailsById(tripId, email, options = {}) {
       documentsAcknowledgedAt: tripRecord?.Documents_Acknowledged_At || null,
       documentsRequirementsVersion:
         tripRecord?.Documents_Requirements_Version || null,
+      account: {
+        id: accountLookup?.id || null,
+        name:
+          normalizeOptionalString(accountRecord?.Account_Name || accountRecord?.Name) ||
+          accountLookup?.name ||
+          null,
+        email: normalizeOptionalString(accountRecord?.Email),
+        country: normalizeOptionalString(accountRecord?.Country),
+      },
       vendorName,
       destinationCountry,
       deal: {
@@ -1660,17 +1778,22 @@ async function getTripDetailsById(tripId, email, options = {}) {
   return result;
 }
 
-async function getTripRequirementsById(tripId, email) {
+async function getTripRequirementsById(tripId, email, options = {}) {
   const tripDetails = await getTripDetailsById(tripId, email, {
     bypassCache: true,
     includeFlights: false,
+    allowOperationsAccess: options?.allowOperationsAccess === true,
   });
 
   if (!tripDetails) {
     return null;
   }
 
-  const traveler = await getTravelerByEmail(email);
+  const tripAccount = tripDetails.trip?.account || null;
+  const traveler = options?.allowOperationsAccess === true && hasOperationsTripAccess(email)
+    ? (await getTravelerByAccountId(tripAccount?.id)) ||
+      (tripAccount?.email ? await getTravelerByEmail(tripAccount.email) : null)
+    : await getTravelerByEmail(email);
 
   if (!traveler) {
     return {
@@ -1946,7 +2069,7 @@ async function createFlightForLoggedUser(email, payload = {}) {
   };
 }
 
-async function listHotelsForLoggedUser(email, payload = {}) {
+async function listHotelsForLoggedUser(email, payload = {}, options = {}) {
   const tripId = normalizeOptionalString(
     pickFirstValue(payload.tripId, payload.parentTripId, payload.Parent_Trip)
   );
@@ -1955,7 +2078,9 @@ async function listHotelsForLoggedUser(email, payload = {}) {
     throw new Error("Parent Trip is required");
   }
 
-  const tripDetails = await getTripDetailsById(tripId, email);
+  const tripDetails = await getTripDetailsById(tripId, email, {
+    allowOperationsAccess: options?.allowOperationsAccess === true,
+  });
 
   if (!tripDetails?.trip?.id) {
     return null;

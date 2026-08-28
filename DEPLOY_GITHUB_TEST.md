@@ -60,21 +60,38 @@ git push -u origin main
 
 ## 6) Deploy Back (Catalyst)
 
-No diretório raiz:
+O Vercel publica somente o frontend. Sempre que houver alteração em
+`functions/Zoho_api/**`, a função `Zoho_api` também precisa ser publicada no
+Catalyst.
+
+**Atenção:** não rode deploy direto da raiz sem conferir as variáveis. O arquivo
+local `functions/Zoho_api/catalyst-config.json` mantém variáveis sensíveis
+vazias por segurança. Um deploy direto com esse arquivo pode sobrescrever o
+Development com valores em branco e causar:
+
+- `invalid_client`
+- `Apple review login is not configured`
+
+Deploy seguro pelo terminal:
 
 ```bash
-catalyst deploy --only functions
+npx zcatalyst-cli deploy --only functions:Zoho_api
 ```
 
-Depois, confirmar URL pública da função `Zoho_api` e usar essa URL no `API_PROXY_TARGET` do frontend.
+Use esse comando somente a partir de uma cópia temporária/preparada com as
+variáveis corretas, ou depois de confirmar que o `catalyst-config.json` usado no
+deploy contém valores válidos para o ambiente alvo. Não commitar arquivos com
+segredos.
+
+Depois, confirmar URL pública da função `Zoho_api` e usar essa URL no
+`API_PROXY_TARGET` do frontend.
 
 ### 6.1) Regra anti `Route not found`
 
 Sempre que um commit alterar qualquer arquivo em `functions/Zoho_api/**`, o deploy do Vercel não é suficiente.
-Nesses casos, execute também:
+Nesses casos, publique também a função `Zoho_api` no Catalyst e rode:
 
 ```bash
-catalyst deploy
 ./scripts/check-catalyst-routes.sh
 ```
 
