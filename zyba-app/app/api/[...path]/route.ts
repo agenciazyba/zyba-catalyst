@@ -26,6 +26,7 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[
     method: req.method,
     headers,
     body,
+    cache: "no-store",
     redirect: "manual",
   });
 
@@ -33,6 +34,7 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[
   outHeaders.delete("content-encoding");
   outHeaders.delete("transfer-encoding");
   outHeaders.delete("connection");
+  outHeaders.set("cache-control", "no-store, max-age=0");
 
   return new Response(response.body, {
     status: response.status,
